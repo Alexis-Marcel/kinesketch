@@ -42,12 +42,12 @@ export async function loadKineSketch(file: File) {
 
   const nodes = new Map<string, DiagramNode>();
   for (const node of data.nodes) {
-    nodes.set(node.id, { labelOffsetX: 20, labelOffsetY: -20, ...node });
+    nodes.set(node.id, { ...node, labelOffsetX: node.labelOffsetX ?? 20, labelOffsetY: node.labelOffsetY ?? -20 });
   }
 
   const links = new Map<string, Link>();
   for (const link of data.links) {
-    links.set(link.id, { labelOffsetX: 8, labelOffsetY: -18, ...link, solideId: link.solideId || 's0' });
+    links.set(link.id, { ...link, solideId: link.solideId || 's0', labelOffsetX: link.labelOffsetX ?? 8, labelOffsetY: link.labelOffsetY ?? -18 });
   }
 
   const solides = new Map<string, Solide>();
@@ -101,12 +101,12 @@ export function loadAutoSave(): boolean {
 
     const nodes = new Map<string, DiagramNode>();
     for (const node of data.nodes) {
-      nodes.set(node.id, { labelOffsetX: 20, labelOffsetY: -20, ...node });
+      nodes.set(node.id, { ...node, labelOffsetX: node.labelOffsetX ?? 20, labelOffsetY: node.labelOffsetY ?? -20 });
     }
 
     const links = new Map<string, Link>();
     for (const link of data.links) {
-      links.set(link.id, { labelOffsetX: 8, labelOffsetY: -18, ...link, solideId: link.solideId || 's0' });
+      links.set(link.id, { ...link, solideId: link.solideId || 's0', labelOffsetX: link.labelOffsetX ?? 8, labelOffsetY: link.labelOffsetY ?? -18 });
     }
 
     const solides = new Map<string, Solide>();

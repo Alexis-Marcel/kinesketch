@@ -31,9 +31,6 @@ export function LiaisonTable() {
             const def = LIAISON_DEFS[fromNode.type];
             const solide = solides.get(link.solideId);
 
-            // Determine which solides are connected
-            const fromLabel = fromNode.label || fromNode.id;
-            const toLabel = toNode.label || toNode.id;
             const solideName = solide?.name || '?';
 
             return (
