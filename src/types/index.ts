@@ -18,6 +18,12 @@ export interface Solide {
   name: string;
   color: string;
   isBati: boolean;
+  // Local reference frame (optional)
+  showFrame?: boolean;
+  frameX?: number;
+  frameY?: number;
+  frameRotation?: number;
+  frameLabel?: string;
 }
 
 export interface DiagramNode {
@@ -41,10 +47,23 @@ export interface Link {
   labelOffsetY: number;
 }
 
+export interface AngleArc {
+  id: string;
+  fromSolideId: string;
+  toSolideId: string;
+  label: string;
+  radius: number;
+  x: number;
+  y: number;
+  labelOffsetX: number;
+  labelOffsetY: number;
+}
+
 export interface DiagramData {
   nodes: Map<string, DiagramNode>;
   links: Map<string, Link>;
   solides: Map<string, Solide>;
+  angleArcs: Map<string, AngleArc>;
 }
 
 export interface DiagramState extends DiagramData {
@@ -83,6 +102,19 @@ export interface DiagramState extends DiagramData {
   updateSolideColor: (id: string, color: string) => void;
   updateSolideName: (id: string, name: string) => void;
 
+  // Frame actions
+  toggleSolideFrame: (id: string) => void;
+  moveSolideFrame: (id: string, x: number, y: number) => void;
+  rotateSolideFrame: (id: string, rotation: number) => void;
+  updateSolideFrameLabel: (id: string, label: string) => void;
+
+  // Angle arc actions
+  addAngleArc: (fromSolideId: string, toSolideId: string, x: number, y: number) => void;
+  deleteAngleArc: (id: string) => void;
+  moveAngleArc: (id: string, x: number, y: number) => void;
+  updateAngleArcLabel: (id: string, label: string) => void;
+  updateAngleArcLabelOffset: (id: string, ox: number, oy: number) => void;
+
   // Selection
   select: (id: string) => void;
   selectMultiple: (ids: string[]) => void;
@@ -100,7 +132,7 @@ export interface DiagramState extends DiagramData {
 
   // Bulk
   pasteNodes: (sourceNodes: DiagramNode[], sourceLinks: Link[]) => void;
-  loadDiagram: (data: { nodes: Map<string, DiagramNode>; links: Map<string, Link>; solides: Map<string, Solide> }) => void;
+  loadDiagram: (data: { nodes: Map<string, DiagramNode>; links: Map<string, Link>; solides: Map<string, Solide>; angleArcs?: Map<string, AngleArc> }) => void;
   clearDiagram: () => void;
 }
 
@@ -110,6 +142,7 @@ export interface KineSketchFile {
   nodes: Array<DiagramNode>;
   links: Array<Link>;
   solides: Array<Solide>;
+  angleArcs?: Array<AngleArc>;
   canvas: {
     x: number;
     y: number;

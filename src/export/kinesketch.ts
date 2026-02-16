@@ -1,16 +1,17 @@
 import { useDiagramStore } from '../store/diagramStore';
-import type { DiagramNode, DiagramState, KineSketchFile, Link, Solide } from '../types';
+import type { AngleArc, DiagramNode, DiagramState, KineSketchFile, Link, Solide } from '../types';
 
-const CURRENT_VERSION = '1.1';
+const CURRENT_VERSION = '1.2';
 const AUTOSAVE_KEY = 'kinesketch-autosave';
 
-export function saveKineSketch(state: Pick<DiagramState, 'nodes' | 'links' | 'solides' | 'stageX' | 'stageY' | 'stageScale'>) {
+export function saveKineSketch(state: Pick<DiagramState, 'nodes' | 'links' | 'solides' | 'angleArcs' | 'stageX' | 'stageY' | 'stageScale'>) {
   const file: KineSketchFile = {
     version: CURRENT_VERSION,
     name: 'Schema cinématique',
     nodes: Array.from(state.nodes.values()),
     links: Array.from(state.links.values()),
     solides: Array.from(state.solides.values()),
+    angleArcs: Array.from(state.angleArcs.values()),
     canvas: {
       x: state.stageX,
       y: state.stageY,
@@ -57,8 +58,15 @@ export async function loadKineSketch(file: File) {
     }
   }
 
+  const angleArcs = new Map<string, AngleArc>();
+  if (data.angleArcs) {
+    for (const arc of data.angleArcs) {
+      angleArcs.set(arc.id, arc);
+    }
+  }
+
   const store = useDiagramStore.getState();
-  store.loadDiagram({ nodes, links, solides });
+  store.loadDiagram({ nodes, links, solides, angleArcs });
 
   if (data.canvas) {
     store.setStagePosition(data.canvas.x, data.canvas.y);
@@ -75,6 +83,7 @@ export function autoSave() {
     nodes: Array.from(state.nodes.values()),
     links: Array.from(state.links.values()),
     solides: Array.from(state.solides.values()),
+    angleArcs: Array.from(state.angleArcs.values()),
     canvas: {
       x: state.stageX,
       y: state.stageY,
@@ -116,8 +125,15 @@ export function loadAutoSave(): boolean {
       }
     }
 
+    const angleArcs = new Map<string, AngleArc>();
+    if (data.angleArcs) {
+      for (const arc of data.angleArcs) {
+        angleArcs.set(arc.id, arc);
+      }
+    }
+
     const store = useDiagramStore.getState();
-    store.loadDiagram({ nodes, links, solides });
+    store.loadDiagram({ nodes, links, solides, angleArcs });
 
     if (data.canvas) {
       store.setStagePosition(data.canvas.x, data.canvas.y);

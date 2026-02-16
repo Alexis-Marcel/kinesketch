@@ -4,6 +4,8 @@ import type Konva from 'konva';
 import { useDiagramStore } from '../store/diagramStore';
 import { ShapeRenderer } from './ShapeRenderer';
 import { LinkRenderer } from './LinkRenderer';
+import { LocalFrameRenderer } from './LocalFrameRenderer';
+import { AngleArcRenderer } from './AngleArcRenderer';
 import { AxisWidget } from './AxisWidget';
 import type { LiaisonType } from '../types';
 import { snap } from '../utils/snap';
@@ -38,6 +40,8 @@ export function Canvas() {
 
   const nodes = useDiagramStore((s) => s.nodes);
   const links = useDiagramStore((s) => s.links);
+  const solides = useDiagramStore((s) => s.solides);
+  const angleArcs = useDiagramStore((s) => s.angleArcs);
   const selectedIds = useDiagramStore((s) => s.selectedIds);
   const activeTool = useDiagramStore((s) => s.activeTool);
   const placingLiaison = useDiagramStore((s) => s.placingLiaison);
@@ -62,6 +66,11 @@ export function Canvas() {
   const updateNodeLabelOffset = useDiagramStore((s) => s.updateNodeLabelOffset);
   const updateLinkLabel = useDiagramStore((s) => s.updateLinkLabel);
   const updateLinkLabelOffset = useDiagramStore((s) => s.updateLinkLabelOffset);
+  const moveSolideFrame = useDiagramStore((s) => s.moveSolideFrame);
+  const updateSolideFrameLabel = useDiagramStore((s) => s.updateSolideFrameLabel);
+  const moveAngleArc = useDiagramStore((s) => s.moveAngleArc);
+  const updateAngleArcLabel = useDiagramStore((s) => s.updateAngleArcLabel);
+  const updateAngleArcLabelOffset = useDiagramStore((s) => s.updateAngleArcLabelOffset);
 
   // Detect nodes connected to bâti (S0)
   const batiNodeIds = useMemo(() => {
@@ -249,15 +258,48 @@ export function Canvas() {
     [links, nodes, stageScale, stageX, stageY]
   );
 
+  // Double-click to edit frame label
+  const handleFrameDblClick = useCallback(
+    (solideId: string) => {
+      const solide = solides.get(solideId);
+      if (!solide || !solide.showFrame) return;
+      const screenX = (solide.frameX ?? 0) * stageScale + stageX;
+      const screenY = (solide.frameY ?? 0) * stageScale + stageY;
+      setEditingId(`frame-${solideId}`);
+      setEditingValue(solide.frameLabel ?? '');
+      setEditingPos({ x: screenX + 20, y: screenY + 20 });
+    },
+    [solides, stageScale, stageX, stageY]
+  );
+
+  // Double-click to edit angle arc label
+  const handleArcDblClick = useCallback(
+    (arcId: string) => {
+      const arc = angleArcs.get(arcId);
+      if (!arc) return;
+      const screenX = arc.x * stageScale + stageX;
+      const screenY = arc.y * stageScale + stageY;
+      setEditingId(arcId);
+      setEditingValue(arc.label);
+      setEditingPos({ x: screenX + 20, y: screenY - 24 });
+    },
+    [angleArcs, stageScale, stageX, stageY]
+  );
+
   const commitEdit = useCallback(() => {
     if (!editingId) return;
-    if (nodes.has(editingId)) {
+    if (editingId.startsWith('frame-')) {
+      const solideId = editingId.replace('frame-', '');
+      updateSolideFrameLabel(solideId, editingValue);
+    } else if (nodes.has(editingId)) {
       updateNodeLabel(editingId, editingValue);
     } else if (links.has(editingId)) {
       updateLinkLabel(editingId, editingValue);
+    } else if (angleArcs.has(editingId)) {
+      updateAngleArcLabel(editingId, editingValue);
     }
     setEditingId(null);
-  }, [editingId, editingValue, nodes, links, updateNodeLabel, updateLinkLabel]);
+  }, [editingId, editingValue, nodes, links, angleArcs, updateNodeLabel, updateLinkLabel, updateSolideFrameLabel, updateAngleArcLabel]);
 
   // Drag move: update store in real-time (pause undo tracking) + snap + group drag
   const handleDragMove = useCallback(
@@ -615,6 +657,56 @@ export function Canvas() {
                 onSelect={() => select(link.id)}
                 onDblClick={() => handleLinkDblClick(link.id)}
                 onLabelDragEnd={(ox, oy) => updateLinkLabelOffset(link.id, ox, oy)}
+              />
+            );
+          })}
+
+          {/* Local reference frames (rendered between links and nodes) */}
+          {Array.from(solides.values()).map((solide) => {
+            if (!solide.showFrame) return null;
+            const frameId = `frame-${solide.id}`;
+            return (
+              <LocalFrameRenderer
+                key={frameId}
+                solide={solide}
+                selected={selectedIds.has(frameId)}
+                onSelect={() => select(frameId)}
+                onDragMove={(x, y) => {
+                  useDiagramStore.temporal.getState().pause();
+                  moveSolideFrame(solide.id, x, y);
+                }}
+                onDragEnd={(x, y) => {
+                  useDiagramStore.temporal.getState().resume();
+                  moveSolideFrame(solide.id, x, y);
+                }}
+                onDblClick={() => handleFrameDblClick(solide.id)}
+              />
+            );
+          })}
+
+          {/* Angle arcs */}
+          {Array.from(angleArcs.values()).map((arc) => {
+            const fromSolide = solides.get(arc.fromSolideId);
+            const toSolide = solides.get(arc.toSolideId);
+            if (!fromSolide || !toSolide) return null;
+            return (
+              <AngleArcRenderer
+                key={arc.id}
+                arc={arc}
+                fromSolide={fromSolide}
+                toSolide={toSolide}
+                selected={selectedIds.has(arc.id)}
+                onSelect={() => select(arc.id)}
+                onDragMove={(x, y) => {
+                  useDiagramStore.temporal.getState().pause();
+                  moveAngleArc(arc.id, x, y);
+                }}
+                onDragEnd={(x, y) => {
+                  useDiagramStore.temporal.getState().resume();
+                  moveAngleArc(arc.id, x, y);
+                }}
+                onDblClick={() => handleArcDblClick(arc.id)}
+                onLabelDragEnd={(ox, oy) => updateAngleArcLabelOffset(arc.id, ox, oy)}
               />
             );
           })}

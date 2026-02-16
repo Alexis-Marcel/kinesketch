@@ -7,39 +7,51 @@ export function LiaisonGraph() {
   const links = useDiagramStore((s) => s.links);
   const solides = useDiagramStore((s) => s.solides);
 
-  // Build adjacency: which solides are connected by which liaison type
+  // Build adjacency: for each node (liaison), find which solides connect through it
   const graph = useMemo(() => {
+    // Collect solides per node
+    const nodeSolides = new Map<string, Set<string>>();
+    for (const link of links.values()) {
+      if (!nodeSolides.has(link.fromNodeId)) nodeSolides.set(link.fromNodeId, new Set());
+      if (!nodeSolides.has(link.toNodeId)) nodeSolides.set(link.toNodeId, new Set());
+      nodeSolides.get(link.fromNodeId)!.add(link.solideId);
+      nodeSolides.get(link.toNodeId)!.add(link.solideId);
+    }
+
+    // For each node connecting 2+ solides, create edges between all solide pairs
     const connections: Array<{
-      solide1: string;
-      solide2: string;
-      liaisonType: string;
+      solide1Name: string;
+      solide2Name: string;
       liaisonName: string;
-      linkLabel: string;
+      nodeLabel: string;
     }> = [];
 
-    // For each link, find which solide owns that link and what nodes it connects
-    // This is a simplification — we show the link's solide + connected nodes
-    for (const link of links.values()) {
-      const fromNode = nodes.get(link.fromNodeId);
-      const toNode = nodes.get(link.toNodeId);
-      if (!fromNode || !toNode) continue;
+    for (const [nodeId, solideSet] of nodeSolides) {
+      if (solideSet.size < 2) continue;
+      const node = nodes.get(nodeId);
+      if (!node) continue;
 
-      const def = LIAISON_DEFS[fromNode.type];
-      const solideName = solides.get(link.solideId)?.name || link.solideId;
+      const def = LIAISON_DEFS[node.type];
+      const solideIds = Array.from(solideSet);
 
-      connections.push({
-        solide1: solideName,
-        solide2: toNode.label || toNode.id,
-        liaisonType: fromNode.type,
-        liaisonName: def?.name || fromNode.type,
-        linkLabel: link.label || link.id,
-      });
+      for (let i = 0; i < solideIds.length; i++) {
+        for (let j = i + 1; j < solideIds.length; j++) {
+          const s1 = solides.get(solideIds[i]);
+          const s2 = solides.get(solideIds[j]);
+          connections.push({
+            solide1Name: s1?.name || solideIds[i],
+            solide2Name: s2?.name || solideIds[j],
+            liaisonName: def?.name || node.type,
+            nodeLabel: node.label || node.id,
+          });
+        }
+      }
     }
 
     return connections;
   }, [nodes, links, solides]);
 
-  // Build unique solide names from graph for circular layout
+  // Build unique solide names for circular layout
   const solideNames = useMemo(() => {
     const names = new Set<string>();
     for (const s of solides.values()) {
@@ -70,8 +82,8 @@ export function LiaisonGraph() {
       <svg viewBox="0 0 200 160" className="liaison-graph-svg">
         {/* Edges */}
         {graph.map((conn, i) => {
-          const p1 = positions.get(conn.solide1);
-          const p2 = positions.get(conn.solide2);
+          const p1 = positions.get(conn.solide1Name);
+          const p2 = positions.get(conn.solide2Name);
           if (!p1 || !p2) return null;
           const midX = (p1.x + p2.x) / 2;
           const midY = (p1.y + p2.y) / 2;
@@ -89,7 +101,7 @@ export function LiaisonGraph() {
                 fontSize={7}
                 fill="#6b7280"
               >
-                {conn.liaisonName}
+                {conn.nodeLabel ? `${conn.liaisonName} (${conn.nodeLabel})` : conn.liaisonName}
               </text>
             </g>
           );
