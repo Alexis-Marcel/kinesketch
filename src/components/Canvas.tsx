@@ -596,7 +596,7 @@ export function Canvas() {
         onMouseDown={handleStageMouseDown}
         onMouseUp={handleStageMouseUp}
       >
-        <Layer listening={false}>
+        <Layer listening={false} name="grid-layer">
           {gridLines}
         </Layer>
         <Layer>
@@ -750,7 +750,7 @@ export function Canvas() {
             );
           })()}
         </Layer>
-        <Layer listening={false}>
+        <Layer listening={false} name="axis-layer">
           <AxisWidget
             x={(60 - stageX) / stageScale}
             y={(size.height - 60 - stageY) / stageScale}

@@ -1,6 +1,7 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useDiagramStore } from '../store/diagramStore';
 import { exportPNG } from '../export/png';
+import type { PNGExportOptions } from '../export/png';
 import { exportSVG } from '../export/svg';
 import { exportLaTeX } from '../export/latex';
 import { saveKineSketch, loadKineSketch } from '../export/kinesketch';
@@ -11,6 +12,11 @@ interface TopBarProps {
 
 export function TopBar({ onZoomFit }: TopBarProps) {
   const clearDiagram = useDiagramStore((s) => s.clearDiagram);
+  const [pngDialogOpen, setPngDialogOpen] = useState(false);
+  const [pngOptions, setPngOptions] = useState<PNGExportOptions>({
+    includeGrid: false,
+    includeAxes: false,
+  });
 
   const handleNew = useCallback(() => {
     if (useDiagramStore.getState().nodes.size === 0 || window.confirm('Créer un nouveau schéma ? Les modifications non sauvegardées seront perdues.')) {
@@ -35,10 +41,6 @@ export function TopBar({ onZoomFit }: TopBarProps) {
     input.click();
   }, []);
 
-  const handleExportPNG = useCallback(() => {
-    exportPNG();
-  }, []);
-
   const handleExportSVG = useCallback(() => {
     const state = useDiagramStore.getState();
     exportSVG(state);
@@ -48,6 +50,11 @@ export function TopBar({ onZoomFit }: TopBarProps) {
     const state = useDiagramStore.getState();
     exportLaTeX(state);
   }, []);
+
+  const handlePngExport = useCallback(() => {
+    exportPNG(pngOptions);
+    setPngDialogOpen(false);
+  }, [pngOptions]);
 
   return (
     <div className="topbar">
@@ -63,7 +70,7 @@ export function TopBar({ onZoomFit }: TopBarProps) {
           Sauvegarder
         </button>
         <div className="topbar-separator" />
-        <button className="topbar-btn" onClick={handleExportPNG} title="Exporter en PNG">
+        <button className="topbar-btn" onClick={() => setPngDialogOpen(true)} title="Exporter en PNG">
           PNG
         </button>
         <button className="topbar-btn" onClick={handleExportSVG} title="Exporter en SVG">
@@ -77,6 +84,39 @@ export function TopBar({ onZoomFit }: TopBarProps) {
           Cadrer
         </button>
       </div>
+
+      {/* PNG export dialog */}
+      {pngDialogOpen && (
+        <div className="export-overlay" onClick={() => setPngDialogOpen(false)}>
+          <div className="export-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="export-dialog-title">Export PNG</div>
+            <label className="export-checkbox">
+              <input
+                type="checkbox"
+                checked={pngOptions.includeGrid}
+                onChange={(e) => setPngOptions({ ...pngOptions, includeGrid: e.target.checked })}
+              />
+              Grille
+            </label>
+            <label className="export-checkbox">
+              <input
+                type="checkbox"
+                checked={pngOptions.includeAxes}
+                onChange={(e) => setPngOptions({ ...pngOptions, includeAxes: e.target.checked })}
+              />
+              Axes X / Y
+            </label>
+            <div className="export-dialog-actions">
+              <button className="topbar-btn" onClick={() => setPngDialogOpen(false)}>
+                Annuler
+              </button>
+              <button className="topbar-btn export-btn-primary" onClick={handlePngExport}>
+                Exporter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
