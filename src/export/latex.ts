@@ -140,8 +140,7 @@ function nodeToTikZ(node: DiagramNode, isBati: boolean): string {
   return lines.join('\n');
 }
 
-function linkToTikZ(link: Link, from: DiagramNode, to: DiagramNode, solides: Map<string, Solide>): string {
-  const solide = solides.get(link.solideId);
+function linkToTikZ(link: Link, from: DiagramNode, to: DiagramNode, _solides: Map<string, Solide>): string {
   const colorName = `solide${link.solideId.replace('s', '')}`;
   const lines: string[] = [];
 
@@ -150,7 +149,6 @@ function linkToTikZ(link: Link, from: DiagramNode, to: DiagramNode, solides: Map
   if (link.label) {
     const midX = (from.x + to.x) / 2;
     const midY = (from.y + to.y) / 2;
-    const color = solide?.color || '#4b5563';
     lines.push(`  \\node[${colorName}, font=\\small, above] at ${coord(midX, midY)} {${escapeTex(link.label)}};`);
   }
 
