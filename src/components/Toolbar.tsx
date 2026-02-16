@@ -36,6 +36,7 @@ export function Toolbar({ onCollapse }: ToolbarProps) {
   const addSolide = useDiagramStore((s) => s.addSolide);
   const setActiveSolide = useDiagramStore((s) => s.setActiveSolide);
   const deleteSolide = useDiagramStore((s) => s.deleteSolide);
+  const toggleSolideFrame = useDiagramStore((s) => s.toggleSolideFrame);
 
   const solideList = Array.from(solides.values());
 
@@ -97,6 +98,22 @@ export function Toolbar({ onCollapse }: ToolbarProps) {
               {solide.name}
               {solide.isBati ? ' (bâti)' : ''}
             </span>
+            <button
+              className={`solide-frame-toggle ${solide.showFrame ? 'active' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleSolideFrame(solide.id);
+              }}
+              title={solide.showFrame ? 'Masquer le repère' : 'Afficher le repère'}
+              style={solide.showFrame ? { color: solide.color } : undefined}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <line x1="2" y1="12" x2="2" y2="2" />
+                <line x1="2" y1="12" x2="12" y2="12" />
+                <polyline points="2,4 0.5,5.5" />
+                <polyline points="10,12 8.5,13.5" />
+              </svg>
+            </button>
             {!solide.isBati && (
               <button
                 className="solide-delete"

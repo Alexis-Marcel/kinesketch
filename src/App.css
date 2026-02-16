@@ -266,6 +266,27 @@ body {
   flex: 1;
 }
 
+.solide-frame-toggle {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 2px;
+  line-height: 1;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+}
+
+.solide-frame-toggle:hover {
+  color: #6b7280;
+  background: #f3f4f6;
+}
+
+.solide-frame-toggle.active {
+  background: #eff6ff;
+}
+
 .solide-delete {
   background: none;
   border: none;
@@ -663,4 +684,48 @@ body {
   min-width: 60px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   z-index: 100;
+}
+
+/* Properties panel buttons */
+.prop-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #374151;
+  font-size: 12px;
+  cursor: pointer;
+  width: 100%;
+  justify-content: center;
+}
+
+.prop-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.prop-btn-small {
+  padding: 4px 8px;
+  justify-content: flex-start;
+  margin-top: 4px;
+}
+
+.prop-btn-cancel {
+  color: #9ca3af;
+  border-style: dashed;
+  margin-top: 4px;
+}
+
+.prop-arc-targets {
+  display: flex;
+  flex-direction: column;
+}
+
+.prop-hint {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-bottom: 4px;
 }

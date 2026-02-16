@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { temporal } from 'zundo';
-import type { DiagramNode, DiagramState, LiaisonType, Link, Solide, ToolType } from '../types';
+import type { AngleArc, DiagramNode, DiagramState, LiaisonType, Link, Solide, ToolType } from '../types';
 
 export const SOLIDE_COLORS = [
   '#6b7280', // S0 bâti — gris
@@ -32,6 +32,7 @@ export const useDiagramStore = create<DiagramState>()(
       nodes: new Map<string, DiagramNode>(),
       links: new Map<string, Link>(),
       solides: new Map<string, Solide>([['s0', createBati()]]),
+      angleArcs: new Map<string, AngleArc>(),
       selectedIds: new Set<string>(),
       activeTool: 'select' as ToolType,
       placingLiaison: null,
@@ -125,8 +126,6 @@ export const useDiagramStore = create<DiagramState>()(
         const solideId = state.activeSolideId || 's0';
         const id = generateId('l');
 
-        // Auto-generate label from connected solide indices
-        // Find which solides the from/to nodes belong to via existing links
         const fromSolides = new Set<string>();
         const toSolides = new Set<string>();
         for (const l of state.links.values()) {
@@ -137,10 +136,8 @@ export const useDiagramStore = create<DiagramState>()(
             toSolides.add(l.solideId);
           }
         }
-        // Use the active solide + connected solides for label
         const solideNum = solideId.replace('s', '');
         let label = '';
-        // Find the "other" solide that the target node connects to
         const otherSolides = new Set([...fromSolides, ...toSolides]);
         otherSolides.delete(solideId);
         if (otherSolides.size > 0) {
@@ -220,15 +217,23 @@ export const useDiagramStore = create<DiagramState>()(
         set((state) => {
           const solides = new Map(state.solides);
           const links = new Map(state.links);
+          const angleArcs = new Map(state.angleArcs);
           solides.delete(id);
           for (const [linkId, link] of links) {
             if (link.solideId === id) {
               links.set(linkId, { ...link, solideId: 's0' });
             }
           }
+          // Cascade delete angle arcs referencing this solide
+          for (const [arcId, arc] of angleArcs) {
+            if (arc.fromSolideId === id || arc.toSolideId === id) {
+              angleArcs.delete(arcId);
+            }
+          }
           return {
             solides,
             links,
+            angleArcs,
             activeSolideId: state.activeSolideId === id ? 's0' : state.activeSolideId,
           };
         });
@@ -258,6 +263,137 @@ export const useDiagramStore = create<DiagramState>()(
         });
       },
 
+      // Frame actions
+      toggleSolideFrame: (id: string) => {
+        set((state) => {
+          const solides = new Map(state.solides);
+          const solide = solides.get(id);
+          if (!solide) return state;
+          const showFrame = !solide.showFrame;
+
+          // Compute initial position at centroid of connected nodes
+          let frameX = solide.frameX ?? 0;
+          let frameY = solide.frameY ?? 0;
+          if (showFrame && solide.frameX === undefined) {
+            const connectedNodes: DiagramNode[] = [];
+            for (const link of state.links.values()) {
+              if (link.solideId === id) {
+                const from = state.nodes.get(link.fromNodeId);
+                const to = state.nodes.get(link.toNodeId);
+                if (from) connectedNodes.push(from);
+                if (to) connectedNodes.push(to);
+              }
+            }
+            if (connectedNodes.length > 0) {
+              frameX = connectedNodes.reduce((s, n) => s + n.x, 0) / connectedNodes.length;
+              frameY = connectedNodes.reduce((s, n) => s + n.y, 0) / connectedNodes.length;
+            }
+          }
+
+          solides.set(id, {
+            ...solide,
+            showFrame,
+            frameX,
+            frameY,
+            frameRotation: solide.frameRotation ?? 0,
+            frameLabel: solide.frameLabel ?? `R${id.replace('s', '')}`,
+          });
+          return { solides };
+        });
+      },
+
+      moveSolideFrame: (id: string, x: number, y: number) => {
+        set((state) => {
+          const solides = new Map(state.solides);
+          const solide = solides.get(id);
+          if (!solide) return state;
+          solides.set(id, { ...solide, frameX: x, frameY: y });
+          return { solides };
+        });
+      },
+
+      rotateSolideFrame: (id: string, rotation: number) => {
+        set((state) => {
+          const solides = new Map(state.solides);
+          const solide = solides.get(id);
+          if (!solide) return state;
+          solides.set(id, { ...solide, frameRotation: rotation });
+          return { solides };
+        });
+      },
+
+      updateSolideFrameLabel: (id: string, label: string) => {
+        set((state) => {
+          const solides = new Map(state.solides);
+          const solide = solides.get(id);
+          if (!solide) return state;
+          solides.set(id, { ...solide, frameLabel: label });
+          return { solides };
+        });
+      },
+
+      // Angle arc actions
+      addAngleArc: (fromSolideId: string, toSolideId: string, x: number, y: number) => {
+        const id = generateId('a');
+        const toNum = toSolideId.replace('s', '');
+        const arc: AngleArc = {
+          id,
+          fromSolideId,
+          toSolideId,
+          label: `θ${toNum}`,
+          radius: 30,
+          x,
+          y,
+          labelOffsetX: 0,
+          labelOffsetY: -10,
+        };
+        set((state) => {
+          const angleArcs = new Map(state.angleArcs);
+          angleArcs.set(id, arc);
+          return { angleArcs };
+        });
+      },
+
+      deleteAngleArc: (id: string) => {
+        set((state) => {
+          const angleArcs = new Map(state.angleArcs);
+          angleArcs.delete(id);
+          const selectedIds = new Set(state.selectedIds);
+          selectedIds.delete(id);
+          return { angleArcs, selectedIds };
+        });
+      },
+
+      moveAngleArc: (id: string, x: number, y: number) => {
+        set((state) => {
+          const angleArcs = new Map(state.angleArcs);
+          const arc = angleArcs.get(id);
+          if (!arc) return state;
+          angleArcs.set(id, { ...arc, x, y });
+          return { angleArcs };
+        });
+      },
+
+      updateAngleArcLabel: (id: string, label: string) => {
+        set((state) => {
+          const angleArcs = new Map(state.angleArcs);
+          const arc = angleArcs.get(id);
+          if (!arc) return state;
+          angleArcs.set(id, { ...arc, label });
+          return { angleArcs };
+        });
+      },
+
+      updateAngleArcLabelOffset: (id: string, ox: number, oy: number) => {
+        set((state) => {
+          const angleArcs = new Map(state.angleArcs);
+          const arc = angleArcs.get(id);
+          if (!arc) return state;
+          angleArcs.set(id, { ...arc, labelOffsetX: ox, labelOffsetY: oy });
+          return { angleArcs };
+        });
+      },
+
       select: (id: string) => {
         set({ selectedIds: new Set([id]) });
       },
@@ -274,7 +410,10 @@ export const useDiagramStore = create<DiagramState>()(
         const state = get();
         const nodes = new Map(state.nodes);
         const links = new Map(state.links);
+        const angleArcs = new Map(state.angleArcs);
         for (const id of state.selectedIds) {
+          // Skip frame synthetic IDs (frame-s0, etc.) — hide via toggle instead
+          if (id.startsWith('frame-')) continue;
           if (nodes.has(id)) {
             nodes.delete(id);
             for (const [linkId, link] of links) {
@@ -286,8 +425,11 @@ export const useDiagramStore = create<DiagramState>()(
           if (links.has(id)) {
             links.delete(id);
           }
+          if (angleArcs.has(id)) {
+            angleArcs.delete(id);
+          }
         }
-        set({ nodes, links, selectedIds: new Set() });
+        set({ nodes, links, angleArcs, selectedIds: new Set() });
       },
 
       setTool: (tool: ToolType) => {
@@ -352,6 +494,7 @@ export const useDiagramStore = create<DiagramState>()(
           nodes: new Map(data.nodes),
           links: new Map(data.links),
           solides: data.solides.size > 0 ? new Map(data.solides) : new Map([['s0', createBati()]]),
+          angleArcs: data.angleArcs ? new Map(data.angleArcs) : new Map(),
           selectedIds: new Set(),
           activeTool: 'select',
           placingLiaison: null,
@@ -367,6 +510,12 @@ export const useDiagramStore = create<DiagramState>()(
           const num = parseInt(id.slice(1), 10);
           if (num > maxId) maxId = num;
         }
+        if (data.angleArcs) {
+          for (const id of data.angleArcs.keys()) {
+            const num = parseInt(id.slice(1), 10);
+            if (num > maxId) maxId = num;
+          }
+        }
         nextId = maxId + 1;
         let maxSolide = 0;
         for (const id of data.solides.keys()) {
@@ -381,6 +530,7 @@ export const useDiagramStore = create<DiagramState>()(
           nodes: new Map(),
           links: new Map(),
           solides: new Map([['s0', createBati()]]),
+          angleArcs: new Map(),
           selectedIds: new Set(),
           activeTool: 'select',
           placingLiaison: null,
@@ -396,6 +546,7 @@ export const useDiagramStore = create<DiagramState>()(
         nodes: state.nodes,
         links: state.links,
         solides: state.solides,
+        angleArcs: state.angleArcs,
       }),
     }
   )
