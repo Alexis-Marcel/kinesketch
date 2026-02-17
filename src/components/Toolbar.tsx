@@ -1,6 +1,7 @@
+import type { ReactNode } from 'react';
 import { useDiagramStore, SOLIDE_COLORS } from '../store/diagramStore';
 import { LIAISON_LIST } from '../liaisons';
-import type { LiaisonType } from '../types';
+import type { LiaisonType, LiaisonView } from '../types';
 
 const TOOL_ICONS: Record<string, string> = {
   move: '⇔',
@@ -8,18 +9,103 @@ const TOOL_ICONS: Record<string, string> = {
   link: '⟶',
 };
 
-const LIAISON_ICONS: Record<LiaisonType, string> = {
-  pivot: '◎',
-  glissiere: '▭',
-  pivot_glissant: '⊡',
-  rotule: '⊕',
-  encastrement: '⊞',
-  helicoidale: '⊘',
-  rotule_doigt: '⊖',
-  appui_plan: '▬',
-  lineaire_annulaire: '⊙',
-  lineaire_rectiligne: '▽',
-  ponctuelle: '·',
+const li = (children: ReactNode) => (
+  <svg width="18" height="18" viewBox="-1 -1 22 22" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    {children}
+  </svg>
+);
+
+const LIAISON_ICONS: Record<LiaisonType, Record<number, ReactNode>> = {
+  pivot: {
+    1: li(<>
+      <rect x="3" y="6" width="14" height="8" />
+      <line x1="1" y1="10" x2="19" y2="10" />
+      <line x1="1" y1="7" x2="1" y2="13" />
+      <line x1="19" y1="7" x2="19" y2="13" />
+    </>),
+    2: li(<circle cx="10" cy="10" r="7" />),
+  },
+  glissiere: {
+    1: li(<rect x="3" y="6" width="14" height="8" />),
+    2: li(<>
+      <rect x="5" y="5" width="10" height="10" />
+      <line x1="5" y1="5" x2="15" y2="15" />
+      <line x1="15" y1="5" x2="5" y2="15" />
+    </>),
+  },
+  pivot_glissant: {
+    1: li(<>
+      <rect x="3" y="6" width="14" height="8" />
+      <line x1="3" y1="10" x2="17" y2="10" />
+    </>),
+    2: li(<>
+      <circle cx="10" cy="10" r="7" />
+      <circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none" />
+    </>),
+  },
+  rotule: {
+    1: li(<>
+      <circle cx="10" cy="10" r="4.5" />
+      <path d="M 15,15 A 7,7 0 1,1 15,5" />
+    </>),
+  },
+  encastrement: {
+    1: li(<line x1="3" y1="10" x2="17" y2="10" />),
+  },
+  helicoidale: {
+    1: li(<>
+      <rect x="3" y="6" width="14" height="8" />
+      <line x1="3" y1="6" x2="17" y2="14" />
+    </>),
+    2: li(<>
+      <circle cx="10" cy="10" r="7" />
+      <path d="M 10,6.5 A 3.5,3.5 0 0,1 10,13.5" />
+    </>),
+  },
+  rotule_doigt: {
+    1: li(<>
+      <circle cx="10" cy="10" r="4.5" />
+      <path d="M 15,15 A 7,7 0 1,1 15,5" />
+      <line x1="6.8" y1="13.2" x2="3.5" y2="16.5" />
+    </>),
+  },
+  appui_plan: {
+    1: li(<>
+      <line x1="4" y1="8" x2="16" y2="8" />
+      <line x1="4" y1="12" x2="16" y2="12" />
+    </>),
+  },
+  lineaire_annulaire: {
+    1: li(<>
+      <rect x="3" y="9" width="14" height="8" />
+      <circle cx="10" cy="9" r="5" fill="white" />
+    </>),
+    2: li(<>
+      <circle cx="10" cy="6" r="5" />
+      <path d="M 17,6 A 7,7 0 0,1 3,6" />
+      <line x1="3" y1="13" x2="17" y2="13" />
+    </>),
+  },
+  lineaire_rectiligne: {
+    1: li(<>
+      <line x1="2" y1="4" x2="18" y2="4" />
+      <line x1="2" y1="4" x2="7" y2="16" />
+      <line x1="18" y1="4" x2="13" y2="16" />
+      <line x1="2" y1="16" x2="18" y2="16" />
+    </>),
+    2: li(<>
+      <line x1="2" y1="4" x2="18" y2="4" />
+      <line x1="2" y1="4" x2="10" y2="16" />
+      <line x1="18" y1="4" x2="10" y2="16" />
+      <line x1="2" y1="16" x2="18" y2="16" />
+    </>),
+  },
+  ponctuelle: {
+    1: li(<>
+      <circle cx="10" cy="7" r="5" />
+      <line x1="3" y1="14" x2="17" y2="14" />
+    </>),
+  },
 };
 
 interface ToolbarProps {
@@ -147,22 +233,35 @@ export function Toolbar({ onCollapse }: ToolbarProps) {
 
       <div className="toolbar-section">
         <div className="toolbar-title">Liaisons</div>
-        {LIAISON_LIST.map((def) => (
-          <button
-            key={def.type}
-            className={`toolbar-btn ${placingLiaison === def.type ? 'active' : ''}`}
-            onClick={() => setPlacingLiaison(placingLiaison === def.type ? null : def.type)}
-            title={`${def.name} — ${def.description}`}
-            draggable
-            onDragStart={(e) => {
-              e.dataTransfer.setData('application/kinesketch-liaison', def.type);
-              e.dataTransfer.effectAllowed = 'copy';
-            }}
-          >
-            <span className="toolbar-btn-icon">{LIAISON_ICONS[def.type]}</span>
-            <span className="toolbar-btn-label">{def.name}</span>
-          </button>
-        ))}
+        {LIAISON_LIST.map((def) => {
+          const views = ([1, 2] as LiaisonView[]).slice(0, def.viewCount);
+          const buttons = views.map((v) => {
+            const isActive = placingLiaison?.type === def.type && placingLiaison?.view === v;
+            const label = def.viewCount === 1 ? def.name : `${def.name} vue ${v}`;
+            return (
+              <button
+                key={`${def.type}:${v}`}
+                className={`toolbar-btn ${isActive ? 'active' : ''}`}
+                onClick={() => setPlacingLiaison(isActive ? null : { type: def.type, view: v })}
+                title={`${label} — ${def.description}`}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('application/kinesketch-liaison', JSON.stringify({ type: def.type, view: v }));
+                  e.dataTransfer.effectAllowed = 'copy';
+                }}
+              >
+                <span className="toolbar-btn-icon">{LIAISON_ICONS[def.type][v]}</span>
+                <span className="toolbar-btn-label">{label}</span>
+              </button>
+            );
+          });
+          return (
+            <div key={def.type} className="toolbar-liaison-category">
+              <div className="toolbar-liaison-name">{def.name}</div>
+              {buttons}
+            </div>
+          );
+        })}
       </div>
 
       <div className="toolbar-section toolbar-help">

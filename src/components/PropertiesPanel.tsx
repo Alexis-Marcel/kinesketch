@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useDiagramStore } from '../store/diagramStore';
 import { LIAISON_DEFS } from '../liaisons';
+import type { LiaisonView } from '../types';
 
 export function PropertiesPanel() {
   const selectedIds = useDiagramStore((s) => s.selectedIds);
@@ -9,6 +10,7 @@ export function PropertiesPanel() {
   const solides = useDiagramStore((s) => s.solides);
   const angleArcs = useDiagramStore((s) => s.angleArcs);
   const updateNodeLabel = useDiagramStore((s) => s.updateNodeLabel);
+  const updateNodeView = useDiagramStore((s) => s.updateNodeView);
   const updateLinkLabel = useDiagramStore((s) => s.updateLinkLabel);
   const rotateNode = useDiagramStore((s) => s.rotateNode);
   const updateLinkSolide = useDiagramStore((s) => s.updateLinkSolide);
@@ -147,6 +149,20 @@ export function PropertiesPanel() {
           <label className="prop-label">DDL</label>
           <div className="prop-value">{def.dof}</div>
         </div>
+
+        {def.viewCount === 2 && (
+          <div className="prop-group">
+            <label className="prop-label">Vue</label>
+            <select
+              className="prop-select"
+              value={node.view ?? 1}
+              onChange={(e) => updateNodeView(node.id, Number(e.target.value) as LiaisonView)}
+            >
+              <option value={1}>Vue 1 (plan)</option>
+              <option value={2}>Vue 2 (coupe)</option>
+            </select>
+          </div>
+        )}
 
         <div className="prop-group">
           <label className="prop-label">Label</label>

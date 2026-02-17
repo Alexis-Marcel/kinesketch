@@ -1,7 +1,7 @@
 import { useDiagramStore } from '../store/diagramStore';
 import type { AngleArc, DiagramNode, DiagramState, KineSketchFile, Link, Solide } from '../types';
 
-const CURRENT_VERSION = '1.2';
+const CURRENT_VERSION = '1.3';
 const AUTOSAVE_KEY = 'kinesketch-autosave';
 
 export function saveKineSketch(state: Pick<DiagramState, 'nodes' | 'links' | 'solides' | 'angleArcs' | 'stageX' | 'stageY' | 'stageScale'>) {
@@ -43,7 +43,7 @@ export async function loadKineSketch(file: File) {
 
   const nodes = new Map<string, DiagramNode>();
   for (const node of data.nodes) {
-    nodes.set(node.id, { ...node, labelOffsetX: node.labelOffsetX ?? 20, labelOffsetY: node.labelOffsetY ?? -20 });
+    nodes.set(node.id, { ...node, view: node.view ?? 1, labelOffsetX: node.labelOffsetX ?? 20, labelOffsetY: node.labelOffsetY ?? -20 });
   }
 
   const links = new Map<string, Link>();
@@ -110,7 +110,7 @@ export function loadAutoSave(): boolean {
 
     const nodes = new Map<string, DiagramNode>();
     for (const node of data.nodes) {
-      nodes.set(node.id, { ...node, labelOffsetX: node.labelOffsetX ?? 20, labelOffsetY: node.labelOffsetY ?? -20 });
+      nodes.set(node.id, { ...node, view: node.view ?? 1, labelOffsetX: node.labelOffsetX ?? 20, labelOffsetY: node.labelOffsetY ?? -20 });
     }
 
     const links = new Map<string, Link>();

@@ -4,17 +4,35 @@ function nodeToSVG(node: DiagramNode): string {
   const transform = `translate(${node.x}, ${node.y}) rotate(${node.rotation})`;
   const stroke = '#1a1a1a';
   const sw = 2;
+  const view = node.view ?? 1;
 
   switch (node.type) {
     case 'pivot':
-      return `<g transform="${transform}">
+      if (view === 2) {
+        return `<g transform="${transform}">
         <circle r="12" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
-        <line x1="-20" y1="0" x2="20" y2="0" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="0" y1="-20" x2="0" y2="20" stroke="${stroke}" stroke-width="${sw}"/>
         <circle r="2.5" fill="${stroke}"/>
+        ${labelSVG(node)}
+      </g>`;
+      }
+      return `<g transform="${transform}">
+        <rect x="-15" y="-10" width="30" height="20" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="-25" y1="0" x2="25" y2="0" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="-25" y1="-8" x2="-25" y2="8" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="25" y1="-8" x2="25" y2="8" stroke="${stroke}" stroke-width="${sw}"/>
         ${labelSVG(node)}
       </g>`;
 
     case 'glissiere':
+      if (view === 2) {
+        return `<g transform="${transform}">
+        <rect x="-15" y="-9" width="30" height="18" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="-15" y1="-9" x2="15" y2="9" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="15" y1="-9" x2="-15" y2="9" stroke="${stroke}" stroke-width="${sw}"/>
+        ${labelSVG(node)}
+      </g>`;
+      }
       return `<g transform="${transform}">
         <rect x="-15" y="-9" width="30" height="18" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
         <line x1="-29" y1="-13" x2="29" y2="-13" stroke="${stroke}" stroke-width="${sw}"/>
@@ -23,6 +41,15 @@ function nodeToSVG(node: DiagramNode): string {
       </g>`;
 
     case 'pivot_glissant':
+      if (view === 2) {
+        return `<g transform="${transform}">
+        <circle r="10" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="-7" y1="-7" x2="7" y2="7" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="7" y1="-7" x2="-7" y2="7" stroke="${stroke}" stroke-width="${sw}"/>
+        <circle r="2.5" fill="${stroke}"/>
+        ${labelSVG(node)}
+      </g>`;
+      }
       return `<g transform="${transform}">
         <rect x="-15" y="-12" width="30" height="24" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
         <line x1="-29" y1="-16" x2="29" y2="-16" stroke="${stroke}" stroke-width="${sw}"/>
@@ -33,6 +60,14 @@ function nodeToSVG(node: DiagramNode): string {
       </g>`;
 
     case 'rotule':
+      if (view === 2) {
+        return `<g transform="${transform}">
+        <circle r="14" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="-18" y1="14" x2="18" y2="14" stroke="${stroke}" stroke-width="${sw}"/>
+        <circle r="2.5" fill="${stroke}"/>
+        ${labelSVG(node)}
+      </g>`;
+      }
       return `<g transform="${transform}">
         <circle r="14" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
         <line x1="0" y1="-14" x2="0" y2="14" stroke="${stroke}" stroke-width="${sw}"/>
@@ -42,6 +77,20 @@ function nodeToSVG(node: DiagramNode): string {
       </g>`;
 
     case 'encastrement': {
+      if (view === 2) {
+        const hatches = [];
+        const count = Math.floor(36 / 6);
+        for (let i = 0; i <= count; i++) {
+          const yPos = -18 + i * 6;
+          hatches.push(`<line x1="-5" y1="${yPos}" x2="-13" y2="${yPos - 4}" stroke="${stroke}" stroke-width="1.5"/>`);
+        }
+        return `<g transform="${transform}">
+        <rect x="-5" y="-18" width="10" height="36" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
+        ${hatches.join('\n        ')}
+        <line x1="5" y1="0" x2="15" y2="0" stroke="${stroke}" stroke-width="${sw}"/>
+        ${labelSVG(node)}
+      </g>`;
+      }
       const w = 36, h = 10;
       const hatches = [];
       const count = Math.floor(w / 6);
@@ -58,6 +107,16 @@ function nodeToSVG(node: DiagramNode): string {
     }
 
     case 'helicoidale': {
+      if (view === 2) {
+        return `<g transform="${transform}">
+        <rect x="-15" y="-9" width="30" height="18" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="-15" y1="-9" x2="15" y2="9" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="15" y1="-9" x2="-15" y2="9" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="15" y1="-4" x2="21" y2="4" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="21" y1="4" x2="18" y2="6" stroke="${stroke}" stroke-width="${sw}"/>
+        ${labelSVG(node)}
+      </g>`;
+      }
       const r = 12;
       return `<g transform="${transform}">
         <circle r="${r}" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
@@ -70,6 +129,14 @@ function nodeToSVG(node: DiagramNode): string {
 
     case 'rotule_doigt': {
       const r = 14;
+      if (view === 2) {
+        return `<g transform="${transform}">
+        <circle r="${r}" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="${-r}" y1="0" x2="${r}" y2="0" stroke="${stroke}" stroke-width="${sw}"/>
+        <circle r="2.5" fill="${stroke}"/>
+        ${labelSVG(node)}
+      </g>`;
+      }
       return `<g transform="${transform}">
         <circle r="${r}" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
         <line x1="0" y1="${-r}" x2="0" y2="${r}" stroke="${stroke}" stroke-width="${sw}"/>
@@ -79,6 +146,19 @@ function nodeToSVG(node: DiagramNode): string {
     }
 
     case 'appui_plan': {
+      if (view === 2) {
+        const hatches = [];
+        for (let i = 0; i <= 7; i++) {
+          const yPos = -18 + i * (36 / 7);
+          hatches.push(`<line x1="0" y1="${yPos.toFixed(1)}" x2="-8" y2="${(yPos - 5).toFixed(1)}" stroke="${stroke}" stroke-width="1.5"/>`);
+        }
+        return `<g transform="${transform}">
+        <line x1="0" y1="-18" x2="0" y2="18" stroke="${stroke}" stroke-width="${sw}"/>
+        ${hatches.join('\n        ')}
+        <line x1="16" y1="0" x2="0" y2="0" stroke="${stroke}" stroke-width="${sw}"/>
+        ${labelSVG(node)}
+      </g>`;
+      }
       const w = 36;
       const hatches = [];
       for (let i = 0; i <= 7; i++) {
@@ -94,6 +174,14 @@ function nodeToSVG(node: DiagramNode): string {
     }
 
     case 'lineaire_annulaire': {
+      if (view === 2) {
+        return `<g transform="${transform}">
+        <line x1="-20" y1="-12" x2="20" y2="-12" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="-20" y1="12" x2="20" y2="12" stroke="${stroke}" stroke-width="${sw}"/>
+        <circle r="2.5" fill="${stroke}"/>
+        ${labelSVG(node)}
+      </g>`;
+      }
       const r = 12;
       return `<g transform="${transform}">
         <circle r="${r}" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
@@ -104,6 +192,19 @@ function nodeToSVG(node: DiagramNode): string {
     }
 
     case 'lineaire_rectiligne': {
+      if (view === 2) {
+        const hatches = [];
+        for (let i = 0; i < 7; i++) {
+          const xPos = -18 + i * 6;
+          hatches.push(`<line x1="${xPos}" y1="4" x2="${xPos - 4}" y2="12" stroke="${stroke}" stroke-width="1.5"/>`);
+        }
+        return `<g transform="${transform}">
+        <line x1="-18" y1="-4" x2="18" y2="-4" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="-18" y1="4" x2="18" y2="4" stroke="${stroke}" stroke-width="${sw}"/>
+        ${hatches.join('\n        ')}
+        ${labelSVG(node)}
+      </g>`;
+      }
       const hatches = [];
       for (let i = 0; i < 7; i++) {
         const xPos = -18 + i * 6;
@@ -123,6 +224,15 @@ function nodeToSVG(node: DiagramNode): string {
       for (let i = 0; i < 7; i++) {
         const xPos = -18 + i * 6;
         hatches.push(`<line x1="${xPos}" y1="0" x2="${xPos - 4}" y2="8" stroke="${stroke}" stroke-width="1.5"/>`);
+      }
+      if (view === 2) {
+        return `<g transform="${transform}">
+        <circle cy="-4" r="4" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="-18" y1="0" x2="18" y2="0" stroke="${stroke}" stroke-width="${sw}"/>
+        ${hatches.join('\n        ')}
+        <line x1="0" y1="-8" x2="0" y2="-16" stroke="${stroke}" stroke-width="${sw}"/>
+        ${labelSVG(node)}
+      </g>`;
       }
       return `<g transform="${transform}">
         <circle cy="-4" r="4" fill="white" stroke="${stroke}" stroke-width="${sw}"/>

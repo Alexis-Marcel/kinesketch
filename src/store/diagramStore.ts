@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { temporal } from 'zundo';
-import type { AngleArc, DiagramNode, DiagramState, LiaisonType, Link, Solide, ToolType } from '../types';
+import type { AngleArc, DiagramNode, DiagramState, LiaisonType, LiaisonView, Link, Solide, ToolType } from '../types';
 
 export const SOLIDE_COLORS = [
   '#6b7280', // S0 bâti — gris
@@ -42,9 +42,9 @@ export const useDiagramStore = create<DiagramState>()(
       stageY: 0,
       stageScale: 1,
 
-      addNode: (type: LiaisonType, x: number, y: number) => {
+      addNode: (type: LiaisonType, x: number, y: number, view: LiaisonView = 1) => {
         const id = generateId('n');
-        const node: DiagramNode = { id, type, x, y, rotation: 0, label: '', labelOffsetX: 20, labelOffsetY: -20 };
+        const node: DiagramNode = { id, type, view, x, y, rotation: 0, label: '', labelOffsetX: 20, labelOffsetY: -20 };
         set((state) => {
           const nodes = new Map(state.nodes);
           nodes.set(id, node);
@@ -111,6 +111,16 @@ export const useDiagramStore = create<DiagramState>()(
         });
       },
 
+      updateNodeView: (id: string, view: LiaisonView) => {
+        set((state) => {
+          const nodes = new Map(state.nodes);
+          const node = nodes.get(id);
+          if (!node) return state;
+          nodes.set(id, { ...node, view });
+          return { nodes };
+        });
+      },
+
       updateNodeLabelOffset: (id: string, ox: number, oy: number) => {
         set((state) => {
           const nodes = new Map(state.nodes);
@@ -121,7 +131,7 @@ export const useDiagramStore = create<DiagramState>()(
         });
       },
 
-      addLink: (fromNodeId: string, toNodeId: string) => {
+      addLink: (fromNodeId: string, toNodeId: string, fromAnchorIdx?: number, toAnchorIdx?: number) => {
         const state = get();
         const solideId = state.activeSolideId || 's0';
         const id = generateId('l');
@@ -146,7 +156,7 @@ export const useDiagramStore = create<DiagramState>()(
           label = `L${nums[0]}${nums[1]}`;
         }
 
-        const link: Link = { id, fromNodeId, toNodeId, solideId, label, labelOffsetX: 8, labelOffsetY: -18 };
+        const link: Link = { id, fromNodeId, toNodeId, solideId, label, labelOffsetX: 8, labelOffsetY: -18, fromAnchorIdx, toAnchorIdx };
         set((s) => {
           const links = new Map(s.links);
           links.set(id, link);
@@ -436,8 +446,8 @@ export const useDiagramStore = create<DiagramState>()(
         set({ activeTool: tool, placingLiaison: null, linkSourceId: null });
       },
 
-      setPlacingLiaison: (type: LiaisonType | null) => {
-        set({ placingLiaison: type, activeTool: type ? 'place' : 'select' });
+      setPlacingLiaison: (info: { type: LiaisonType; view: LiaisonView } | null) => {
+        set({ placingLiaison: info, activeTool: info ? 'place' : 'select' });
       },
 
       setLinkSource: (id: string | null) => {

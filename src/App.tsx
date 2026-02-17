@@ -188,13 +188,16 @@ export default function App() {
         return;
       }
 
-      // Number keys 1-9 for liaison shortcuts
+      // Number keys 1-9 for liaison shortcuts (vue 1 by default)
       const num = parseInt(e.key, 10);
       if (num >= 1 && num <= 9 && num <= LIAISON_LIST.length) {
         const liaisonDef = LIAISON_LIST[num - 1];
-        state.setPlacingLiaison(
-          state.placingLiaison === liaisonDef.type ? null : liaisonDef.type
-        );
+        const current = state.placingLiaison;
+        if (current?.type === liaisonDef.type) {
+          state.setPlacingLiaison(null);
+        } else {
+          state.setPlacingLiaison({ type: liaisonDef.type, view: 1 });
+        }
         return;
       }
     };

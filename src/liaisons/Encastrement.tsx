@@ -1,31 +1,22 @@
-import { Group, Line, Rect } from 'react-konva';
+import { Group, Line } from 'react-konva';
 import { snap } from '../utils/snap';
 
 interface EncastrementProps {
   x: number;
   y: number;
   rotation: number;
+  view?: number;
   selected: boolean;
+  colorA?: string;
+  colorB?: string;
   onSelect: () => void;
   onDragMove: (x: number, y: number) => void;
   onDragEnd: (x: number, y: number) => void;
   onDblClick: () => void;
 }
 
-export function Encastrement({ x, y, rotation, selected, onSelect, onDragMove, onDragEnd, onDblClick }: EncastrementProps) {
-  const w = 36;
-  const h = 10;
-  const hatchSpacing = 6;
-  const hatchLen = 8;
-  const strokeColor = selected ? '#2563eb' : '#1a1a1a';
+export function Encastrement({ x, y, rotation, selected, colorA = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: EncastrementProps) {
   const strokeWidth = selected ? 2.5 : 2;
-
-  const hatches: number[][] = [];
-  const count = Math.floor(w / hatchSpacing);
-  for (let i = 0; i <= count; i++) {
-    const xPos = -w / 2 + i * hatchSpacing;
-    hatches.push([xPos, h / 2, xPos - hatchLen * 0.5, h / 2 + hatchLen]);
-  }
 
   return (
     <Group
@@ -51,19 +42,8 @@ export function Encastrement({ x, y, rotation, selected, onSelect, onDragMove, o
         onDragEnd(sx, sy);
       }}
     >
-      <Rect
-        x={-w / 2}
-        y={-h / 2}
-        width={w}
-        height={h}
-        stroke={strokeColor}
-        strokeWidth={strokeWidth}
-        fill="white"
-      />
-      {hatches.map((points, i) => (
-        <Line key={i} points={points} stroke={strokeColor} strokeWidth={1.5} />
-      ))}
-      <Line points={[0, -h / 2, 0, -h / 2 - 10]} stroke={strokeColor} strokeWidth={strokeWidth} />
+      {/* Single horizontal line (A) */}
+      <Line points={[-22, 0, 22, 0]} stroke={colorA} strokeWidth={strokeWidth} />
     </Group>
   );
 }
