@@ -31,93 +31,173 @@ function nodeToTikZ(node: DiagramNode, isBati: boolean): string {
   const cx = tx(node.x);
   const cy = ty(node.y);
   const rot = -node.rotation; // TikZ counterclockwise
+  const view = node.view ?? 1;
 
   const scopeOpen = rot !== 0
     ? `  \\begin{scope}[shift={${coord(node.x, node.y)}}, rotate=${rot}]`
     : `  \\begin{scope}[shift={${coord(node.x, node.y)}}]`;
   const scopeClose = '  \\end{scope}';
 
-  lines.push(`  % ${node.type}${node.label ? ` — ${node.label}` : ''}`);
+  lines.push(`  % ${node.type} (vue ${view})${node.label ? ` — ${node.label}` : ''}`);
   lines.push(scopeOpen);
 
   switch (node.type) {
     case 'pivot':
-      lines.push('    \\draw (0,0) circle (0.3);');
-      lines.push('    \\fill (0,0) circle (0.06);');
-      lines.push('    \\draw (-0.5,0) -- (0.5,0);');
+      if (view === 2) {
+        lines.push('    \\draw (0,0) circle (0.3);');
+        lines.push('    \\draw (0,-0.5) -- (0,0.5);');
+        lines.push('    \\fill (0,0) circle (0.06);');
+      } else {
+        lines.push('    \\draw (-0.375,-0.25) rectangle (0.375,0.25);');
+        lines.push('    \\draw (-0.625,0) -- (0.625,0);');
+        lines.push('    \\draw (-0.625,-0.2) -- (-0.625,0.2);');
+        lines.push('    \\draw (0.625,-0.2) -- (0.625,0.2);');
+      }
       break;
 
     case 'glissiere':
-      lines.push('    \\draw (-0.375,-0.225) rectangle (0.375,0.225);');
-      lines.push('    \\draw (-0.725,-0.325) -- (0.725,-0.325);');
-      lines.push('    \\draw (-0.725,0.325) -- (0.725,0.325);');
+      if (view === 2) {
+        lines.push('    \\draw (-0.375,-0.225) rectangle (0.375,0.225);');
+        lines.push('    \\draw (-0.375,-0.225) -- (0.375,0.225);');
+        lines.push('    \\draw (0.375,-0.225) -- (-0.375,0.225);');
+      } else {
+        lines.push('    \\draw (-0.375,-0.225) rectangle (0.375,0.225);');
+        lines.push('    \\draw (-0.725,-0.325) -- (0.725,-0.325);');
+        lines.push('    \\draw (-0.725,0.325) -- (0.725,0.325);');
+      }
       break;
 
     case 'pivot_glissant':
-      lines.push('    \\draw (-0.375,-0.3) rectangle (0.375,0.3);');
-      lines.push('    \\draw (-0.725,-0.4) -- (0.725,-0.4);');
-      lines.push('    \\draw (-0.725,0.4) -- (0.725,0.4);');
-      lines.push('    \\draw (0,0) circle (0.25);');
-      lines.push('    \\fill (0,0) circle (0.06);');
+      if (view === 2) {
+        lines.push('    \\draw (0,0) circle (0.25);');
+        lines.push('    \\draw (-0.175,-0.175) -- (0.175,0.175);');
+        lines.push('    \\draw (0.175,-0.175) -- (-0.175,0.175);');
+        lines.push('    \\fill (0,0) circle (0.06);');
+      } else {
+        lines.push('    \\draw (-0.375,-0.3) rectangle (0.375,0.3);');
+        lines.push('    \\draw (-0.725,-0.4) -- (0.725,-0.4);');
+        lines.push('    \\draw (-0.725,0.4) -- (0.725,0.4);');
+        lines.push('    \\draw (0,0) circle (0.25);');
+        lines.push('    \\fill (0,0) circle (0.06);');
+      }
       break;
 
     case 'rotule':
-      lines.push('    \\draw (0,0) circle (0.35);');
-      lines.push('    \\draw (0,-0.35) -- (0,0.35);');
-      lines.push('    \\draw (-0.35,0) -- (0.35,0);');
-      lines.push('    \\fill (0,0) circle (0.06);');
+      if (view === 2) {
+        lines.push('    \\draw (0,0) circle (0.35);');
+        lines.push('    \\draw (-0.45,0.35) -- (0.45,0.35);');
+        lines.push('    \\fill (0,0) circle (0.06);');
+      } else {
+        lines.push('    \\draw (0,0) circle (0.35);');
+        lines.push('    \\draw (0,-0.35) -- (0,0.35);');
+        lines.push('    \\draw (-0.35,0) -- (0.35,0);');
+        lines.push('    \\fill (0,0) circle (0.06);');
+      }
       break;
 
     case 'encastrement':
-      lines.push('    \\draw (-0.45,-0.125) rectangle (0.45,0.125);');
-      lines.push('    \\draw (0,-0.125) -- (0,-0.375);');
-      lines.push('    \\foreach \\x in {-0.45,-0.3,...,0.45} {');
-      lines.push('      \\draw (\\x,0.125) -- (\\x-0.1,0.325);');
-      lines.push('    }');
+      if (view === 2) {
+        lines.push('    \\draw (-0.125,-0.45) rectangle (0.125,0.45);');
+        lines.push('    \\draw (0.125,0) -- (0.375,0);');
+        lines.push('    \\foreach \\y in {-0.45,-0.3,...,0.45} {');
+        lines.push('      \\draw (-0.125,\\y) -- (-0.325,\\y-0.1);');
+        lines.push('    }');
+      } else {
+        lines.push('    \\draw (-0.45,-0.125) rectangle (0.45,0.125);');
+        lines.push('    \\draw (0,-0.125) -- (0,-0.375);');
+        lines.push('    \\foreach \\x in {-0.45,-0.3,...,0.45} {');
+        lines.push('      \\draw (\\x,0.125) -- (\\x-0.1,0.325);');
+        lines.push('    }');
+      }
       break;
 
     case 'helicoidale':
-      lines.push('    \\draw (0,0) circle (0.3);');
-      lines.push('    \\fill (0,0) circle (0.06);');
-      lines.push('    \\draw (-0.21,-0.21) -- (0.21,0.21);');
-      lines.push('    \\draw (0,-0.5) -- (0,0.5);');
+      if (view === 2) {
+        lines.push('    \\draw (-0.375,-0.225) rectangle (0.375,0.225);');
+        lines.push('    \\draw (-0.375,-0.225) -- (0.375,0.225);');
+        lines.push('    \\draw (0.375,-0.225) -- (-0.375,0.225);');
+        lines.push('    \\draw (0.375,-0.1) -- (0.525,0.1);');
+        lines.push('    \\draw (0.525,0.1) -- (0.45,0.15);');
+      } else {
+        lines.push('    \\draw (0,0) circle (0.3);');
+        lines.push('    \\fill (0,0) circle (0.06);');
+        lines.push('    \\draw (-0.21,-0.21) -- (0.21,0.21);');
+        lines.push('    \\draw (0,-0.5) -- (0,0.5);');
+      }
       break;
 
     case 'rotule_doigt':
-      lines.push('    \\draw (0,0) circle (0.35);');
-      lines.push('    \\draw (0,-0.35) -- (0,0.35);');
-      lines.push('    \\fill (0,0) circle (0.06);');
+      if (view === 2) {
+        lines.push('    \\draw (0,0) circle (0.35);');
+        lines.push('    \\draw (-0.35,0) -- (0.35,0);');
+        lines.push('    \\fill (0,0) circle (0.06);');
+      } else {
+        lines.push('    \\draw (0,0) circle (0.35);');
+        lines.push('    \\draw (0,-0.35) -- (0,0.35);');
+        lines.push('    \\fill (0,0) circle (0.06);');
+      }
       break;
 
     case 'appui_plan':
-      lines.push('    \\draw (-0.45,0) -- (0.45,0);');
-      lines.push('    \\draw (0,0) -- (0,0.4);');
-      lines.push('    \\foreach \\x in {-0.45,-0.3,...,0.45} {');
-      lines.push('      \\draw (\\x,0) -- (\\x-0.12,-0.2);');
-      lines.push('    }');
+      if (view === 2) {
+        lines.push('    \\draw (0,-0.45) -- (0,0.45);');
+        lines.push('    \\draw (0,0) -- (0.4,0);');
+        lines.push('    \\foreach \\y in {-0.45,-0.3,...,0.45} {');
+        lines.push('      \\draw (0,\\y) -- (-0.2,\\y-0.12);');
+        lines.push('    }');
+      } else {
+        lines.push('    \\draw (-0.45,0) -- (0.45,0);');
+        lines.push('    \\draw (0,0) -- (0,0.4);');
+        lines.push('    \\foreach \\x in {-0.45,-0.3,...,0.45} {');
+        lines.push('      \\draw (\\x,0) -- (\\x-0.12,-0.2);');
+        lines.push('    }');
+      }
       break;
 
     case 'lineaire_annulaire':
-      lines.push('    \\draw (0,0) circle (0.3);');
-      lines.push('    \\draw (0,-0.5) -- (0,0.5);');
-      lines.push('    \\fill (0,0) circle (0.06);');
+      if (view === 2) {
+        lines.push('    \\draw (-0.5,-0.3) -- (0.5,-0.3);');
+        lines.push('    \\draw (-0.5,0.3) -- (0.5,0.3);');
+        lines.push('    \\fill (0,0) circle (0.06);');
+      } else {
+        lines.push('    \\draw (0,0) circle (0.3);');
+        lines.push('    \\draw (0,-0.5) -- (0,0.5);');
+        lines.push('    \\fill (0,0) circle (0.06);');
+      }
       break;
 
     case 'lineaire_rectiligne':
-      lines.push('    \\draw (-0.35,-0.3) -- (0,0.15);');
-      lines.push('    \\draw (0.35,-0.3) -- (0,0.15);');
-      lines.push('    \\draw (-0.45,0.15) -- (0.45,0.15);');
-      lines.push('    \\foreach \\x in {-0.45,-0.3,...,0.45} {');
-      lines.push('      \\draw (\\x,0.15) -- (\\x-0.1,0.35);');
-      lines.push('    }');
+      if (view === 2) {
+        lines.push('    \\draw (-0.45,-0.1) -- (0.45,-0.1);');
+        lines.push('    \\draw (-0.45,0.1) -- (0.45,0.1);');
+        lines.push('    \\foreach \\x in {-0.45,-0.3,...,0.45} {');
+        lines.push('      \\draw (\\x,0.1) -- (\\x-0.1,0.3);');
+        lines.push('    }');
+      } else {
+        lines.push('    \\draw (-0.35,-0.3) -- (0,0.15);');
+        lines.push('    \\draw (0.35,-0.3) -- (0,0.15);');
+        lines.push('    \\draw (-0.45,0.15) -- (0.45,0.15);');
+        lines.push('    \\foreach \\x in {-0.45,-0.3,...,0.45} {');
+        lines.push('      \\draw (\\x,0.15) -- (\\x-0.1,0.35);');
+        lines.push('    }');
+      }
       break;
 
     case 'ponctuelle':
-      lines.push('    \\draw (0,-0.1) circle (0.1);');
-      lines.push('    \\draw (-0.45,0) -- (0.45,0);');
-      lines.push('    \\foreach \\x in {-0.45,-0.3,...,0.45} {');
-      lines.push('      \\draw (\\x,0) -- (\\x-0.1,-0.2);');
-      lines.push('    }');
+      if (view === 2) {
+        lines.push('    \\draw (0,-0.1) circle (0.1);');
+        lines.push('    \\draw (-0.45,0) -- (0.45,0);');
+        lines.push('    \\foreach \\x in {-0.45,-0.3,...,0.45} {');
+        lines.push('      \\draw (\\x,0) -- (\\x-0.1,-0.2);');
+        lines.push('    }');
+        lines.push('    \\draw (0,-0.2) -- (0,-0.4);');
+      } else {
+        lines.push('    \\draw (0,-0.1) circle (0.1);');
+        lines.push('    \\draw (-0.45,0) -- (0.45,0);');
+        lines.push('    \\foreach \\x in {-0.45,-0.3,...,0.45} {');
+        lines.push('      \\draw (\\x,0) -- (\\x-0.1,-0.2);');
+        lines.push('    }');
+      }
       break;
   }
 

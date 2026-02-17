@@ -17,6 +17,7 @@ interface ShapeRendererProps {
   node: DiagramNode;
   selected: boolean;
   isBati?: boolean;
+  colors: [string, string];
   onSelect: () => void;
   onDblClick: () => void;
   onDragMove: (x: number, y: number) => void;
@@ -24,12 +25,15 @@ interface ShapeRendererProps {
   onLabelDragEnd: (ox: number, oy: number) => void;
 }
 
-export function ShapeRenderer({ node, selected, isBati, onSelect, onDblClick, onDragMove, onDragEnd, onLabelDragEnd }: ShapeRendererProps) {
+export function ShapeRenderer({ node, selected, isBati, colors, onSelect, onDblClick, onDragMove, onDragEnd, onLabelDragEnd }: ShapeRendererProps) {
   const commonProps = {
     x: node.x,
     y: node.y,
     rotation: node.rotation,
+    view: node.view ?? 1 as const,
     selected,
+    colorA: colors[0],
+    colorB: colors[1],
     onSelect,
     onDblClick,
     onDragMove,

@@ -9,6 +9,7 @@ import { AngleArcRenderer } from './AngleArcRenderer';
 import { AxisWidget } from './AxisWidget';
 import type { LiaisonType } from '../types';
 import { snap } from '../utils/snap';
+import { getBestAnchor, getAnchors, anchorToWorld, type SolideMapping } from '../utils/anchors';
 
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 5;
@@ -29,6 +30,9 @@ export function Canvas() {
   const [selectionRect, setSelectionRect] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
   const [cursorMode, setCursorMode] = useState<'default' | 'grab' | 'grabbing'>('default');
   const [linkSnapTarget, setLinkSnapTarget] = useState<string | null>(null);
+  const [linkHoverNodeId, setLinkHoverNodeId] = useState<string | null>(null);
+  const [linkSourceAnchorIdx, setLinkSourceAnchorIdx] = useState<number | undefined>(undefined);
+  const [linkTargetAnchorIdx, setLinkTargetAnchorIdx] = useState<number | undefined>(undefined);
   const isSelecting = useRef(false);
   const isPanning = useRef(false);
   const panStart = useRef({ x: 0, y: 0 });
@@ -83,6 +87,75 @@ export function Canvas() {
     }
     return ids;
   }, [links]);
+
+  // Compute per-node solide colors based on anchor side (A or B)
+  const nodeColors = useMemo(() => {
+    const map = new Map<string, [string, string]>();
+    for (const node of nodes.values()) {
+      let sideASolideId: string | null = null;
+      let sideBSolideId: string | null = null;
+      const anchors = getAnchors(node.type, node.view);
+
+      for (const link of links.values()) {
+        let anchorIdx: number | undefined;
+        if (link.fromNodeId === node.id) {
+          anchorIdx = link.fromAnchorIdx;
+        } else if (link.toNodeId === node.id) {
+          anchorIdx = link.toAnchorIdx;
+        } else {
+          continue;
+        }
+
+        if (anchorIdx !== undefined && anchorIdx < anchors.length) {
+          const side = anchors[anchorIdx].side;
+          if (side === 'A' && !sideASolideId) sideASolideId = link.solideId;
+          else if (side === 'B' && !sideBSolideId) sideBSolideId = link.solideId;
+        } else {
+          // No pinned anchor — assign to first available side
+          if (!sideASolideId) sideASolideId = link.solideId;
+          else if (!sideBSolideId) sideBSolideId = link.solideId;
+        }
+      }
+
+      const cA = sideASolideId ? (solides.get(sideASolideId)?.color || '#1a1a1a') : '#1a1a1a';
+      const cB = sideBSolideId ? (solides.get(sideBSolideId)?.color || '#1a1a1a') : cA;
+      map.set(node.id, [cA, cB]);
+    }
+    return map;
+  }, [nodes, links, solides]);
+
+  // Compute per-node solide ID mapping based on anchor side
+  const nodeSolideMapping = useMemo(() => {
+    const map = new Map<string, SolideMapping>();
+    for (const node of nodes.values()) {
+      let sideASolideId: string | null = null;
+      let sideBSolideId: string | null = null;
+      const anchors = getAnchors(node.type, node.view);
+
+      for (const link of links.values()) {
+        let anchorIdx: number | undefined;
+        if (link.fromNodeId === node.id) {
+          anchorIdx = link.fromAnchorIdx;
+        } else if (link.toNodeId === node.id) {
+          anchorIdx = link.toAnchorIdx;
+        } else {
+          continue;
+        }
+
+        if (anchorIdx !== undefined && anchorIdx < anchors.length) {
+          const side = anchors[anchorIdx].side;
+          if (side === 'A' && !sideASolideId) sideASolideId = link.solideId;
+          else if (side === 'B' && !sideBSolideId) sideBSolideId = link.solideId;
+        } else {
+          if (!sideASolideId) sideASolideId = link.solideId;
+          else if (!sideBSolideId) sideBSolideId = link.solideId;
+        }
+      }
+
+      map.set(node.id, { a: sideASolideId, b: sideBSolideId });
+    }
+    return map;
+  }, [nodes, links]);
 
   // Track Space key for panning
   useEffect(() => {
@@ -186,44 +259,70 @@ export function Canvas() {
       const y = (pointer.y - stageY) / stageScale;
 
       if (activeTool === 'place' && placingLiaison) {
-        addNode(placingLiaison, snap(x), snap(y));
+        addNode(placingLiaison.type, snap(x), snap(y), placingLiaison.view);
       } else if (activeTool === 'link') {
         // If snapped to a target node, complete the link
         if (linkSourceId && linkSnapTarget) {
-          addLink(linkSourceId, linkSnapTarget);
+          addLink(linkSourceId, linkSnapTarget, linkSourceAnchorIdx, linkTargetAnchorIdx);
           setLinkSource(null);
           setMousePos(null);
           setLinkSnapTarget(null);
+          setLinkSourceAnchorIdx(undefined);
+          setLinkTargetAnchorIdx(undefined);
         } else {
           setLinkSource(null);
           setMousePos(null);
           setLinkSnapTarget(null);
+          setLinkSourceAnchorIdx(undefined);
+          setLinkTargetAnchorIdx(undefined);
           setTool('select');
         }
       } else {
         clearSelection();
       }
     },
-    [activeTool, placingLiaison, stageX, stageY, stageScale, addNode, clearSelection, setLinkSource, setTool, linkSourceId, linkSnapTarget, addLink]
+    [activeTool, placingLiaison, stageX, stageY, stageScale, addNode, clearSelection, setLinkSource, setTool, linkSourceId, linkSnapTarget, linkSourceAnchorIdx, linkTargetAnchorIdx, addLink]
   );
 
-  // Handle node click for link tool
+  // Handle node click for link tool (no specific anchor — uses tracked target anchor)
   const handleNodeClick = useCallback(
     (nodeId: string) => {
       if (activeTool === 'link') {
         if (!linkSourceId) {
           setLinkSource(nodeId);
+          setLinkSourceAnchorIdx(undefined);
         } else if (linkSourceId !== nodeId) {
-          addLink(linkSourceId, nodeId);
+          addLink(linkSourceId, nodeId, linkSourceAnchorIdx, linkTargetAnchorIdx);
           setLinkSource(null);
           setMousePos(null);
           setLinkSnapTarget(null);
+          setLinkSourceAnchorIdx(undefined);
+          setLinkTargetAnchorIdx(undefined);
         }
       } else {
         select(nodeId);
       }
     },
-    [activeTool, linkSourceId, setLinkSource, addLink, select]
+    [activeTool, linkSourceId, linkSourceAnchorIdx, linkTargetAnchorIdx, setLinkSource, addLink, select]
+  );
+
+  // Handle anchor click for link tool (specific anchor — pinned mode)
+  const handleAnchorClick = useCallback(
+    (nodeId: string, anchorIdx: number) => {
+      if (activeTool !== 'link') return;
+      if (!linkSourceId) {
+        setLinkSource(nodeId);
+        setLinkSourceAnchorIdx(anchorIdx);
+      } else if (linkSourceId !== nodeId) {
+        addLink(linkSourceId, nodeId, linkSourceAnchorIdx, anchorIdx);
+        setLinkSource(null);
+        setMousePos(null);
+        setLinkSnapTarget(null);
+        setLinkSourceAnchorIdx(undefined);
+        setLinkTargetAnchorIdx(undefined);
+      }
+    },
+    [activeTool, linkSourceId, linkSourceAnchorIdx, setLinkSource, addLink]
   );
 
   // Double-click to edit label
@@ -376,8 +475,18 @@ export function Canvas() {
       e.preventDefault();
       setDragOver(false);
 
-      const liaisonType = e.dataTransfer.getData('application/kinesketch-liaison') as LiaisonType;
-      if (!liaisonType) return;
+      const raw = e.dataTransfer.getData('application/kinesketch-liaison');
+      if (!raw) return;
+
+      let liaisonType: LiaisonType;
+      let view: 1 | 2 = 1;
+      try {
+        const parsed = JSON.parse(raw);
+        liaisonType = parsed.type;
+        view = parsed.view ?? 1;
+      } catch {
+        liaisonType = raw as LiaisonType;
+      }
 
       const container = containerRef.current;
       if (!container) return;
@@ -386,7 +495,7 @@ export function Canvas() {
       const x = snap((e.clientX - rect.left - stageX) / stageScale);
       const y = snap((e.clientY - rect.top - stageY) / stageScale);
 
-      addNode(liaisonType, x, y);
+      addNode(liaisonType, x, y, view);
     },
     [stageX, stageY, stageScale, addNode]
   );
@@ -425,11 +534,11 @@ export function Canvas() {
         return;
       }
 
-      if (linkSourceId) {
-        // Find nearest node within snap radius (excluding the source)
+      if (activeTool === 'link') {
+        // Find nearest node for hover/snap (exclude source when linking)
         let nearest: { id: string; x: number; y: number; dist: number } | null = null;
         for (const node of useDiagramStore.getState().nodes.values()) {
-          if (node.id === linkSourceId) continue;
+          if (linkSourceId && node.id === linkSourceId) continue;
           const dx = worldX - node.x;
           const dy = worldY - node.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
@@ -438,20 +547,49 @@ export function Canvas() {
           }
         }
 
-        if (nearest) {
-          setMousePos({ x: nearest.x, y: nearest.y });
-          setLinkSnapTarget(nearest.id);
-        } else {
-          setMousePos({ x: worldX, y: worldY });
-          setLinkSnapTarget(null);
+        if (linkSourceId) {
+          if (nearest) {
+            // Snap to nearest anchor on target node (not center)
+            const targetNode = useDiagramStore.getState().nodes.get(nearest.id);
+            const anchors = targetNode ? getAnchors(targetNode.type, targetNode.view) : [];
+            if (targetNode && anchors.length > 0) {
+              let bestIdx = 0;
+              let bestDist = Infinity;
+              let bestPos = { x: nearest.x, y: nearest.y };
+              for (let i = 0; i < anchors.length; i++) {
+                const world = anchorToWorld(anchors[i], targetNode.x, targetNode.y, targetNode.rotation);
+                const dx = worldX - world.x;
+                const dy = worldY - world.y;
+                const dist = dx * dx + dy * dy;
+                if (dist < bestDist) {
+                  bestDist = dist;
+                  bestPos = world;
+                  bestIdx = i;
+                }
+              }
+              setMousePos(bestPos);
+              setLinkTargetAnchorIdx(bestIdx);
+            } else {
+              setMousePos({ x: nearest.x, y: nearest.y });
+              setLinkTargetAnchorIdx(undefined);
+            }
+            setLinkSnapTarget(nearest.id);
+          } else {
+            setMousePos({ x: worldX, y: worldY });
+            setLinkSnapTarget(null);
+            setLinkTargetAnchorIdx(undefined);
+          }
         }
+        setLinkHoverNodeId(nearest?.id || null);
+      } else {
+        setLinkHoverNodeId(null);
       }
 
       if (isSelecting.current && selectionRect) {
         setSelectionRect({ ...selectionRect, x2: worldX, y2: worldY });
       }
     },
-    [linkSourceId, stageX, stageY, stageScale, selectionRect, setStagePosition, rotateNode]
+    [activeTool, linkSourceId, stageX, stageY, stageScale, selectionRect, setStagePosition, rotateNode]
   );
 
   // Mouse down: panning or selection rect
@@ -653,6 +791,8 @@ export function Canvas() {
                 link={link}
                 fromNode={fromNode}
                 toNode={toNode}
+                fromSolideMapping={nodeSolideMapping.get(link.fromNodeId) || { a: null, b: null }}
+                toSolideMapping={nodeSolideMapping.get(link.toNodeId) || { a: null, b: null }}
                 selected={selectedIds.has(link.id)}
                 onSelect={() => select(link.id)}
                 onDblClick={() => handleLinkDblClick(link.id)}
@@ -715,30 +855,18 @@ export function Canvas() {
           {linkSourceId && mousePos && (() => {
             const sourceNode = nodes.get(linkSourceId);
             if (!sourceNode) return null;
+            const activeSolideId = useDiagramStore.getState().activeSolideId;
+            const sourceMapping = nodeSolideMapping.get(linkSourceId) || { a: null, b: null };
+            const fromAnchor = getBestAnchor(sourceNode, mousePos, activeSolideId, sourceMapping, linkSourceAnchorIdx);
             return (
               <Group listening={false}>
                 <Line
-                  points={[sourceNode.x, sourceNode.y, mousePos.x, mousePos.y]}
+                  points={[fromAnchor.x, fromAnchor.y, mousePos.x, mousePos.y]}
                   stroke="#2563eb"
                   strokeWidth={2}
                   dash={[8, 4]}
                   opacity={0.6}
                 />
-                {/* Snap indicator on target node */}
-                {linkSnapTarget && (() => {
-                  const targetNode = nodes.get(linkSnapTarget);
-                  if (!targetNode) return null;
-                  return (
-                    <Circle
-                      x={targetNode.x}
-                      y={targetNode.y}
-                      radius={18}
-                      stroke="#2563eb"
-                      strokeWidth={2.5 / stageScale}
-                      fill="rgba(37, 99, 235, 0.1)"
-                    />
-                  );
-                })()}
               </Group>
             );
           })()}
@@ -771,6 +899,7 @@ export function Canvas() {
               node={node}
               selected={selectedIds.has(node.id)}
               isBati={batiNodeIds.has(node.id)}
+              colors={nodeColors.get(node.id) || ['#1a1a1a', '#1a1a1a']}
               onSelect={() => handleNodeClick(node.id)}
               onDblClick={() => handleNodeDblClick(node.id)}
               onDragMove={(x, y) => handleDragMove(node.id, x, y)}
@@ -778,6 +907,31 @@ export function Canvas() {
               onLabelDragEnd={(ox, oy) => updateNodeLabelOffset(node.id, ox, oy)}
             />
           ))}
+
+          {/* Anchor point indicators in link mode — rendered AFTER nodes so they're on top */}
+          {activeTool === 'link' && linkHoverNodeId && (() => {
+            const hoverNode = nodes.get(linkHoverNodeId);
+            if (!hoverNode) return null;
+            const anchors = getAnchors(hoverNode.type, hoverNode.view);
+            const isTarget = linkSourceId && linkHoverNodeId === linkSnapTarget;
+            return anchors.map((anchor, i) => {
+              const world = anchorToWorld(anchor, hoverNode.x, hoverNode.y, hoverNode.rotation);
+              const isSnapped = isTarget && linkTargetAnchorIdx === i;
+              return (
+                <Circle
+                  key={`anchor-hover-${i}`}
+                  x={world.x}
+                  y={world.y}
+                  radius={isSnapped ? 4 : 3}
+                  fill={isSnapped ? 'rgba(37, 99, 235, 0.3)' : 'rgba(120, 120, 120, 0.25)'}
+                  stroke={isSnapped ? '#2563eb' : 'rgba(100, 100, 100, 0.5)'}
+                  strokeWidth={isSnapped ? 1.5 : 1}
+                  onClick={(e) => { e.cancelBubble = true; handleAnchorClick(linkHoverNodeId, i); }}
+                  onTap={(e) => { e.cancelBubble = true; handleAnchorClick(linkHoverNodeId, i); }}
+                />
+              );
+            });
+          })()}
 
           {/* Selection indicators — dashed rect around each selected node */}
           {Array.from(selectedIds).map((id) => {

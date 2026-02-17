@@ -5,19 +5,19 @@ interface GlissiereProps {
   x: number;
   y: number;
   rotation: number;
+  view?: number;
   selected: boolean;
+  colorA?: string;
+  colorB?: string;
   onSelect: () => void;
   onDragMove: (x: number, y: number) => void;
   onDragEnd: (x: number, y: number) => void;
   onDblClick: () => void;
 }
 
-export function Glissiere({ x, y, rotation, selected, onSelect, onDragMove, onDragEnd, onDblClick }: GlissiereProps) {
-  const w = 30;
-  const h = 18;
-  const guideExtend = 14;
-  const guideGap = 4;
-  const strokeColor = selected ? '#2563eb' : '#1a1a1a';
+export function Glissiere({ x, y, rotation, view = 1, selected, colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: GlissiereProps) {
+  const w = 44;
+  const h = 22;
   const strokeWidth = selected ? 2.5 : 2;
 
   return (
@@ -44,25 +44,19 @@ export function Glissiere({ x, y, rotation, selected, onSelect, onDragMove, onDr
         onDragEnd(sx, sy);
       }}
     >
-      <Rect
-        x={-w / 2}
-        y={-h / 2}
-        width={w}
-        height={h}
-        stroke={strokeColor}
-        strokeWidth={strokeWidth}
-        fill="white"
-      />
-      <Line
-        points={[-(w / 2 + guideExtend), -(h / 2 + guideGap), w / 2 + guideExtend, -(h / 2 + guideGap)]}
-        stroke={strokeColor}
-        strokeWidth={strokeWidth}
-      />
-      <Line
-        points={[-(w / 2 + guideExtend), h / 2 + guideGap, w / 2 + guideExtend, h / 2 + guideGap]}
-        stroke={strokeColor}
-        strokeWidth={strokeWidth}
-      />
+      {view === 1 ? (
+        <>
+          {/* Plan view: simple rectangle, colored by top/bottom solid (A) */}
+          <Rect x={-w / 2} y={-h / 2} width={w} height={h} stroke={colorA} strokeWidth={strokeWidth} fill="white" />
+        </>
+      ) : (
+        <>
+          {/* Section view: square (A) + diagonal cross (B) */}
+          <Rect x={-h / 2} y={-h / 2} width={h} height={h} stroke={colorA} strokeWidth={strokeWidth} fill="white" />
+          <Line points={[-h / 2, -h / 2, h / 2, h / 2]} stroke={colorB} strokeWidth={strokeWidth} />
+          <Line points={[h / 2, -h / 2, -h / 2, h / 2]} stroke={colorB} strokeWidth={strokeWidth} />
+        </>
+      )}
     </Group>
   );
 }

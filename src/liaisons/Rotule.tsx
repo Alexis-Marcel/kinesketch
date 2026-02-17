@@ -5,16 +5,18 @@ interface RotuleProps {
   x: number;
   y: number;
   rotation: number;
+  view?: number;
   selected: boolean;
+  colorA?: string;
+  colorB?: string;
   onSelect: () => void;
   onDragMove: (x: number, y: number) => void;
   onDragEnd: (x: number, y: number) => void;
   onDblClick: () => void;
 }
 
-export function Rotule({ x, y, rotation, selected, onSelect, onDragMove, onDragEnd, onDblClick }: RotuleProps) {
-  const r = 14;
-  const strokeColor = selected ? '#2563eb' : '#1a1a1a';
+export function Rotule({ x, y, rotation, selected, colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: RotuleProps) {
+  const r = 12;
   const strokeWidth = selected ? 2.5 : 2;
 
   return (
@@ -41,10 +43,16 @@ export function Rotule({ x, y, rotation, selected, onSelect, onDragMove, onDragE
         onDragEnd(sx, sy);
       }}
     >
-      <Circle radius={r} stroke={strokeColor} strokeWidth={strokeWidth} fill="white" />
-      <Line points={[0, -r, 0, r]} stroke={strokeColor} strokeWidth={strokeWidth} />
-      <Line points={[-r, 0, r, 0]} stroke={strokeColor} strokeWidth={strokeWidth} />
-      <Circle radius={2.5} fill={strokeColor} />
+      {/* Inner circle (A) + 3/4 outer circle opening right (B) */}
+      <Circle radius={r} stroke={colorA} strokeWidth={strokeWidth} fill="white" />
+      <Line
+        points={Array.from({ length: 25 }, (_, i) => {
+          const a = Math.PI / 4 + (3 * Math.PI / 2) * i / 24;
+          return [15 * Math.cos(a), 15 * Math.sin(a)];
+        }).flat()}
+        stroke={colorB}
+        strokeWidth={strokeWidth}
+      />
     </Group>
   );
 }

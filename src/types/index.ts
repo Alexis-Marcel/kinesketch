@@ -11,6 +11,8 @@ export type LiaisonType =
   | 'lineaire_rectiligne'
   | 'ponctuelle';
 
+export type LiaisonView = 1 | 2;
+
 export type ToolType = 'move' | 'select' | 'place' | 'link';
 
 export interface Solide {
@@ -29,6 +31,7 @@ export interface Solide {
 export interface DiagramNode {
   id: string;
   type: LiaisonType;
+  view: LiaisonView;
   x: number;
   y: number;
   rotation: number;
@@ -45,6 +48,8 @@ export interface Link {
   label: string;
   labelOffsetX: number;
   labelOffsetY: number;
+  fromAnchorIdx?: number;
+  toAnchorIdx?: number;
 }
 
 export interface AngleArc {
@@ -70,7 +75,7 @@ export interface DiagramState extends DiagramData {
   // UI state (not persisted in undo history)
   selectedIds: Set<string>;
   activeTool: ToolType;
-  placingLiaison: LiaisonType | null;
+  placingLiaison: { type: LiaisonType; view: LiaisonView } | null;
   linkSourceId: string | null;
   activeSolideId: string | null;
 
@@ -80,16 +85,17 @@ export interface DiagramState extends DiagramData {
   stageScale: number;
 
   // Node actions
-  addNode: (type: LiaisonType, x: number, y: number) => void;
+  addNode: (type: LiaisonType, x: number, y: number, view?: LiaisonView) => void;
   moveNode: (id: string, x: number, y: number) => void;
   moveNodes: (moves: Array<{ id: string; x: number; y: number }>) => void;
   rotateNode: (id: string, rotation: number) => void;
   deleteNode: (id: string) => void;
   updateNodeLabel: (id: string, label: string) => void;
+  updateNodeView: (id: string, view: LiaisonView) => void;
   updateNodeLabelOffset: (id: string, ox: number, oy: number) => void;
 
   // Link actions
-  addLink: (fromNodeId: string, toNodeId: string) => void;
+  addLink: (fromNodeId: string, toNodeId: string, fromAnchorIdx?: number, toAnchorIdx?: number) => void;
   deleteLink: (id: string) => void;
   updateLinkLabel: (id: string, label: string) => void;
   updateLinkLabelOffset: (id: string, ox: number, oy: number) => void;
@@ -123,7 +129,7 @@ export interface DiagramState extends DiagramData {
 
   // Tools
   setTool: (tool: ToolType) => void;
-  setPlacingLiaison: (type: LiaisonType | null) => void;
+  setPlacingLiaison: (info: { type: LiaisonType; view: LiaisonView } | null) => void;
   setLinkSource: (id: string | null) => void;
 
   // Canvas
@@ -159,4 +165,5 @@ export interface LiaisonDefinition {
   name: string;
   dof: number;
   description: string;
+  viewCount: 1 | 2;
 }

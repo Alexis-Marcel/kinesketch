@@ -5,20 +5,20 @@ interface PivotGlissantProps {
   x: number;
   y: number;
   rotation: number;
+  view?: number;
   selected: boolean;
+  colorA?: string;
+  colorB?: string;
   onSelect: () => void;
   onDragMove: (x: number, y: number) => void;
   onDragEnd: (x: number, y: number) => void;
   onDblClick: () => void;
 }
 
-export function PivotGlissant({ x, y, rotation, selected, onSelect, onDragMove, onDragEnd, onDblClick }: PivotGlissantProps) {
-  const r = 10;
-  const w = 30;
-  const h = 24;
-  const guideExtend = 14;
-  const guideGap = 4;
-  const strokeColor = selected ? '#2563eb' : '#1a1a1a';
+export function PivotGlissant({ x, y, rotation, view = 1, selected, colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: PivotGlissantProps) {
+  const r = 12;
+  const w = 44;
+  const h = 22;
   const strokeWidth = selected ? 2.5 : 2;
 
   return (
@@ -45,27 +45,19 @@ export function PivotGlissant({ x, y, rotation, selected, onSelect, onDragMove, 
         onDragEnd(sx, sy);
       }}
     >
-      <Rect
-        x={-w / 2}
-        y={-h / 2}
-        width={w}
-        height={h}
-        stroke={strokeColor}
-        strokeWidth={strokeWidth}
-        fill="white"
-      />
-      <Line
-        points={[-(w / 2 + guideExtend), -(h / 2 + guideGap), w / 2 + guideExtend, -(h / 2 + guideGap)]}
-        stroke={strokeColor}
-        strokeWidth={strokeWidth}
-      />
-      <Line
-        points={[-(w / 2 + guideExtend), h / 2 + guideGap, w / 2 + guideExtend, h / 2 + guideGap]}
-        stroke={strokeColor}
-        strokeWidth={strokeWidth}
-      />
-      <Circle radius={r} stroke={strokeColor} strokeWidth={strokeWidth} fill="white" />
-      <Circle radius={2.5} fill={strokeColor} />
+      {view === 1 ? (
+        <>
+          {/* Plan view: rectangle (B) + horizontal shaft (A), like pivot but without vertical flanges */}
+          <Rect x={-w / 2} y={-h / 2} width={w} height={h} stroke={colorB} strokeWidth={strokeWidth} fill="white" />
+          <Line points={[-w / 2, 0, w / 2, 0]} stroke={colorA} strokeWidth={strokeWidth} />
+        </>
+      ) : (
+        <>
+          {/* Section view: circle (A) + center dot (B) */}
+          <Circle radius={r} stroke={colorA} strokeWidth={strokeWidth} fill="white" />
+          <Circle radius={2.5} fill={colorB} />
+        </>
+      )}
     </Group>
   );
 }

@@ -1,20 +1,22 @@
-import { Circle, Group, Line } from 'react-konva';
+import { Circle, Group, Line, Rect } from 'react-konva';
 import { snap } from '../utils/snap';
 
 interface PivotProps {
   x: number;
   y: number;
   rotation: number;
+  view?: number;
   selected: boolean;
+  colorA?: string;
+  colorB?: string;
   onSelect: () => void;
   onDragMove: (x: number, y: number) => void;
   onDragEnd: (x: number, y: number) => void;
   onDblClick: () => void;
 }
 
-export function Pivot({ x, y, rotation, selected, onSelect, onDragMove, onDragEnd, onDblClick }: PivotProps) {
+export function Pivot({ x, y, rotation, view = 1, selected, colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: PivotProps) {
   const r = 12;
-  const strokeColor = selected ? '#2563eb' : '#1a1a1a';
   const strokeWidth = selected ? 2.5 : 2;
 
   return (
@@ -41,9 +43,20 @@ export function Pivot({ x, y, rotation, selected, onSelect, onDragMove, onDragEn
         onDragEnd(sx, sy);
       }}
     >
-      <Circle radius={r} stroke={strokeColor} strokeWidth={strokeWidth} fill="white" />
-      <Line points={[-r - 8, 0, r + 8, 0]} stroke={strokeColor} strokeWidth={strokeWidth} />
-      <Circle radius={2.5} fill={strokeColor} />
+      {view === 1 ? (
+        <>
+          {/* Plan view: rectangle (bearing=B) + horizontal shaft + vertical flanges (A) */}
+          <Rect x={-22} y={-11} width={44} height={22} stroke={colorB} strokeWidth={strokeWidth} fill="white" />
+          <Line points={[-34, 0, 34, 0]} stroke={colorA} strokeWidth={strokeWidth} />
+          <Line points={[-34, -8, -34, 8]} stroke={colorA} strokeWidth={strokeWidth} />
+          <Line points={[34, -8, 34, 8]} stroke={colorA} strokeWidth={strokeWidth} />
+        </>
+      ) : (
+        <>
+          {/* Section view: simple circle colored by first solid */}
+          <Circle radius={r} stroke={colorA} strokeWidth={strokeWidth} fill="white" />
+        </>
+      )}
     </Group>
   );
 }

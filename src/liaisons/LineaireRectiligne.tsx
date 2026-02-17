@@ -5,15 +5,17 @@ interface LineaireRectiligneProps {
   x: number;
   y: number;
   rotation: number;
+  view?: number;
   selected: boolean;
+  colorA?: string;
+  colorB?: string;
   onSelect: () => void;
   onDragMove: (x: number, y: number) => void;
   onDragEnd: (x: number, y: number) => void;
   onDblClick: () => void;
 }
 
-export function LineaireRectiligne({ x, y, rotation, selected, onSelect, onDragMove, onDragEnd, onDblClick }: LineaireRectiligneProps) {
-  const strokeColor = selected ? '#2563eb' : '#1a1a1a';
+export function LineaireRectiligne({ x, y, rotation, view = 1, selected, colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: LineaireRectiligneProps) {
   const strokeWidth = selected ? 2.5 : 2;
 
   return (
@@ -40,36 +42,23 @@ export function LineaireRectiligne({ x, y, rotation, selected, onSelect, onDragM
         onDragEnd(sx, sy);
       }}
     >
-      {/* V-groove: left angled line */}
-      <Line
-        points={[-14, -12, 0, 6]}
-        stroke={strokeColor}
-        strokeWidth={strokeWidth}
-      />
-      {/* V-groove: right angled line */}
-      <Line
-        points={[14, -12, 0, 6]}
-        stroke={strokeColor}
-        strokeWidth={strokeWidth}
-      />
-      {/* Horizontal contact line below */}
-      <Line
-        points={[-18, 6, 18, 6]}
-        stroke={strokeColor}
-        strokeWidth={strokeWidth}
-      />
-      {/* Hatching under contact */}
-      {Array.from({ length: 7 }, (_, i) => {
-        const xPos = -18 + i * 6;
-        return (
-          <Line
-            key={i}
-            points={[xPos, 6, xPos - 4, 14]}
-            stroke={strokeColor}
-            strokeWidth={1.5}
-          />
-        );
-      })}
+      {view === 1 ? (
+        <>
+          {/* Plan view: open trapezoid (A) + horizontal line (B) */}
+          <Line points={[-22, -11, 22, -11]} stroke={colorA} strokeWidth={strokeWidth} />
+          <Line points={[-22, -11, -7, 11]} stroke={colorA} strokeWidth={strokeWidth} />
+          <Line points={[22, -11, 7, 11]} stroke={colorA} strokeWidth={strokeWidth} />
+          <Line points={[-22, 11, 22, 11]} stroke={colorB} strokeWidth={strokeWidth} />
+        </>
+      ) : (
+        <>
+          {/* Section view: horizontal line top (B) + downward triangle (A) + horizontal line bottom (B) */}
+          <Line points={[-19, -11, 19, -11]} stroke={colorB} strokeWidth={strokeWidth} />
+          <Line points={[-19, -11, 0, 11]} stroke={colorA} strokeWidth={strokeWidth} />
+          <Line points={[19, -11, 0, 11]} stroke={colorA} strokeWidth={strokeWidth} />
+          <Line points={[-19, 11, 19, 11]} stroke={colorB} strokeWidth={strokeWidth} />
+        </>
+      )}
     </Group>
   );
 }
