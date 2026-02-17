@@ -2,6 +2,8 @@
 
 A web-based tool for drawing **kinematic diagrams** (schemas cinematiques) with ISO 3952 normalized symbols. Built for mechanical engineering students and teachers.
 
+**Live at [kinesketch.com](https://kinesketch.com)**
+
 ## Features
 
 - **11 standard liaisons** (joints): pivot, prismatic, cylindrical, spherical, fixed, helical, spherical with finger, planar, annular linear, rectilinear linear, point contact
