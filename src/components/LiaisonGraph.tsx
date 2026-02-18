@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { type JSX, useMemo } from 'react';
 import { useDiagramStore } from '../store/diagramStore';
 import { LIAISON_DEFS } from '../liaisons';
 
