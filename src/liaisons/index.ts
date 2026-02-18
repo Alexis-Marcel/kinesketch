@@ -24,7 +24,7 @@ export const LIAISON_DEFS: Record<LiaisonType, LiaisonDefinition> = {
   },
   rotule: {
     type: 'rotule',
-    name: 'Rotule',
+    name: 'Sphérique',
     dof: 3,
     description: '3 rotations (Rx, Ry, Rz)',
     viewCount: 1,
@@ -45,7 +45,7 @@ export const LIAISON_DEFS: Record<LiaisonType, LiaisonDefinition> = {
   },
   rotule_doigt: {
     type: 'rotule_doigt',
-    name: 'Rotule à doigt',
+    name: 'Sphérique à doigt',
     dof: 2,
     description: '2 rotations (Rx, Ry)',
     viewCount: 1,
@@ -59,21 +59,21 @@ export const LIAISON_DEFS: Record<LiaisonType, LiaisonDefinition> = {
   },
   lineaire_annulaire: {
     type: 'lineaire_annulaire',
-    name: 'Linéaire annulaire',
+    name: 'Sphère-cylindre',
     dof: 4,
     description: '3 rotations + 1 translation',
     viewCount: 2,
   },
   lineaire_rectiligne: {
     type: 'lineaire_rectiligne',
-    name: 'Linéaire rectiligne',
+    name: 'Cylindre-plan',
     dof: 4,
     description: '2 rotations + 2 translations',
     viewCount: 2,
   },
   ponctuelle: {
     type: 'ponctuelle',
-    name: 'Ponctuelle',
+    name: 'Sphère-plan',
     dof: 5,
     description: '3 rotations + 2 translations',
     viewCount: 1,
