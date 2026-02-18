@@ -80,32 +80,70 @@ export function LiaisonGraph() {
     <div className="liaison-graph-container">
       <div className="properties-title">Graphe des liaisons</div>
       <svg viewBox="0 0 200 160" className="liaison-graph-svg">
-        {/* Edges */}
-        {graph.map((conn, i) => {
-          const p1 = positions.get(conn.solide1Name);
-          const p2 = positions.get(conn.solide2Name);
-          if (!p1 || !p2) return null;
-          const midX = (p1.x + p2.x) / 2;
-          const midY = (p1.y + p2.y) / 2;
-          return (
-            <g key={i}>
-              <line
-                x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
-                stroke="#9ca3af"
-                strokeWidth={1.5}
-              />
-              <text
-                x={midX}
-                y={midY - 4}
-                textAnchor="middle"
-                fontSize={7}
-                fill="#6b7280"
-              >
-                {conn.nodeLabel ? `${conn.liaisonName} (${conn.nodeLabel})` : conn.liaisonName}
-              </text>
-            </g>
-          );
-        })}
+        {/* Edges — group by solide pair, curve when multiple */}
+        {(() => {
+          // Group connections by sorted pair key
+          const pairMap = new Map<string, typeof graph>();
+          for (const conn of graph) {
+            const key = [conn.solide1Name, conn.solide2Name].sort().join('|');
+            if (!pairMap.has(key)) pairMap.set(key, []);
+            pairMap.get(key)!.push(conn);
+          }
+
+          const elements: JSX.Element[] = [];
+          for (const [, conns] of pairMap) {
+            const p1 = positions.get(conns[0].solide1Name);
+            const p2 = positions.get(conns[0].solide2Name);
+            if (!p1 || !p2) continue;
+
+            const n = conns.length;
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const len = Math.sqrt(dx * dx + dy * dy) || 1;
+            // Perpendicular unit vector
+            const nx = -dy / len;
+            const ny = dx / len;
+            const spread = 24;
+
+            conns.forEach((conn, idx) => {
+              // Offset: center the group of curves around the straight line
+              const offset = n === 1 ? 0 : (idx - (n - 1) / 2) * spread;
+              const cpx = (p1.x + p2.x) / 2 + nx * offset;
+              const cpy = (p1.y + p2.y) / 2 + ny * offset;
+
+              // Label position: just above the curve midpoint
+              const labelX = (p1.x + 2 * cpx + p2.x) / 4;
+              const labelY = (p1.y + 2 * cpy + p2.y) / 4 - 3;
+              const labelText = conn.nodeLabel ? `${conn.liaisonName} (${conn.nodeLabel})` : conn.liaisonName;
+
+              elements.push(
+                <g key={`${conn.solide1Name}-${conn.solide2Name}-${idx}`}>
+                  {n === 1 ? (
+                    <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="#9ca3af" strokeWidth={1.5} />
+                  ) : (
+                    <path
+                      d={`M ${p1.x},${p1.y} Q ${cpx},${cpy} ${p2.x},${p2.y}`}
+                      stroke="#9ca3af"
+                      strokeWidth={1.5}
+                      fill="none"
+                    />
+                  )}
+                  <text
+                    x={labelX}
+                    y={labelY}
+                    textAnchor="middle"
+                    dominantBaseline="auto"
+                    fontSize={6.5}
+                    fill="#6b7280"
+                  >
+                    {labelText}
+                  </text>
+                </g>
+              );
+            });
+          }
+          return elements;
+        })()}
 
         {/* Nodes (solides) */}
         {solideNames.map((name) => {
