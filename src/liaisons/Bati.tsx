@@ -1,7 +1,7 @@
-import { Circle, Group, Line } from 'react-konva';
+import { Group, Line } from 'react-konva';
 import { snap } from '../utils/snap';
 
-interface RotuleProps {
+interface BatiProps {
   x: number;
   y: number;
   rotation: number;
@@ -15,9 +15,9 @@ interface RotuleProps {
   onDblClick: () => void;
 }
 
-export function Rotule({ x, y, rotation,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: RotuleProps) {
-  const r = 12;
+export function Bati({ x, y, rotation,  onSelect, onDragMove, onDragEnd, onDblClick }: BatiProps) {
   const strokeWidth = 1.5;
+  const color = '#374151';
 
   return (
     <Group
@@ -43,16 +43,17 @@ export function Rotule({ x, y, rotation,  colorA = '#1a1a1a', colorB = '#1a1a1a'
         onDragEnd(sx, sy);
       }}
     >
-      {/* Inner circle (A) + 3/4 outer circle opening right (B) */}
-      <Circle radius={r} stroke={colorA} strokeWidth={strokeWidth} fill="white" />
-      <Line
-        points={Array.from({ length: 25 }, (_, i) => {
-          const a = Math.PI / 4 + (3 * Math.PI / 2) * i / 24;
-          return [15 * Math.cos(a), 15 * Math.sin(a)];
-        }).flat()}
-        stroke={colorB}
-        strokeWidth={strokeWidth}
-      />
+      {/* Horizontal ground line */}
+      <Line points={[-22, 0, 22, 0]} stroke={color} strokeWidth={strokeWidth} />
+      {/* Diagonal hatching strokes (ISO 3952) */}
+      {[-16, -10, -4, 2, 8, 14].map((offset) => (
+        <Line
+          key={offset}
+          points={[offset, 0, offset - 7, 8]}
+          stroke={color}
+          strokeWidth={1.2}
+        />
+      ))}
     </Group>
   );
 }

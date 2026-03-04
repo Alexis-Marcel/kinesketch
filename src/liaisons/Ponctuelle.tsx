@@ -15,9 +15,9 @@ interface PonctuelleProps {
   onDblClick: () => void;
 }
 
-export function Ponctuelle({ x, y, rotation, selected, colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: PonctuelleProps) {
+export function Ponctuelle({ x, y, rotation,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: PonctuelleProps) {
   const r = 12;
-  const strokeWidth = selected ? 2.5 : 2;
+  const strokeWidth = 1.5;
 
   return (
     <Group

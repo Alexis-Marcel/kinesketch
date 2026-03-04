@@ -9,7 +9,11 @@ export type LiaisonType =
   | 'appui_plan'
   | 'lineaire_annulaire'
   | 'lineaire_rectiligne'
-  | 'ponctuelle';
+  | 'ponctuelle'
+  | 'bati'
+  | 'engrenage_ext'
+  | 'engrenage_int'
+  | 'engrenage_conique';
 
 export type LiaisonView = 1 | 2;
 

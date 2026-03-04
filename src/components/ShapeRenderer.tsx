@@ -1,4 +1,4 @@
-import { Group, Line, Text } from 'react-konva';
+import { Text } from 'react-konva';
 import type Konva from 'konva';
 import type { DiagramNode } from '../types';
 import { Pivot } from '../liaisons/Pivot';
@@ -12,11 +12,14 @@ import { AppuiPlan } from '../liaisons/AppuiPlan';
 import { LineaireAnnulaire } from '../liaisons/LineaireAnnulaire';
 import { LineaireRectiligne } from '../liaisons/LineaireRectiligne';
 import { Ponctuelle } from '../liaisons/Ponctuelle';
+import { Bati } from '../liaisons/Bati';
+import { EngrenageExt } from '../liaisons/EngrenageExt';
+import { EngrenageInt } from '../liaisons/EngrenageInt';
+import { EngrenageConique } from '../liaisons/EngrenageConique';
 
 interface ShapeRendererProps {
   node: DiagramNode;
   selected: boolean;
-  isBati?: boolean;
   colors: [string, string];
   onSelect: () => void;
   onDblClick: () => void;
@@ -25,7 +28,7 @@ interface ShapeRendererProps {
   onLabelDragEnd: (ox: number, oy: number) => void;
 }
 
-export function ShapeRenderer({ node, selected, isBati, colors, onSelect, onDblClick, onDragMove, onDragEnd, onLabelDragEnd }: ShapeRendererProps) {
+export function ShapeRenderer({ node, selected, colors, onSelect, onDblClick, onDragMove, onDragEnd, onLabelDragEnd }: ShapeRendererProps) {
   const commonProps = {
     x: node.x,
     y: node.y,
@@ -76,27 +79,22 @@ export function ShapeRenderer({ node, selected, isBati, colors, onSelect, onDblC
     case 'ponctuelle':
       shapeElement = <Ponctuelle {...commonProps} />;
       break;
+    case 'bati':
+      shapeElement = <Bati {...commonProps} />;
+      break;
+    case 'engrenage_ext':
+      shapeElement = <EngrenageExt {...commonProps} />;
+      break;
+    case 'engrenage_int':
+      shapeElement = <EngrenageInt {...commonProps} />;
+      break;
+    case 'engrenage_conique':
+      shapeElement = <EngrenageConique {...commonProps} />;
+      break;
   }
-
-  // Bâti hatching: horizontal ground line + short diagonal strokes (ISO 3952)
-  const batiHatching = isBati ? (
-    <Group x={node.x} y={node.y} rotation={node.rotation}>
-      <Line points={[-22, 24, 22, 24]} stroke="#374151" strokeWidth={2} listening={false} />
-      {[-16, -10, -4, 2, 8, 14].map((offset) => (
-        <Line
-          key={offset}
-          points={[offset, 24, offset - 7, 32]}
-          stroke="#374151"
-          strokeWidth={1.2}
-          listening={false}
-        />
-      ))}
-    </Group>
-  ) : null;
 
   return (
     <>
-      {batiHatching}
       {shapeElement}
       {node.label && (
         <Text

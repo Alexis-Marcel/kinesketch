@@ -241,7 +241,69 @@ function nodeToSVG(node: DiagramNode): string {
         ${labelSVG(node)}
       </g>`;
     }
+
+    case 'bati': {
+      const batiHatches = [];
+      for (const offset of [-16, -10, -4, 2, 8, 14]) {
+        batiHatches.push(`<line x1="${offset}" y1="0" x2="${offset - 7}" y2="8" stroke="${stroke}" stroke-width="1.2"/>`);
+      }
+      return `<g transform="${transform}">
+        <line x1="-22" y1="0" x2="22" y2="0" stroke="${stroke}" stroke-width="${sw}"/>
+        ${batiHatches.join('\n        ')}
+        ${labelSVG(node)}
+      </g>`;
+    }
+
+    case 'engrenage_ext':
+      if (view === 2) {
+        return `<g transform="${transform}">
+        <circle cy="-8" r="8" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
+        <circle cy="14" r="14" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
+        ${labelSVG(node)}
+      </g>`;
+      }
+      return `<g transform="${transform}">
+        <line x1="0" y1="-16" x2="0" y2="24" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="-8" y1="-16" x2="8" y2="-16" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="-8" y1="0" x2="8" y2="0" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="-8" y1="24" x2="8" y2="24" stroke="${stroke}" stroke-width="${sw}"/>
+        ${labelSVG(node)}
+      </g>`;
+
+    case 'engrenage_int':
+      if (view === 2) {
+        return `<g transform="${transform}">
+        <circle r="14" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
+        <circle cy="-8" r="6" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
+        ${labelSVG(node)}
+      </g>`;
+      }
+      return `<g transform="${transform}">
+        <line x1="0" y1="-16" x2="0" y2="24" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="-8" y1="-16" x2="8" y2="-16" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="-8" y1="0" x2="8" y2="0" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="8" y1="-16" x2="8" y2="24" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="8" y1="-16" x2="14" y2="-16" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="8" y1="24" x2="14" y2="24" stroke="${stroke}" stroke-width="${sw}"/>
+        ${labelSVG(node)}
+      </g>`;
+
+    case 'engrenage_conique':
+      if (view === 2) {
+        return `<g transform="${transform}">
+        <circle r="14" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
+        ${labelSVG(node)}
+      </g>`;
+      }
+      return `<g transform="${transform}">
+        <line x1="0" y1="-20" x2="0" y2="20" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="-6" y1="-14" x2="6" y2="-26" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="-6" y1="6" x2="6" y2="-6" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="-6" y1="26" x2="6" y2="14" stroke="${stroke}" stroke-width="${sw}"/>
+        ${labelSVG(node)}
+      </g>`;
   }
+  return '';
 }
 
 function labelSVG(node: DiagramNode): string {
