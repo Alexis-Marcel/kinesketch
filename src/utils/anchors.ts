@@ -108,6 +108,40 @@ const ANCHOR_TABLE: Record<string, AnchorPoint[]> = {
     { x: 0, y: -12, side: 'A' },
     { x: 0, y: 12, side: 'B' },
   ],
+  // Bâti: single anchor on top
+  'bati:1': [
+    { x: 0, y: 0, side: 'A' },
+  ],
+  // Engrenage extérieur vue 1: center of small gear (A), center of big gear (B)
+  'engrenage_ext:1': [
+    { x: 0, y: -12, side: 'A' },
+    { x: 0, y: 8, side: 'B' },
+  ],
+  // Engrenage extérieur vue 2: center of small circle (A), center of big circle (B)
+  'engrenage_ext:2': [
+    { x: 0, y: -8, side: 'A' },
+    { x: 0, y: 14, side: 'B' },
+  ],
+  // Engrenage intérieur vue 1: A between lines 1&2 on left, B center of right vertical (hook)
+  'engrenage_int:1': [
+    { x: 0, y: -10, side: 'A' },
+    { x: 9, y: 0, side: 'B' },
+  ],
+  // Engrenage intérieur vue 2: center of small circle (A), center of big circle (B)
+  'engrenage_int:2': [
+    { x: 0, y: -8, side: 'A' },
+    { x: 0, y: 0, side: 'B' },
+  ],
+  // Engrenage conique vue 1
+  'engrenage_conique:1': [
+    { x: 0, y: -10, side: 'A' },
+    { x: -10, y: 0, side: 'B' },
+  ],
+  // Engrenage conique vue 2: circle center (A), vertical bar center (B)
+  'engrenage_conique:2': [
+    { x: 0, y: 0, side: 'A' },
+    { x: -14, y: 0, side: 'B' },
+  ],
 };
 
 export function getAnchors(type: LiaisonType, view: LiaisonView): AnchorPoint[] {

@@ -78,6 +78,35 @@ export const LIAISON_DEFS: Record<LiaisonType, LiaisonDefinition> = {
     description: '3 rotations + 2 translations',
     viewCount: 1,
   },
+  bati: {
+    type: 'bati',
+    name: 'Bâti',
+    dof: 0,
+    description: 'Solide fixe (référentiel)',
+    viewCount: 1,
+  },
+  engrenage_ext: {
+    type: 'engrenage_ext',
+    name: 'Engrenage extérieur',
+    dof: 0,
+    description: 'Engrenage à denture extérieure',
+    viewCount: 2,
+  },
+  engrenage_int: {
+    type: 'engrenage_int',
+    name: 'Engrenage intérieur',
+    dof: 0,
+    description: 'Engrenage à denture intérieure',
+    viewCount: 2,
+  },
+  engrenage_conique: {
+    type: 'engrenage_conique',
+    name: 'Engrenage conique',
+    dof: 0,
+    description: 'Engrenage à denture conique',
+    viewCount: 2,
+  },
 };
 
-export const LIAISON_LIST = Object.values(LIAISON_DEFS);
+export const LIAISON_LIST = Object.values(LIAISON_DEFS).filter((d) => d.type !== 'bati');
+export const BATI_DEF = LIAISON_DEFS.bati;

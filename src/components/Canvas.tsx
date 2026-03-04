@@ -76,17 +76,7 @@ export function Canvas() {
   const updateAngleArcLabel = useDiagramStore((s) => s.updateAngleArcLabel);
   const updateAngleArcLabelOffset = useDiagramStore((s) => s.updateAngleArcLabelOffset);
 
-  // Detect nodes connected to bâti (S0)
-  const batiNodeIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const link of links.values()) {
-      if (link.solideId === 's0') {
-        ids.add(link.fromNodeId);
-        ids.add(link.toNodeId);
-      }
-    }
-    return ids;
-  }, [links]);
+  // (bâti detection removed — bâti is now a standalone node type)
 
   // Compute per-node solide colors based on anchor side (A or B)
   const nodeColors = useMemo(() => {
@@ -898,7 +888,7 @@ export function Canvas() {
               key={node.id}
               node={node}
               selected={selectedIds.has(node.id)}
-              isBati={batiNodeIds.has(node.id)}
+
               colors={nodeColors.get(node.id) || ['#1a1a1a', '#1a1a1a']}
               onSelect={() => handleNodeClick(node.id)}
               onDblClick={() => handleNodeDblClick(node.id)}

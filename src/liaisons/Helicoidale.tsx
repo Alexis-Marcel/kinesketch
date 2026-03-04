@@ -15,11 +15,11 @@ interface HelicoidaleProps {
   onDblClick: () => void;
 }
 
-export function Helicoidale({ x, y, rotation, view = 1, selected, colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: HelicoidaleProps) {
+export function Helicoidale({ x, y, rotation, view = 1,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: HelicoidaleProps) {
   const r = 12;
   const w = 44;
   const h = 22;
-  const strokeWidth = selected ? 2.5 : 2;
+  const strokeWidth = 1.5;
 
   return (
     <Group

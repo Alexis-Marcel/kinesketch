@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useDiagramStore, SOLIDE_COLORS } from '../store/diagramStore';
-import { LIAISON_LIST } from '../liaisons';
+import { LIAISON_LIST, BATI_DEF } from '../liaisons';
 import type { LiaisonType, LiaisonView } from '../types';
 
 const TOOL_ICONS: Record<string, string> = {
@@ -105,6 +105,49 @@ const LIAISON_ICONS: Record<LiaisonType, Record<number, ReactNode>> = {
       <circle cx="10" cy="7" r="5" />
       <line x1="3" y1="14" x2="17" y2="14" />
     </>),
+  },
+  bati: {
+    1: li(<>
+      <line x1="2" y1="10" x2="18" y2="10" />
+      <line x1="4" y1="10" x2="2" y2="14" />
+      <line x1="7" y1="10" x2="5" y2="14" />
+      <line x1="10" y1="10" x2="8" y2="14" />
+      <line x1="13" y1="10" x2="11" y2="14" />
+      <line x1="16" y1="10" x2="14" y2="14" />
+    </>),
+  },
+  engrenage_ext: {
+    1: li(<>
+      <line x1="10" y1="3" x2="10" y2="17" />
+      <line x1="6" y1="3" x2="14" y2="3" />
+      <line x1="6" y1="8" x2="14" y2="8" />
+      <line x1="6" y1="17" x2="14" y2="17" />
+    </>),
+    2: li(<>
+      <circle cx="10" cy="6" r="4" />
+      <circle cx="10" cy="14" r="6" />
+    </>),
+  },
+  engrenage_int: {
+    1: li(<>
+      <line x1="10" y1="3" x2="10" y2="17" />
+      <line x1="6" y1="3" x2="14" y2="3" />
+      <line x1="6" y1="8" x2="14" y2="8" />
+      <line x1="14" y1="3" x2="14" y2="17" />
+    </>),
+    2: li(<>
+      <circle cx="10" cy="7" r="4" />
+      <circle cx="10" cy="10" r="9" />
+    </>),
+  },
+  engrenage_conique: {
+    1: li(<>
+      <line x1="10" y1="3" x2="10" y2="17" />
+      <line x1="6" y1="3" x2="14" y2="3" />
+      <line x1="6" y1="10" x2="14" y2="10" />
+      <line x1="6" y1="17" x2="14" y2="17" />
+    </>),
+    2: li(<circle cx="10" cy="10" r="7" />),
   },
 };
 
@@ -233,6 +276,23 @@ export function Toolbar({ onCollapse }: ToolbarProps) {
 
       <div className="toolbar-section">
         <div className="toolbar-title">Liaisons</div>
+        {/* Bâti button — separate from liaison list */}
+        <button
+          className={`toolbar-btn ${placingLiaison?.type === 'bati' ? 'active' : ''}`}
+          onClick={() => {
+            const isActive = placingLiaison?.type === 'bati';
+            setPlacingLiaison(isActive ? null : { type: 'bati', view: 1 });
+          }}
+          title={`${BATI_DEF.name} — ${BATI_DEF.description}`}
+          draggable
+          onDragStart={(e) => {
+            e.dataTransfer.setData('application/kinesketch-liaison', JSON.stringify({ type: 'bati', view: 1 }));
+            e.dataTransfer.effectAllowed = 'copy';
+          }}
+        >
+          <span className="toolbar-btn-icon">{LIAISON_ICONS.bati[1]}</span>
+          <span className="toolbar-btn-label">{BATI_DEF.name}</span>
+        </button>
         {LIAISON_LIST.map((def) => {
           const views = ([1, 2] as LiaisonView[]).slice(0, def.viewCount);
           const buttons = views.map((v) => {

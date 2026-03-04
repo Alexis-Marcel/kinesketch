@@ -15,8 +15,8 @@ interface LineaireRectiligneProps {
   onDblClick: () => void;
 }
 
-export function LineaireRectiligne({ x, y, rotation, view = 1, selected, colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: LineaireRectiligneProps) {
-  const strokeWidth = selected ? 2.5 : 2;
+export function LineaireRectiligne({ x, y, rotation, view = 1,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: LineaireRectiligneProps) {
+  const strokeWidth = 1.5;
 
   return (
     <Group
@@ -44,19 +44,15 @@ export function LineaireRectiligne({ x, y, rotation, view = 1, selected, colorA 
     >
       {view === 1 ? (
         <>
-          {/* Plan view: open trapezoid (A) + horizontal line (B) */}
-          <Line points={[-22, -11, 22, -11]} stroke={colorA} strokeWidth={strokeWidth} />
-          <Line points={[-22, -11, -7, 11]} stroke={colorA} strokeWidth={strokeWidth} />
-          <Line points={[22, -11, 7, 11]} stroke={colorA} strokeWidth={strokeWidth} />
+          {/* Plan view: open trapezoid as polyline (A) + horizontal line (B) */}
+          <Line points={[-7, 11, -22, -11, 22, -11, 7, 11]} stroke={colorA} strokeWidth={strokeWidth} lineJoin="miter" />
           <Line points={[-22, 11, 22, 11]} stroke={colorB} strokeWidth={strokeWidth} />
         </>
       ) : (
         <>
-          {/* Section view: horizontal line top (B) + downward triangle (A) + horizontal line bottom (B) */}
-          <Line points={[-19, -11, 19, -11]} stroke={colorB} strokeWidth={strokeWidth} />
-          <Line points={[-19, -11, 0, 11]} stroke={colorA} strokeWidth={strokeWidth} />
-          <Line points={[19, -11, 0, 11]} stroke={colorA} strokeWidth={strokeWidth} />
-          <Line points={[-19, 11, 19, 11]} stroke={colorB} strokeWidth={strokeWidth} />
+          {/* Section view: closed triangle (A) + horizontal line bottom (B) */}
+          <Line points={[-19, -11, 0, 11, 19, -11]} stroke={colorA} strokeWidth={strokeWidth} lineJoin="miter" closed />
+          <Line points={[-19, 12, 19, 12]} stroke={colorB} strokeWidth={strokeWidth} />
         </>
       )}
     </Group>

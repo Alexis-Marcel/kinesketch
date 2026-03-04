@@ -15,9 +15,9 @@ interface RotuleProps {
   onDblClick: () => void;
 }
 
-export function Rotule({ x, y, rotation, selected, colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: RotuleProps) {
+export function Rotule({ x, y, rotation,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: RotuleProps) {
   const r = 12;
-  const strokeWidth = selected ? 2.5 : 2;
+  const strokeWidth = 1.5;
 
   return (
     <Group

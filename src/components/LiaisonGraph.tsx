@@ -29,7 +29,7 @@ export function LiaisonGraph() {
     for (const [nodeId, solideSet] of nodeSolides) {
       if (solideSet.size < 2) continue;
       const node = nodes.get(nodeId);
-      if (!node) continue;
+      if (!node || node.type === 'bati') continue;
 
       const def = LIAISON_DEFS[node.type];
       const solideIds = Array.from(solideSet);

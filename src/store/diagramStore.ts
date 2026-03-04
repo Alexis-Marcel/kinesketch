@@ -133,7 +133,10 @@ export const useDiagramStore = create<DiagramState>()(
 
       addLink: (fromNodeId: string, toNodeId: string, fromAnchorIdx?: number, toAnchorIdx?: number) => {
         const state = get();
-        const solideId = state.activeSolideId || 's0';
+        const fromNode = state.nodes.get(fromNodeId);
+        const toNode = state.nodes.get(toNodeId);
+        // Force S0 (bâti) when linking from/to a bâti node
+        const solideId = (fromNode?.type === 'bati' || toNode?.type === 'bati') ? 's0' : (state.activeSolideId || 's0');
         const id = generateId('l');
 
         const fromSolides = new Set<string>();

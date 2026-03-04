@@ -15,10 +15,10 @@ interface GlissiereProps {
   onDblClick: () => void;
 }
 
-export function Glissiere({ x, y, rotation, view = 1, selected, colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: GlissiereProps) {
+export function Glissiere({ x, y, rotation, view = 1,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: GlissiereProps) {
   const w = 44;
   const h = 22;
-  const strokeWidth = selected ? 2.5 : 2;
+  const strokeWidth = 1.5;
 
   return (
     <Group

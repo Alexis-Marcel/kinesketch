@@ -15,11 +15,11 @@ interface RotuleDoigtProps {
   onDblClick: () => void;
 }
 
-export function RotuleDoigt({ x, y, rotation, selected, colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: RotuleDoigtProps) {
+export function RotuleDoigt({ x, y, rotation,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: RotuleDoigtProps) {
   const r = 12;
   const cos45 = Math.cos(Math.PI / 4);
   const sin45 = Math.sin(Math.PI / 4);
-  const strokeWidth = selected ? 2.5 : 2;
+  const strokeWidth = 1.5;
 
   return (
     <Group

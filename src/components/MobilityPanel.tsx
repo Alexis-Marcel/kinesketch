@@ -16,6 +16,10 @@ const NC_2D: Record<LiaisonType, number> = {
   lineaire_annulaire: 1,
   lineaire_rectiligne: 1,
   ponctuelle: 1,
+  bati: 0,
+  engrenage_ext: 1,
+  engrenage_int: 1,
+  engrenage_conique: 1,
 };
 
 export function MobilityPanel() {
@@ -39,7 +43,7 @@ export function MobilityPanel() {
     for (const [nodeId, solideSet] of nodeSolides) {
       if (solideSet.size >= 2) {
         const node = nodes.get(nodeId);
-        if (node) {
+        if (node && node.type !== 'bati') {
           liaisonEntries.push({
             type: node.type,
             count: solideSet.size - 1, // (k-1) binary liaisons

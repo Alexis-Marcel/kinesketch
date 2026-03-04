@@ -15,8 +15,8 @@ interface EncastrementProps {
   onDblClick: () => void;
 }
 
-export function Encastrement({ x, y, rotation, selected, colorA = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: EncastrementProps) {
-  const strokeWidth = selected ? 2.5 : 2;
+export function Encastrement({ x, y, rotation,  colorA = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: EncastrementProps) {
+  const strokeWidth = 1.5;
 
   return (
     <Group

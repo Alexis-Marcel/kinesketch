@@ -15,9 +15,9 @@ interface LineaireAnnulaireProps {
   onDblClick: () => void;
 }
 
-export function LineaireAnnulaire({ x, y, rotation, view = 1, selected, colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: LineaireAnnulaireProps) {
+export function LineaireAnnulaire({ x, y, rotation, view = 1,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: LineaireAnnulaireProps) {
   const r = 12;
-  const strokeWidth = selected ? 2.5 : 2;
+  const strokeWidth = 1.5;
 
   return (
     <Group

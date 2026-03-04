@@ -15,10 +15,10 @@ interface AppuiPlanProps {
   onDblClick: () => void;
 }
 
-export function AppuiPlan({ x, y, rotation, selected, colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: AppuiPlanProps) {
+export function AppuiPlan({ x, y, rotation,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: AppuiPlanProps) {
   const w = 36;
   const gap = 6;
-  const strokeWidth = selected ? 2.5 : 2;
+  const strokeWidth = 1.5;
 
   return (
     <Group
