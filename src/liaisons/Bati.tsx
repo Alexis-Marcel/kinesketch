@@ -1,10 +1,11 @@
-import { Group, Line } from 'react-konva';
+import { Group, Line , Rect } from 'react-konva';
 import { snap } from '../utils/snap';
 
 interface BatiProps {
   x: number;
   y: number;
   rotation: number;
+  scale?: number;
   view?: number;
   selected: boolean;
   colorA?: string;
@@ -15,15 +16,15 @@ interface BatiProps {
   onDblClick: () => void;
 }
 
-export function Bati({ x, y, rotation,  onSelect, onDragMove, onDragEnd, onDblClick }: BatiProps) {
+export function Bati({ x, y, rotation, scale = 1, colorA = '#374151', onSelect, onDragMove, onDragEnd, onDblClick }: BatiProps) {
   const strokeWidth = 1.5;
-  const color = '#374151';
+  const color = colorA;
 
   return (
     <Group
       x={x}
       y={y}
-      rotation={rotation}
+      rotation={rotation} scaleX={scale} scaleY={scale}
       draggable
       onClick={onSelect}
       onTap={onSelect}
@@ -43,13 +44,14 @@ export function Bati({ x, y, rotation,  onSelect, onDragMove, onDragEnd, onDblCl
         onDragEnd(sx, sy);
       }}
     >
+      <Rect x={-26} y={-26} width={52} height={52} fill="transparent" />
       {/* Horizontal ground line */}
-      <Line points={[-22, 0, 22, 0]} stroke={color} strokeWidth={strokeWidth} />
+      <Line points={[-22, -4, 22, -4]} stroke={color} strokeWidth={strokeWidth} />
       {/* Diagonal hatching strokes (ISO 3952) */}
       {[-16, -10, -4, 2, 8, 14].map((offset) => (
         <Line
           key={offset}
-          points={[offset, 0, offset - 7, 8]}
+          points={[offset, -4, offset - 7, 4]}
           stroke={color}
           strokeWidth={1.2}
         />

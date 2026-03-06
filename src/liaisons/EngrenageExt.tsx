@@ -1,10 +1,11 @@
-import { Group, Line, Circle } from 'react-konva';
+import { Group, Line, Circle , Rect } from 'react-konva';
 import { snap } from '../utils/snap';
 
 interface EngrenageExtProps {
   x: number;
   y: number;
   rotation: number;
+  scale?: number;
   view?: number;
   selected: boolean;
   colorA?: string;
@@ -15,13 +16,15 @@ interface EngrenageExtProps {
   onDblClick: () => void;
 }
 
-export function EngrenageExt({ x, y, rotation, view = 1, colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: EngrenageExtProps) {
+export function EngrenageExt({ x, y, rotation, scale = 1, view = 1, colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: EngrenageExtProps) {
   const strokeWidth = 1.5;
 
   const groupProps = {
     x,
     y,
     rotation,
+    scaleX: scale,
+    scaleY: scale,
     draggable: true,
     onClick: onSelect,
     onTap: onSelect,
@@ -46,10 +49,12 @@ export function EngrenageExt({ x, y, rotation, view = 1, colorA = '#1a1a1a', col
     // Two externally tangent circles — small on top, big on bottom
     const r1 = 8; // small gear radius
     const r2 = 14; // big gear radius
-    const cy1 = -r1; // small circle center
-    const cy2 = r2; // big circle center (tangent at y=0)
+    const oy = -(r2 - r1); // vertical offset to center bbox
+    const cy1 = -r1 + oy; // small circle center
+    const cy2 = r2 + oy; // big circle center
     return (
       <Group {...groupProps}>
+      <Rect x={-26} y={-26} width={52} height={52} fill="transparent" />
         <Circle x={0} y={cy1} radius={r1} stroke={colorA} strokeWidth={strokeWidth} fill="white" />
         <Circle x={0} y={cy2} radius={r2} stroke={colorB} strokeWidth={strokeWidth} fill="white" />
       </Group>
@@ -64,6 +69,7 @@ export function EngrenageExt({ x, y, rotation, view = 1, colorA = '#1a1a1a', col
 
   return (
     <Group {...groupProps}>
+      <Rect x={-26} y={-26} width={52} height={52} fill="transparent" />
       {/* Vertical shaft — top half (A), bottom half (B) */}
       <Line points={[0, y1, 0, y2]} stroke={colorA} strokeWidth={strokeWidth} />
       <Line points={[0, y2, 0, y3]} stroke={colorB} strokeWidth={strokeWidth} />

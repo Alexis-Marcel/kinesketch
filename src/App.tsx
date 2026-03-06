@@ -8,6 +8,7 @@ import { LiaisonGraph } from './components/LiaisonGraph';
 import { MobilityPanel } from './components/MobilityPanel';
 import { useDiagramStore } from './store/diagramStore';
 import { autoSave, loadAutoSave, saveKineSketch } from './export/kinesketch';
+import { SNAP_SIZE } from './utils/snap';
 import { LIAISON_LIST } from './liaisons';
 import type { DiagramNode, Link } from './types';
 import './App.css';
@@ -138,10 +139,14 @@ export default function App() {
         return;
       }
 
-      // Delete / Backspace — delete selected
+      // Delete / Backspace — delete selected midpoint or selected elements
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
-        state.deleteSelected();
+        if (state.selectedMidpoint) {
+          state.deleteSelectedMidpoint();
+        } else {
+          state.deleteSelected();
+        }
         return;
       }
 
@@ -179,6 +184,22 @@ export default function App() {
             state.rotateNode(id, (node.rotation + step) % 360);
           }
         }
+        return;
+      }
+
+      // Arrow keys — move selected nodes
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        if (state.selectedIds.size === 0) return;
+        e.preventDefault();
+        const step = e.shiftKey ? 1 : SNAP_SIZE;
+        const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+        const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+        const moves: Array<{ id: string; x: number; y: number }> = [];
+        for (const id of state.selectedIds) {
+          const node = state.nodes.get(id);
+          if (node) moves.push({ id, x: node.x + dx, y: node.y + dy });
+        }
+        if (moves.length > 0) state.moveNodes(moves);
         return;
       }
 

@@ -1,10 +1,11 @@
-import { Circle, Group, Line } from 'react-konva';
+import { Circle, Group, Line , Rect } from 'react-konva';
 import { snap } from '../utils/snap';
 
 interface PonctuelleProps {
   x: number;
   y: number;
   rotation: number;
+  scale?: number;
   view?: number;
   selected: boolean;
   colorA?: string;
@@ -15,7 +16,7 @@ interface PonctuelleProps {
   onDblClick: () => void;
 }
 
-export function Ponctuelle({ x, y, rotation,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: PonctuelleProps) {
+export function Ponctuelle({ x, y, rotation, scale = 1,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: PonctuelleProps) {
   const r = 12;
   const strokeWidth = 1.5;
 
@@ -23,7 +24,7 @@ export function Ponctuelle({ x, y, rotation,  colorA = '#1a1a1a', colorB = '#1a1
     <Group
       x={x}
       y={y}
-      rotation={rotation}
+      rotation={rotation} scaleX={scale} scaleY={scale}
       draggable
       onClick={onSelect}
       onTap={onSelect}
@@ -43,6 +44,7 @@ export function Ponctuelle({ x, y, rotation,  colorA = '#1a1a1a', colorB = '#1a1
         onDragEnd(sx, sy);
       }}
     >
+      <Rect x={-26} y={-26} width={52} height={52} fill="transparent" />
       {/* Circle (A) + horizontal line below (B) */}
       <Circle radius={r} stroke={colorA} strokeWidth={strokeWidth} fill="white" />
       <Line points={[-22, r, 22, r]} stroke={colorB} strokeWidth={strokeWidth} />

@@ -1,8 +1,10 @@
-import { Group, Line, Text } from 'react-konva';
+import React from 'react';
+import { Group, Line, Circle, Text } from 'react-konva';
 import type Konva from 'konva';
 import { useDiagramStore } from '../store/diagramStore';
 import type { DiagramNode, Link } from '../types';
 import { getBestAnchor, type SolideMapping } from '../utils/anchors';
+import { snap } from '../utils/snap';
 
 interface LinkRendererProps {
   link: Link;
@@ -18,11 +20,17 @@ interface LinkRendererProps {
 
 export function LinkRenderer({ link, fromNode, toNode, fromSolideMapping, toSolideMapping, selected, onSelect, onDblClick, onLabelDragEnd }: LinkRendererProps) {
   const solides = useDiagramStore((s) => s.solides);
+  const updateLinkMidpoints = useDiagramStore((s) => s.updateLinkMidpoints);
+  const selectedMidpoint = useDiagramStore((s) => s.selectedMidpoint);
+  const selectMidpoint = useDiagramStore((s) => s.selectMidpoint);
   const solide = solides.get(link.solideId);
   const solideColor = solide?.color || '#4b5563';
 
-  const strokeColor = selected ? '#2563eb' : solideColor;
-  const strokeWidth = selected ? 3 : 2;
+  const strokeColor = solideColor;
+  const strokeWidth = 1.5;
+
+  const lineRef = React.useRef<Konva.Line>(null);
+  const creatingRef = React.useRef<{ segIdx: number } | null>(null);
 
   // Resolve anchor points (pinned if explicit index, otherwise auto-select)
   const fromAnchor = getBestAnchor(fromNode, { x: toNode.x, y: toNode.y }, link.solideId, fromSolideMapping, link.fromAnchorIdx);
@@ -31,13 +39,115 @@ export function LinkRenderer({ link, fromNode, toNode, fromSolideMapping, toSoli
   const fromFinal = getBestAnchor(fromNode, toAnchor, link.solideId, fromSolideMapping, link.fromAnchorIdx);
   const toFinal = getBestAnchor(toNode, fromAnchor, link.solideId, toSolideMapping, link.toAnchorIdx);
 
+  // Keep latest anchor refs for use in imperative handlers
+  const fromRef = React.useRef(fromFinal);
+  const toRef = React.useRef(toFinal);
+  fromRef.current = fromFinal;
+  toRef.current = toFinal;
+
+  // Build full point sequence: from → midpoints → to
+  const midpoints = link.midpoints || [];
+  const allPoints: Array<{ x: number; y: number }> = [
+    fromFinal,
+    ...midpoints,
+    toFinal,
+  ];
+
+  // Flatten to Konva points array
+  const flatPoints = allPoints.flatMap((p) => [p.x, p.y]);
+
+  // Midpoint of the full path (use geometric center of all points for label)
   const midX = (fromFinal.x + toFinal.x) / 2;
   const midY = (fromFinal.y + toFinal.y) / 2;
+
+  // Compute segment midpoints for drag handles (only shown when selected)
+  const segmentMids: Array<{ x: number; y: number; segIdx: number }> = [];
+  if (selected) {
+    for (let i = 0; i < allPoints.length - 1; i++) {
+      segmentMids.push({
+        x: (allPoints[i].x + allPoints[i + 1].x) / 2,
+        y: (allPoints[i].y + allPoints[i + 1].y) / 2,
+        segIdx: i,
+      });
+    }
+  }
+
+  // Helper: get fresh midpoints from the store
+  const getFreshMidpoints = () =>
+    useDiagramStore.getState().links.get(link.id)?.midpoints || [];
+
+  // Helper: update Line node points directly (no React re-render)
+  const updateLinePoints = (pts: Array<{ x: number; y: number }>) => {
+    if (!lineRef.current) return;
+    lineRef.current.points(pts.flatMap((p) => [p.x, p.y]));
+    lineRef.current.getLayer()?.batchDraw();
+  };
+
+  // --- Segment handle: drag to create a new bend ---
+  const handleSegmentDragStart = (segIdx: number, e: Konva.KonvaEventObject<DragEvent>) => {
+    e.cancelBubble = true;
+    creatingRef.current = { segIdx };
+  };
+
+  const handleSegmentDragMove = (_segIdx: number, e: Konva.KonvaEventObject<DragEvent>) => {
+    e.cancelBubble = true;
+    if (!creatingRef.current) return;
+    const newX = snap(e.target.x());
+    const newY = snap(e.target.y());
+    const phantom = { x: newX, y: newY };
+    const cur = getFreshMidpoints();
+    const pts = [
+      fromRef.current,
+      ...cur.slice(0, creatingRef.current.segIdx),
+      phantom,
+      ...cur.slice(creatingRef.current.segIdx),
+      toRef.current,
+    ];
+    updateLinePoints(pts);
+  };
+
+  const handleSegmentDragEnd = (_segIdx: number, e: Konva.KonvaEventObject<DragEvent>) => {
+    e.cancelBubble = true;
+    if (!creatingRef.current) return;
+    const segIdx = creatingRef.current.segIdx;
+    const newX = snap(e.target.x());
+    const newY = snap(e.target.y());
+    const newMidpoints = [...getFreshMidpoints()];
+    newMidpoints.splice(segIdx, 0, { x: newX, y: newY });
+    updateLinkMidpoints(link.id, newMidpoints);
+    creatingRef.current = null;
+  };
+
+  // --- Existing midpoint handle: drag to move ---
+  const handleExistingMidpointDragMove = (midIdx: number, e: Konva.KonvaEventObject<DragEvent>) => {
+    e.cancelBubble = true;
+    const newX = snap(e.target.x());
+    const newY = snap(e.target.y());
+    const cur = [...getFreshMidpoints()];
+    cur[midIdx] = { x: newX, y: newY };
+    updateLinePoints([fromRef.current, ...cur, toRef.current]);
+  };
+
+  const handleExistingMidpointDragEnd = (midIdx: number, e: Konva.KonvaEventObject<DragEvent>) => {
+    e.cancelBubble = true;
+    const newX = snap(e.target.x());
+    const newY = snap(e.target.y());
+    const newMidpoints = [...getFreshMidpoints()];
+    newMidpoints[midIdx] = { x: newX, y: newY };
+    updateLinkMidpoints(link.id, newMidpoints);
+  };
+
+  const handleMidpointDblClick = (midIdx: number) => {
+    const newMidpoints = [...getFreshMidpoints()];
+    newMidpoints.splice(midIdx, 1);
+    updateLinkMidpoints(link.id, newMidpoints);
+  };
 
   return (
     <Group onClick={onSelect} onTap={onSelect} onDblClick={onDblClick}>
       <Line
-        points={[fromFinal.x, fromFinal.y, toFinal.x, toFinal.y]}
+        ref={lineRef}
+        points={flatPoints}
         stroke={strokeColor}
         strokeWidth={strokeWidth}
         hitStrokeWidth={12}
@@ -49,7 +159,7 @@ export function LinkRenderer({ link, fromNode, toNode, fromSolideMapping, toSoli
           text={link.label}
           fontSize={13}
           fontFamily="Inter, system-ui, sans-serif"
-          fill={selected ? '#2563eb' : solideColor}
+          fill={solideColor}
           draggable
           onDragEnd={(e: Konva.KonvaEventObject<DragEvent>) => {
             const newOx = e.target.x() - midX;
@@ -58,6 +168,43 @@ export function LinkRenderer({ link, fromNode, toNode, fromSolideMapping, toSoli
           }}
         />
       )}
+      {/* Existing midpoint handles — click to select, drag to move, double-click to delete */}
+      {selected && midpoints.map((mp, i) => {
+        const isMpSelected = selectedMidpoint?.linkId === link.id && selectedMidpoint?.index === i;
+        return (
+          <Circle
+            key={`mp-${i}`}
+            x={mp.x}
+            y={mp.y}
+            radius={isMpSelected ? 5 : 4}
+            fill={isMpSelected ? 'rgba(37, 99, 235, 0.6)' : 'rgba(37, 99, 235, 0.4)'}
+            stroke={isMpSelected ? '#1d4ed8' : '#2563eb'}
+            strokeWidth={isMpSelected ? 2 : 1.2}
+            draggable
+            onClick={(e) => { e.cancelBubble = true; selectMidpoint(link.id, i); }}
+            onTap={(e) => { e.cancelBubble = true; selectMidpoint(link.id, i); }}
+            onDragMove={(e) => handleExistingMidpointDragMove(i, e)}
+            onDragEnd={(e) => handleExistingMidpointDragEnd(i, e)}
+            onDblClick={(e) => { e.cancelBubble = true; handleMidpointDblClick(i); }}
+          />
+        );
+      })}
+      {/* Segment midpoint handles — drag to create a new bend */}
+      {selected && segmentMids.map((sm) => (
+        <Circle
+          key={`seg-${sm.segIdx}`}
+          x={sm.x}
+          y={sm.y}
+          radius={3}
+          fill="rgba(120, 120, 120, 0.15)"
+          stroke="rgba(100, 100, 100, 0.4)"
+          strokeWidth={1}
+          draggable
+          onDragStart={(e) => handleSegmentDragStart(sm.segIdx, e)}
+          onDragMove={(e) => handleSegmentDragMove(sm.segIdx, e)}
+          onDragEnd={(e) => handleSegmentDragEnd(sm.segIdx, e)}
+        />
+      ))}
     </Group>
   );
 }

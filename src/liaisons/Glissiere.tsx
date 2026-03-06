@@ -5,6 +5,7 @@ interface GlissiereProps {
   x: number;
   y: number;
   rotation: number;
+  scale?: number;
   view?: number;
   selected: boolean;
   colorA?: string;
@@ -15,7 +16,7 @@ interface GlissiereProps {
   onDblClick: () => void;
 }
 
-export function Glissiere({ x, y, rotation, view = 1,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: GlissiereProps) {
+export function Glissiere({ x, y, rotation, scale = 1, view = 1,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: GlissiereProps) {
   const w = 44;
   const h = 22;
   const strokeWidth = 1.5;
@@ -24,7 +25,7 @@ export function Glissiere({ x, y, rotation, view = 1,  colorA = '#1a1a1a', color
     <Group
       x={x}
       y={y}
-      rotation={rotation}
+      rotation={rotation} scaleX={scale} scaleY={scale}
       draggable
       onClick={onSelect}
       onTap={onSelect}
@@ -44,6 +45,7 @@ export function Glissiere({ x, y, rotation, view = 1,  colorA = '#1a1a1a', color
         onDragEnd(sx, sy);
       }}
     >
+      <Rect x={-26} y={-26} width={52} height={52} fill="transparent" />
       {view === 1 ? (
         <>
           {/* Plan view: simple rectangle, colored by top/bottom solid (A) */}

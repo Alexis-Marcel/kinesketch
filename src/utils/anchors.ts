@@ -85,8 +85,8 @@ const ANCHOR_TABLE: Record<string, AnchorPoint[]> = {
   ],
   // Linéaire annulaire vue 1: circle (A) top, rectangle (B) bottom
   'lineaire_annulaire:1': [
-    { x: 0, y: -18, side: 'A' },
-    { x: 0, y: 10, side: 'B' },
+    { x: 0, y: -14, side: 'A' },
+    { x: 0, y: 14, side: 'B' },
   ],
   // Linéaire annulaire vue 2: circle (A) top, semicircle (B) bottom
   'lineaire_annulaire:2': [
@@ -110,7 +110,7 @@ const ANCHOR_TABLE: Record<string, AnchorPoint[]> = {
   ],
   // Bâti: single anchor on top
   'bati:1': [
-    { x: 0, y: 0, side: 'A' },
+    { x: 0, y: -4, side: 'A' },
   ],
   // Engrenage extérieur vue 1: center of small gear (A), center of big gear (B)
   'engrenage_ext:1': [
@@ -119,13 +119,13 @@ const ANCHOR_TABLE: Record<string, AnchorPoint[]> = {
   ],
   // Engrenage extérieur vue 2: center of small circle (A), center of big circle (B)
   'engrenage_ext:2': [
-    { x: 0, y: -8, side: 'A' },
-    { x: 0, y: 14, side: 'B' },
+    { x: 0, y: -14, side: 'A' },
+    { x: 0, y: 8, side: 'B' },
   ],
   // Engrenage intérieur vue 1: A between lines 1&2 on left, B center of right vertical (hook)
   'engrenage_int:1': [
-    { x: 0, y: -10, side: 'A' },
-    { x: 9, y: 0, side: 'B' },
+    { x: -3, y: -10, side: 'A' },
+    { x: 6, y: 0, side: 'B' },
   ],
   // Engrenage intérieur vue 2: center of small circle (A), center of big circle (B)
   'engrenage_int:2': [
@@ -152,14 +152,17 @@ export function anchorToWorld(
   anchor: AnchorPoint,
   nodeX: number,
   nodeY: number,
-  rotationDeg: number
+  rotationDeg: number,
+  scale: number = 1
 ): { x: number; y: number } {
   const rad = (rotationDeg * Math.PI) / 180;
   const cos = Math.cos(rad);
   const sin = Math.sin(rad);
+  const sx = anchor.x * scale;
+  const sy = anchor.y * scale;
   return {
-    x: nodeX + anchor.x * cos - anchor.y * sin,
-    y: nodeY + anchor.x * sin + anchor.y * cos,
+    x: nodeX + sx * cos - sy * sin,
+    y: nodeY + sx * sin + sy * cos,
   };
 }
 
@@ -174,7 +177,7 @@ export function getAnchorWorldByIndex(
 ): { x: number; y: number } | null {
   const anchors = getAnchors(node.type, node.view);
   if (anchorIdx < 0 || anchorIdx >= anchors.length) return null;
-  return anchorToWorld(anchors[anchorIdx], node.x, node.y, node.rotation);
+  return anchorToWorld(anchors[anchorIdx], node.x, node.y, node.rotation, node.scale ?? 1);
 }
 
 export function getBestAnchor(
@@ -212,7 +215,7 @@ export function getBestAnchor(
   let bestDist = Infinity;
   let bestPos = { x: node.x, y: node.y };
   for (const anchor of candidates) {
-    const world = anchorToWorld(anchor, node.x, node.y, node.rotation);
+    const world = anchorToWorld(anchor, node.x, node.y, node.rotation, node.scale ?? 1);
     const dx = world.x - targetPos.x;
     const dy = world.y - targetPos.y;
     const dist = dx * dx + dy * dy;

@@ -13,10 +13,9 @@ import { getBestAnchor, getAnchors, anchorToWorld, type SolideMapping } from '..
 
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 5;
-const GRID_SIZE = 40;
 const SELECTION_PAD = 26;
 const ROTATION_HANDLE_DIST = 44;
-const LINK_SNAP_RADIUS = 40; // px in world coords — snap ghost line to nearby nodes
+const LINK_SNAP_RADIUS = 20; // px in world coords — snap ghost line to nearby nodes
 
 export function Canvas() {
   const stageRef = useRef<Konva.Stage>(null);
@@ -33,12 +32,16 @@ export function Canvas() {
   const [linkHoverNodeId, setLinkHoverNodeId] = useState<string | null>(null);
   const [linkSourceAnchorIdx, setLinkSourceAnchorIdx] = useState<number | undefined>(undefined);
   const [linkTargetAnchorIdx, setLinkTargetAnchorIdx] = useState<number | undefined>(undefined);
+  const [reanchoring, setReanchoring] = useState<{ linkId: string; end: 'from' | 'to' } | null>(null);
   const isSelecting = useRef(false);
   const isPanning = useRef(false);
   const panStart = useRef({ x: 0, y: 0 });
   const spacePressed = useRef(false);
   const isRotating = useRef(false);
   const rotatingNodeId = useRef<string | null>(null);
+  const isScaling = useRef(false);
+  const scalingNodeId = useRef<string | null>(null);
+  const scalingStart = useRef<{ dist: number; scale: number }>({ dist: 0, scale: 1 });
   const didSelect = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -58,6 +61,7 @@ export function Canvas() {
   const moveNode = useDiagramStore((s) => s.moveNode);
   const moveNodes = useDiagramStore((s) => s.moveNodes);
   const rotateNode = useDiagramStore((s) => s.rotateNode);
+  const scaleNode = useDiagramStore((s) => s.scaleNode);
   const select = useDiagramStore((s) => s.select);
   const selectMultiple = useDiagramStore((s) => s.selectMultiple);
   const clearSelection = useDiagramStore((s) => s.clearSelection);
@@ -108,7 +112,7 @@ export function Canvas() {
       }
 
       const cA = sideASolideId ? (solides.get(sideASolideId)?.color || '#1a1a1a') : '#1a1a1a';
-      const cB = sideBSolideId ? (solides.get(sideBSolideId)?.color || '#1a1a1a') : cA;
+      const cB = sideBSolideId ? (solides.get(sideBSolideId)?.color || '#1a1a1a') : '#1a1a1a';
       map.set(node.id, [cA, cB]);
     }
     return map;
@@ -271,7 +275,7 @@ export function Canvas() {
         clearSelection();
       }
     },
-    [activeTool, placingLiaison, stageX, stageY, stageScale, addNode, clearSelection, setLinkSource, setTool, linkSourceId, linkSnapTarget, linkSourceAnchorIdx, linkTargetAnchorIdx, addLink]
+    [activeTool, placingLiaison, reanchoring, stageX, stageY, stageScale, addNode, clearSelection, setLinkSource, setTool, linkSourceId, linkSnapTarget, linkSourceAnchorIdx, linkTargetAnchorIdx, addLink]
   );
 
   // Handle node click for link tool (no specific anchor — uses tracked target anchor)
@@ -293,7 +297,7 @@ export function Canvas() {
         select(nodeId);
       }
     },
-    [activeTool, linkSourceId, linkSourceAnchorIdx, linkTargetAnchorIdx, setLinkSource, addLink, select]
+    [activeTool, reanchoring, linkSourceId, linkSourceAnchorIdx, linkTargetAnchorIdx, setLinkSource, addLink, select]
   );
 
   // Handle anchor click for link tool (specific anchor — pinned mode)
@@ -398,6 +402,9 @@ export function Canvas() {
       const snappedY = snap(y);
 
       const state = useDiagramStore.getState();
+      if (!state.selectedIds.has(nodeId)) {
+        state.select(nodeId);
+      }
       if (state.selectedIds.size > 1 && state.selectedIds.has(nodeId)) {
         const node = state.nodes.get(nodeId);
         if (!node) return;
@@ -524,11 +531,32 @@ export function Canvas() {
         return;
       }
 
-      if (activeTool === 'link') {
-        // Find nearest node for hover/snap (exclude source when linking)
+      // Scale mode
+      if (isScaling.current && scalingNodeId.current) {
+        const node = useDiagramStore.getState().nodes.get(scalingNodeId.current);
+        if (node) {
+          const dx = worldX - node.x;
+          const dy = worldY - node.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const ratio = dist / scalingStart.current.dist;
+          const newScale = Math.max(0.3, Math.min(4, scalingStart.current.scale * ratio));
+          // Snap to 0.1 increments
+          const snapped = Math.round(newScale * 10) / 10;
+          scaleNode(scalingNodeId.current, snapped);
+        }
+        return;
+      }
+
+      if (activeTool === 'link' || reanchoring) {
+        // Find nearest node for hover/snap (exclude fixed end node when re-anchoring)
+        const excludeNodeId = reanchoring
+          ? (reanchoring.end === 'from'
+            ? useDiagramStore.getState().links.get(reanchoring.linkId)?.toNodeId
+            : useDiagramStore.getState().links.get(reanchoring.linkId)?.fromNodeId)
+          : linkSourceId;
         let nearest: { id: string; x: number; y: number; dist: number } | null = null;
         for (const node of useDiagramStore.getState().nodes.values()) {
-          if (linkSourceId && node.id === linkSourceId) continue;
+          if (excludeNodeId && node.id === excludeNodeId) continue;
           const dx = worldX - node.x;
           const dy = worldY - node.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
@@ -537,7 +565,7 @@ export function Canvas() {
           }
         }
 
-        if (linkSourceId) {
+        if (linkSourceId || reanchoring) {
           if (nearest) {
             // Snap to nearest anchor on target node (not center)
             const targetNode = useDiagramStore.getState().nodes.get(nearest.id);
@@ -547,7 +575,7 @@ export function Canvas() {
               let bestDist = Infinity;
               let bestPos = { x: nearest.x, y: nearest.y };
               for (let i = 0; i < anchors.length; i++) {
-                const world = anchorToWorld(anchors[i], targetNode.x, targetNode.y, targetNode.rotation);
+                const world = anchorToWorld(anchors[i], targetNode.x, targetNode.y, targetNode.rotation, targetNode.scale ?? 1);
                 const dx = worldX - world.x;
                 const dy = worldY - world.y;
                 const dist = dx * dx + dy * dy;
@@ -579,7 +607,7 @@ export function Canvas() {
         setSelectionRect({ ...selectionRect, x2: worldX, y2: worldY });
       }
     },
-    [activeTool, linkSourceId, stageX, stageY, stageScale, selectionRect, setStagePosition, rotateNode]
+    [activeTool, linkSourceId, reanchoring, stageX, stageY, stageScale, selectionRect, setStagePosition, rotateNode]
   );
 
   // Mouse down: panning or selection rect
@@ -622,10 +650,38 @@ export function Canvas() {
         return;
       }
 
+      // End scaling
+      if (isScaling.current) {
+        isScaling.current = false;
+        scalingNodeId.current = null;
+        return;
+      }
+
       // End rotation
       if (isRotating.current) {
         isRotating.current = false;
         rotatingNodeId.current = null;
+        return;
+      }
+
+      // End re-anchoring (drag release)
+      if (reanchoring) {
+        if (linkSnapTarget && linkTargetAnchorIdx !== undefined) {
+          const link = useDiagramStore.getState().links.get(reanchoring.linkId);
+          if (link) {
+            const updatedLinks = new Map(useDiagramStore.getState().links);
+            if (reanchoring.end === 'from') {
+              updatedLinks.set(link.id, { ...link, fromNodeId: linkSnapTarget, fromAnchorIdx: linkTargetAnchorIdx });
+            } else {
+              updatedLinks.set(link.id, { ...link, toNodeId: linkSnapTarget, toAnchorIdx: linkTargetAnchorIdx });
+            }
+            useDiagramStore.setState({ links: updatedLinks });
+          }
+        }
+        setReanchoring(null);
+        setMousePos(null);
+        setLinkSnapTarget(null);
+        setLinkTargetAnchorIdx(undefined);
         return;
       }
 
@@ -662,7 +718,7 @@ export function Canvas() {
 
       setSelectionRect(null);
     },
-    [selectionRect, nodes, selectMultiple]
+    [selectionRect, reanchoring, linkSnapTarget, linkTargetAnchorIdx, nodes, selectMultiple]
   );
 
   // Start rotation from handle
@@ -675,38 +731,63 @@ export function Canvas() {
     []
   );
 
+  // Start scale from corner handle
+  const handleScaleStart = useCallback(
+    (nodeId: string, e: Konva.KonvaEventObject<MouseEvent>) => {
+      e.cancelBubble = true;
+      isScaling.current = true;
+      scalingNodeId.current = nodeId;
+      const node = useDiagramStore.getState().nodes.get(nodeId);
+      if (!node) return;
+      const stage = stageRef.current;
+      if (!stage) return;
+      const pointer = stage.getPointerPosition();
+      if (!pointer) return;
+      const worldX = (pointer.x - stageX) / stageScale;
+      const worldY = (pointer.y - stageY) / stageScale;
+      const dx = worldX - node.x;
+      const dy = worldY - node.y;
+      scalingStart.current = { dist: Math.sqrt(dx * dx + dy * dy), scale: node.scale ?? 1 };
+    },
+    [stageX, stageY, stageScale]
+  );
+
   // Expose stageRef globally for export
   useEffect(() => {
     (window as unknown as Record<string, unknown>).__kineSketchStage = stageRef;
   }, []);
 
-  // Grid lines
+  // Grid lines — minor every 20px, major every 40px
+  const MINOR_GRID = 20;
+  const MAJOR_GRID = 40;
   const gridLines = (() => {
     const lines: React.ReactNode[] = [];
-    const pad = GRID_SIZE * 2;
-    const startX = Math.floor((-stageX / stageScale) / GRID_SIZE) * GRID_SIZE - pad;
-    const endX = Math.ceil((-stageX / stageScale + size.width / stageScale) / GRID_SIZE) * GRID_SIZE + pad;
-    const startY = Math.floor((-stageY / stageScale) / GRID_SIZE) * GRID_SIZE - pad;
-    const endY = Math.ceil((-stageY / stageScale + size.height / stageScale) / GRID_SIZE) * GRID_SIZE + pad;
+    const pad = MAJOR_GRID * 2;
+    const startX = Math.floor((-stageX / stageScale) / MINOR_GRID) * MINOR_GRID - pad;
+    const endX = Math.ceil((-stageX / stageScale + size.width / stageScale) / MINOR_GRID) * MINOR_GRID + pad;
+    const startY = Math.floor((-stageY / stageScale) / MINOR_GRID) * MINOR_GRID - pad;
+    const endY = Math.ceil((-stageY / stageScale + size.height / stageScale) / MINOR_GRID) * MINOR_GRID + pad;
 
-    for (let x = startX; x <= endX; x += GRID_SIZE) {
+    for (let x = startX; x <= endX; x += MINOR_GRID) {
+      const isMajor = x % MAJOR_GRID === 0;
       lines.push(
         <Line
           key={`gv${x}`}
           points={[x, startY, x, endY]}
-          stroke="#e5e7eb"
-          strokeWidth={0.5 / stageScale}
+          stroke={isMajor ? '#d1d5db' : '#f0f0f0'}
+          strokeWidth={(isMajor ? 0.6 : 0.3) / stageScale}
           listening={false}
         />
       );
     }
-    for (let y = startY; y <= endY; y += GRID_SIZE) {
+    for (let y = startY; y <= endY; y += MINOR_GRID) {
+      const isMajor = y % MAJOR_GRID === 0;
       lines.push(
         <Line
           key={`gh${y}`}
           points={[startX, y, endX, y]}
-          stroke="#e5e7eb"
-          strokeWidth={0.5 / stageScale}
+          stroke={isMajor ? '#d1d5db' : '#f0f0f0'}
+          strokeWidth={(isMajor ? 0.6 : 0.3) / stageScale}
           listening={false}
         />
       );
@@ -770,28 +851,7 @@ export function Canvas() {
           {gridLines}
         </Layer>
         <Layer>
-          {/* Links (rendered below nodes) */}
-          {Array.from(links.values()).map((link) => {
-            const fromNode = nodes.get(link.fromNodeId);
-            const toNode = nodes.get(link.toNodeId);
-            if (!fromNode || !toNode) return null;
-            return (
-              <LinkRenderer
-                key={link.id}
-                link={link}
-                fromNode={fromNode}
-                toNode={toNode}
-                fromSolideMapping={nodeSolideMapping.get(link.fromNodeId) || { a: null, b: null }}
-                toSolideMapping={nodeSolideMapping.get(link.toNodeId) || { a: null, b: null }}
-                selected={selectedIds.has(link.id)}
-                onSelect={() => select(link.id)}
-                onDblClick={() => handleLinkDblClick(link.id)}
-                onLabelDragEnd={(ox, oy) => updateLinkLabelOffset(link.id, ox, oy)}
-              />
-            );
-          })}
-
-          {/* Local reference frames (rendered between links and nodes) */}
+          {/* Local reference frames */}
           {Array.from(solides.values()).map((solide) => {
             if (!solide.showFrame) return null;
             const frameId = `frame-${solide.id}`;
@@ -841,6 +901,45 @@ export function Canvas() {
             );
           })}
 
+          {/* Nodes (rendered below links so links are visually on top) */}
+          {Array.from(nodes.values()).map((node) => (
+            <ShapeRenderer
+              key={node.id}
+              node={node}
+              selected={selectedIds.has(node.id)}
+
+              colors={nodeColors.get(node.id) || ['#1a1a1a', '#1a1a1a']}
+              onSelect={() => handleNodeClick(node.id)}
+              onDblClick={() => handleNodeDblClick(node.id)}
+              onDragMove={(x, y) => handleDragMove(node.id, x, y)}
+              onDragEnd={(x, y) => handleDragEnd(node.id, x, y)}
+              onLabelDragEnd={(ox, oy) => updateNodeLabelOffset(node.id, ox, oy)}
+            />
+          ))}
+
+          {/* Links (rendered above nodes — clicking a link has priority over shapes) */}
+          {Array.from(links.values()).map((link) => {
+            // Hide the link being re-anchored (ghost line takes over)
+            if (reanchoring && reanchoring.linkId === link.id) return null;
+            const fromNode = nodes.get(link.fromNodeId);
+            const toNode = nodes.get(link.toNodeId);
+            if (!fromNode || !toNode) return null;
+            return (
+              <LinkRenderer
+                key={link.id}
+                link={link}
+                fromNode={fromNode}
+                toNode={toNode}
+                fromSolideMapping={nodeSolideMapping.get(link.fromNodeId) || { a: null, b: null }}
+                toSolideMapping={nodeSolideMapping.get(link.toNodeId) || { a: null, b: null }}
+                selected={selectedIds.has(link.id)}
+                onSelect={() => select(link.id)}
+                onDblClick={() => handleLinkDblClick(link.id)}
+                onLabelDragEnd={(ox, oy) => updateLinkLabelOffset(link.id, ox, oy)}
+              />
+            );
+          })}
+
           {/* Ghost link line (follows mouse when linking) */}
           {linkSourceId && mousePos && (() => {
             const sourceNode = nodes.get(linkSourceId);
@@ -859,6 +958,58 @@ export function Canvas() {
                 />
               </Group>
             );
+          })()}
+
+          {/* Ghost line for re-anchoring — uses link's actual color, solid */}
+          {reanchoring && mousePos && (() => {
+            const link = links.get(reanchoring.linkId);
+            if (!link) return null;
+            const linkSolide = solides.get(link.solideId);
+            const linkColor = linkSolide?.color || '#4b5563';
+            // The fixed end is the opposite of the one being re-anchored
+            const fixedNodeId = reanchoring.end === 'from' ? link.toNodeId : link.fromNodeId;
+            const fixedAnchorIdx = reanchoring.end === 'from' ? link.toAnchorIdx : link.fromAnchorIdx;
+            const fixedNode = nodes.get(fixedNodeId);
+            if (!fixedNode) return null;
+            const fixedMapping = nodeSolideMapping.get(fixedNodeId) || { a: null, b: null };
+            const fixedPos = getBestAnchor(fixedNode, mousePos, link.solideId, fixedMapping, fixedAnchorIdx);
+            // Build full polyline including midpoints
+            const mps = link.midpoints || [];
+            const ghostPoints: number[] = reanchoring.end === 'from'
+              ? [mousePos.x, mousePos.y, ...mps.flatMap((p) => [p.x, p.y]), fixedPos.x, fixedPos.y]
+              : [fixedPos.x, fixedPos.y, ...mps.flatMap((p) => [p.x, p.y]), mousePos.x, mousePos.y];
+            return (
+              <Group listening={false}>
+                <Line
+                  points={ghostPoints}
+                  stroke={linkColor}
+                  strokeWidth={1.5}
+                />
+              </Group>
+            );
+          })()}
+
+          {/* Anchor indicators during re-anchoring — show anchors on hovered node */}
+          {reanchoring && linkHoverNodeId && (() => {
+            const hoverNode = nodes.get(linkHoverNodeId);
+            if (!hoverNode) return null;
+            const anchors = getAnchors(hoverNode.type, hoverNode.view);
+            return anchors.map((anchor, i) => {
+              const world = anchorToWorld(anchor, hoverNode.x, hoverNode.y, hoverNode.rotation, hoverNode.scale ?? 1);
+              const isSnapped = linkSnapTarget === linkHoverNodeId && linkTargetAnchorIdx === i;
+              return (
+                <Circle
+                  key={`reanchor-hover-${i}`}
+                  x={world.x}
+                  y={world.y}
+                  radius={4}
+                  fill={isSnapped ? 'rgba(37, 99, 235, 0.4)' : 'rgba(120, 120, 120, 0.2)'}
+                  stroke={isSnapped ? '#2563eb' : 'rgba(100, 100, 100, 0.5)'}
+                  strokeWidth={1.2}
+                  listening={false}
+                />
+              );
+            });
           })()}
 
           {/* Selection rectangle */}
@@ -882,22 +1033,6 @@ export function Canvas() {
             );
           })()}
 
-          {/* Nodes */}
-          {Array.from(nodes.values()).map((node) => (
-            <ShapeRenderer
-              key={node.id}
-              node={node}
-              selected={selectedIds.has(node.id)}
-
-              colors={nodeColors.get(node.id) || ['#1a1a1a', '#1a1a1a']}
-              onSelect={() => handleNodeClick(node.id)}
-              onDblClick={() => handleNodeDblClick(node.id)}
-              onDragMove={(x, y) => handleDragMove(node.id, x, y)}
-              onDragEnd={(x, y) => handleDragEnd(node.id, x, y)}
-              onLabelDragEnd={(ox, oy) => updateNodeLabelOffset(node.id, ox, oy)}
-            />
-          ))}
-
           {/* Anchor point indicators in link mode — rendered AFTER nodes so they're on top */}
           {activeTool === 'link' && linkHoverNodeId && (() => {
             const hoverNode = nodes.get(linkHoverNodeId);
@@ -905,7 +1040,7 @@ export function Canvas() {
             const anchors = getAnchors(hoverNode.type, hoverNode.view);
             const isTarget = linkSourceId && linkHoverNodeId === linkSnapTarget;
             return anchors.map((anchor, i) => {
-              const world = anchorToWorld(anchor, hoverNode.x, hoverNode.y, hoverNode.rotation);
+              const world = anchorToWorld(anchor, hoverNode.x, hoverNode.y, hoverNode.rotation, hoverNode.scale ?? 1);
               const isSnapped = isTarget && linkTargetAnchorIdx === i;
               return (
                 <Circle
@@ -923,17 +1058,74 @@ export function Canvas() {
             });
           })()}
 
+          {/* Anchor indicators for selected links — show all anchors on both connected nodes */}
+          {!reanchoring && Array.from(selectedIds).flatMap((id) => {
+            const link = links.get(id);
+            if (!link) return [];
+            const fromNode = nodes.get(link.fromNodeId);
+            const toNode = nodes.get(link.toNodeId);
+            if (!fromNode || !toNode) return [];
+            const elements: React.ReactNode[] = [];
+            const startReanchor = (linkId: string, end: 'from' | 'to') => {
+              setReanchoring({ linkId, end });
+              setMousePos(null);
+              setLinkSnapTarget(null);
+              setLinkTargetAnchorIdx(undefined);
+            };
+            // Show anchors on fromNode
+            const fromAnchors = getAnchors(fromNode.type, fromNode.view);
+            fromAnchors.forEach((anchor, i) => {
+              const world = anchorToWorld(anchor, fromNode.x, fromNode.y, fromNode.rotation, fromNode.scale ?? 1);
+              const isActive = link.fromAnchorIdx === i;
+              elements.push(
+                <Circle
+                  key={`sel-link-from-${id}-${i}`}
+                  x={world.x}
+                  y={world.y}
+                  radius={4}
+                  fill={isActive ? 'rgba(37, 99, 235, 0.4)' : 'rgba(120, 120, 120, 0.2)'}
+                  stroke={isActive ? '#2563eb' : 'rgba(100, 100, 100, 0.5)'}
+                  strokeWidth={1.2}
+                  onMouseDown={(e) => { e.cancelBubble = true; startReanchor(id, 'from'); }}
+                  onTap={(e) => { e.cancelBubble = true; startReanchor(id, 'from'); }}
+                />
+              );
+            });
+            // Show anchors on toNode
+            const toAnchors = getAnchors(toNode.type, toNode.view);
+            toAnchors.forEach((anchor, i) => {
+              const world = anchorToWorld(anchor, toNode.x, toNode.y, toNode.rotation, toNode.scale ?? 1);
+              const isActive = link.toAnchorIdx === i;
+              elements.push(
+                <Circle
+                  key={`sel-link-to-${id}-${i}`}
+                  x={world.x}
+                  y={world.y}
+                  radius={4}
+                  fill={isActive ? 'rgba(37, 99, 235, 0.4)' : 'rgba(120, 120, 120, 0.2)'}
+                  stroke={isActive ? '#2563eb' : 'rgba(100, 100, 100, 0.5)'}
+                  strokeWidth={1.2}
+                  onMouseDown={(e) => { e.cancelBubble = true; startReanchor(id, 'to'); }}
+                  onTap={(e) => { e.cancelBubble = true; startReanchor(id, 'to'); }}
+                />
+              );
+            });
+            return elements;
+          })}
+
           {/* Selection indicators — dashed rect around each selected node */}
           {Array.from(selectedIds).map((id) => {
             const node = nodes.get(id);
             if (!node) return null;
+            const s = node.scale ?? 1;
+            const pad = SELECTION_PAD * s;
             return (
               <Group key={`sel-${id}`} x={node.x} y={node.y} rotation={node.rotation} listening={false}>
                 <Rect
-                  x={-SELECTION_PAD}
-                  y={-SELECTION_PAD}
-                  width={SELECTION_PAD * 2}
-                  height={SELECTION_PAD * 2}
+                  x={-pad}
+                  y={-pad}
+                  width={pad * 2}
+                  height={pad * 2}
                   stroke="#2563eb"
                   strokeWidth={1.2 / stageScale}
                   dash={[5 / stageScale, 3 / stageScale]}
@@ -943,14 +1135,52 @@ export function Canvas() {
             );
           })}
 
+          {/* Resize handles — corner squares for single selected node */}
+          {singleSelectedNode && (() => {
+            const node = singleSelectedNode;
+            const s = node.scale ?? 1;
+            const pad = SELECTION_PAD * s;
+            const rad = node.rotation * Math.PI / 180;
+            const cos = Math.cos(rad);
+            const sin = Math.sin(rad);
+            const handleSize = 6 / stageScale;
+            // Bottom-right corner in local space
+            const corners = [
+              { lx: pad, ly: pad },
+              { lx: -pad, ly: pad },
+              { lx: -pad, ly: -pad },
+              { lx: pad, ly: -pad },
+            ];
+            return corners.map((c, i) => {
+              const wx = node.x + c.lx * cos - c.ly * sin;
+              const wy = node.y + c.lx * sin + c.ly * cos;
+              return (
+                <Rect
+                  key={`resize-${i}`}
+                  x={wx - handleSize / 2}
+                  y={wy - handleSize / 2}
+                  width={handleSize}
+                  height={handleSize}
+                  fill="white"
+                  stroke="#2563eb"
+                  strokeWidth={1.2 / stageScale}
+                  onMouseDown={(e) => handleScaleStart(node.id, e)}
+                />
+              );
+            });
+          })()}
+
           {/* Rotation handle — only for single selected node */}
           {singleSelectedNode && (() => {
             const node = singleSelectedNode;
+            const s = node.scale ?? 1;
+            const pad = SELECTION_PAD * s;
+            const rotHandleDist = ROTATION_HANDLE_DIST * s;
             const rad = node.rotation * Math.PI / 180;
-            const hx = node.x + ROTATION_HANDLE_DIST * Math.sin(rad);
-            const hy = node.y - ROTATION_HANDLE_DIST * Math.cos(rad);
-            const edgeX = node.x + SELECTION_PAD * Math.sin(rad);
-            const edgeY = node.y - SELECTION_PAD * Math.cos(rad);
+            const hx = node.x + rotHandleDist * Math.sin(rad);
+            const hy = node.y - rotHandleDist * Math.cos(rad);
+            const edgeX = node.x + pad * Math.sin(rad);
+            const edgeY = node.y - pad * Math.cos(rad);
             return (
               <Group>
                 <Line

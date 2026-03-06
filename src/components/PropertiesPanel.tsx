@@ -13,6 +13,7 @@ export function PropertiesPanel() {
   const updateNodeView = useDiagramStore((s) => s.updateNodeView);
   const updateLinkLabel = useDiagramStore((s) => s.updateLinkLabel);
   const rotateNode = useDiagramStore((s) => s.rotateNode);
+  const scaleNode = useDiagramStore((s) => s.scaleNode);
   const updateLinkSolide = useDiagramStore((s) => s.updateLinkSolide);
   const rotateSolideFrame = useDiagramStore((s) => s.rotateSolideFrame);
   const updateSolideFrameLabel = useDiagramStore((s) => s.updateSolideFrameLabel);
@@ -186,6 +187,22 @@ export function PropertiesPanel() {
               step={15}
             />
             <span className="prop-unit">°</span>
+          </div>
+        </div>
+
+        <div className="prop-group">
+          <label className="prop-label">Échelle</label>
+          <div className="prop-row">
+            <input
+              className="prop-input prop-input-small"
+              type="number"
+              value={node.scale ?? 1}
+              onChange={(e) => scaleNode(node.id, Math.max(0.3, Math.min(4, Number(e.target.value))))}
+              step={0.1}
+              min={0.3}
+              max={4}
+            />
+            <span className="prop-unit">×</span>
           </div>
         </div>
 
