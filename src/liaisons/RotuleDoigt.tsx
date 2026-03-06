@@ -1,10 +1,11 @@
-import { Circle, Group, Line } from 'react-konva';
+import { Circle, Group, Line , Rect } from 'react-konva';
 import { snap } from '../utils/snap';
 
 interface RotuleDoigtProps {
   x: number;
   y: number;
   rotation: number;
+  scale?: number;
   view?: number;
   selected: boolean;
   colorA?: string;
@@ -15,7 +16,7 @@ interface RotuleDoigtProps {
   onDblClick: () => void;
 }
 
-export function RotuleDoigt({ x, y, rotation,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: RotuleDoigtProps) {
+export function RotuleDoigt({ x, y, rotation, scale = 1,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: RotuleDoigtProps) {
   const r = 12;
   const cos45 = Math.cos(Math.PI / 4);
   const sin45 = Math.sin(Math.PI / 4);
@@ -25,7 +26,7 @@ export function RotuleDoigt({ x, y, rotation,  colorA = '#1a1a1a', colorB = '#1a
     <Group
       x={x}
       y={y}
-      rotation={rotation}
+      rotation={rotation} scaleX={scale} scaleY={scale}
       draggable
       onClick={onSelect}
       onTap={onSelect}
@@ -45,6 +46,7 @@ export function RotuleDoigt({ x, y, rotation,  colorA = '#1a1a1a', colorB = '#1a
         onDragEnd(sx, sy);
       }}
     >
+      <Rect x={-26} y={-26} width={52} height={52} fill="transparent" />
       {/* Inner circle (A) + 3/4 outer circle opening right (B) + doigt line (A) */}
       <Circle radius={r} stroke={colorA} strokeWidth={strokeWidth} fill="white" />
       <Line

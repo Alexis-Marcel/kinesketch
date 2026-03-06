@@ -1,10 +1,11 @@
-import { Group, Line } from 'react-konva';
+import { Group, Line, Rect } from 'react-konva';
 import { snap } from '../utils/snap';
 
 interface LineaireRectiligneProps {
   x: number;
   y: number;
   rotation: number;
+  scale?: number;
   view?: number;
   selected: boolean;
   colorA?: string;
@@ -15,14 +16,14 @@ interface LineaireRectiligneProps {
   onDblClick: () => void;
 }
 
-export function LineaireRectiligne({ x, y, rotation, view = 1,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: LineaireRectiligneProps) {
+export function LineaireRectiligne({ x, y, rotation, scale = 1, view = 1,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: LineaireRectiligneProps) {
   const strokeWidth = 1.5;
 
   return (
     <Group
       x={x}
       y={y}
-      rotation={rotation}
+      rotation={rotation} scaleX={scale} scaleY={scale}
       draggable
       onClick={onSelect}
       onTap={onSelect}
@@ -42,6 +43,7 @@ export function LineaireRectiligne({ x, y, rotation, view = 1,  colorA = '#1a1a1
         onDragEnd(sx, sy);
       }}
     >
+      <Rect x={-26} y={-26} width={52} height={52} fill="transparent" />
       {view === 1 ? (
         <>
           {/* Plan view: open trapezoid as polyline (A) + horizontal line (B) */}

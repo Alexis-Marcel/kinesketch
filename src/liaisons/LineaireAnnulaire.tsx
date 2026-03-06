@@ -5,6 +5,7 @@ interface LineaireAnnulaireProps {
   x: number;
   y: number;
   rotation: number;
+  scale?: number;
   view?: number;
   selected: boolean;
   colorA?: string;
@@ -15,7 +16,7 @@ interface LineaireAnnulaireProps {
   onDblClick: () => void;
 }
 
-export function LineaireAnnulaire({ x, y, rotation, view = 1,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: LineaireAnnulaireProps) {
+export function LineaireAnnulaire({ x, y, rotation, scale = 1, view = 1,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: LineaireAnnulaireProps) {
   const r = 12;
   const strokeWidth = 1.5;
 
@@ -23,7 +24,7 @@ export function LineaireAnnulaire({ x, y, rotation, view = 1,  colorA = '#1a1a1a
     <Group
       x={x}
       y={y}
-      rotation={rotation}
+      rotation={rotation} scaleX={scale} scaleY={scale}
       draggable
       onClick={onSelect}
       onTap={onSelect}
@@ -43,11 +44,12 @@ export function LineaireAnnulaire({ x, y, rotation, view = 1,  colorA = '#1a1a1a
         onDragEnd(sx, sy);
       }}
     >
+      <Rect x={-26} y={-26} width={52} height={52} fill="transparent" />
       {view === 1 ? (
         <>
           {/* Plan view: rectangle (B) + circle centered on top edge (A) */}
-          <Rect x={-22} y={-6} width={44} height={16} stroke={colorB} strokeWidth={strokeWidth} fill="white" />
-          <Circle x={0} y={-6} radius={r} stroke={colorA} strokeWidth={strokeWidth} fill="white" />
+          <Rect x={-22} y={-2} width={44} height={16} stroke={colorB} strokeWidth={strokeWidth} fill="white" />
+          <Circle x={0} y={-2} radius={r} stroke={colorA} strokeWidth={strokeWidth} fill="white" />
         </>
       ) : (
         <>

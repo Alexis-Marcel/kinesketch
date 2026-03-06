@@ -5,6 +5,7 @@ interface HelicoidaleProps {
   x: number;
   y: number;
   rotation: number;
+  scale?: number;
   view?: number;
   selected: boolean;
   colorA?: string;
@@ -15,7 +16,7 @@ interface HelicoidaleProps {
   onDblClick: () => void;
 }
 
-export function Helicoidale({ x, y, rotation, view = 1,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: HelicoidaleProps) {
+export function Helicoidale({ x, y, rotation, scale = 1, view = 1,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: HelicoidaleProps) {
   const r = 12;
   const w = 44;
   const h = 22;
@@ -25,7 +26,7 @@ export function Helicoidale({ x, y, rotation, view = 1,  colorA = '#1a1a1a', col
     <Group
       x={x}
       y={y}
-      rotation={rotation}
+      rotation={rotation} scaleX={scale} scaleY={scale}
       draggable
       onClick={onSelect}
       onTap={onSelect}
@@ -45,6 +46,7 @@ export function Helicoidale({ x, y, rotation, view = 1,  colorA = '#1a1a1a', col
         onDragEnd(sx, sy);
       }}
     >
+      <Rect x={-26} y={-26} width={52} height={52} fill="transparent" />
       {view === 1 ? (
         <>
           {/* Plan view: rectangle (A) + diagonal top-left to bottom-right (A) */}

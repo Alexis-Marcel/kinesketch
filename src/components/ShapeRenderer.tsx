@@ -33,6 +33,7 @@ export function ShapeRenderer({ node, selected, colors, onSelect, onDblClick, on
     x: node.x,
     y: node.y,
     rotation: node.rotation,
+    scale: node.scale ?? 1,
     view: node.view ?? 1 as const,
     selected,
     colorA: colors[0],

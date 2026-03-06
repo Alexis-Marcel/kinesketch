@@ -1,10 +1,11 @@
-import { Group, Line, Circle } from 'react-konva';
+import { Group, Line, Circle , Rect } from 'react-konva';
 import { snap } from '../utils/snap';
 
 interface EngrenageConiqueProps {
   x: number;
   y: number;
   rotation: number;
+  scale?: number;
   view?: number;
   selected: boolean;
   colorA?: string;
@@ -15,13 +16,15 @@ interface EngrenageConiqueProps {
   onDblClick: () => void;
 }
 
-export function EngrenageConique({ x, y, rotation, view = 1,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: EngrenageConiqueProps) {
+export function EngrenageConique({ x, y, rotation, scale = 1, view = 1,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: EngrenageConiqueProps) {
   const strokeWidth = 1.5;
 
   const groupProps = {
     x,
     y,
     rotation,
+    scaleX: scale,
+    scaleY: scale,
     draggable: true,
     onClick: onSelect,
     onTap: onSelect,
@@ -50,6 +53,7 @@ export function EngrenageConique({ x, y, rotation, view = 1,  colorA = '#1a1a1a'
     const f = 2;     // flange half-size
     return (
       <Group {...groupProps}>
+      <Rect x={-26} y={-26} width={52} height={52} fill="transparent" />
         <Circle x={0} y={0} radius={r} stroke={colorA} strokeWidth={strokeWidth} fill="white" />
         {/* Vertical line touching left of circle */}
         <Line points={[vx, -vLen, vx, vLen]} stroke={colorB} strokeWidth={strokeWidth} />
@@ -69,6 +73,7 @@ export function EngrenageConique({ x, y, rotation, view = 1,  colorA = '#1a1a1a'
 
   return (
     <Group {...groupProps}>
+      <Rect x={-26} y={-26} width={52} height={52} fill="transparent" />
       {/* Horizontal arm (A) */}
       <Line points={[len/2, -len/2, -len/2, -len/2]} stroke={colorA} strokeWidth={strokeWidth} />
       {/* Vertical arm (B) */}

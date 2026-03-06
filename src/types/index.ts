@@ -39,6 +39,7 @@ export interface DiagramNode {
   x: number;
   y: number;
   rotation: number;
+  scale: number;
   label: string;
   labelOffsetX: number;
   labelOffsetY: number;
@@ -54,6 +55,7 @@ export interface Link {
   labelOffsetY: number;
   fromAnchorIdx?: number;
   toAnchorIdx?: number;
+  midpoints?: Array<{ x: number; y: number }>;
 }
 
 export interface AngleArc {
@@ -82,6 +84,7 @@ export interface DiagramState extends DiagramData {
   placingLiaison: { type: LiaisonType; view: LiaisonView } | null;
   linkSourceId: string | null;
   activeSolideId: string | null;
+  selectedMidpoint: { linkId: string; index: number } | null;
 
   // Canvas view
   stageX: number;
@@ -93,6 +96,7 @@ export interface DiagramState extends DiagramData {
   moveNode: (id: string, x: number, y: number) => void;
   moveNodes: (moves: Array<{ id: string; x: number; y: number }>) => void;
   rotateNode: (id: string, rotation: number) => void;
+  scaleNode: (id: string, scale: number) => void;
   deleteNode: (id: string) => void;
   updateNodeLabel: (id: string, label: string) => void;
   updateNodeView: (id: string, view: LiaisonView) => void;
@@ -104,6 +108,8 @@ export interface DiagramState extends DiagramData {
   updateLinkLabel: (id: string, label: string) => void;
   updateLinkLabelOffset: (id: string, ox: number, oy: number) => void;
   updateLinkSolide: (id: string, solideId: string) => void;
+  updateLinkAnchor: (id: string, end: 'from' | 'to', anchorIdx: number) => void;
+  updateLinkMidpoints: (id: string, midpoints: Array<{ x: number; y: number }>) => void;
 
   // Solide actions
   addSolide: (isBati?: boolean) => string;
@@ -130,6 +136,9 @@ export interface DiagramState extends DiagramData {
   selectMultiple: (ids: string[]) => void;
   clearSelection: () => void;
   deleteSelected: () => void;
+  selectMidpoint: (linkId: string, index: number) => void;
+  clearMidpointSelection: () => void;
+  deleteSelectedMidpoint: () => void;
 
   // Tools
   setTool: (tool: ToolType) => void;

@@ -1,10 +1,11 @@
-import { Group, Line } from 'react-konva';
+import { Group, Line , Rect } from 'react-konva';
 import { snap } from '../utils/snap';
 
 interface AppuiPlanProps {
   x: number;
   y: number;
   rotation: number;
+  scale?: number;
   view?: number;
   selected: boolean;
   colorA?: string;
@@ -15,7 +16,7 @@ interface AppuiPlanProps {
   onDblClick: () => void;
 }
 
-export function AppuiPlan({ x, y, rotation,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: AppuiPlanProps) {
+export function AppuiPlan({ x, y, rotation, scale = 1,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: AppuiPlanProps) {
   const w = 36;
   const gap = 6;
   const strokeWidth = 1.5;
@@ -24,7 +25,7 @@ export function AppuiPlan({ x, y, rotation,  colorA = '#1a1a1a', colorB = '#1a1a
     <Group
       x={x}
       y={y}
-      rotation={rotation}
+      rotation={rotation} scaleX={scale} scaleY={scale}
       draggable
       onClick={onSelect}
       onTap={onSelect}
@@ -44,6 +45,7 @@ export function AppuiPlan({ x, y, rotation,  colorA = '#1a1a1a', colorB = '#1a1a
         onDragEnd(sx, sy);
       }}
     >
+      <Rect x={-26} y={-26} width={52} height={52} fill="transparent" />
       {/* Two parallel horizontal lines */}
       <Line points={[-w / 2, -gap / 2, w / 2, -gap / 2]} stroke={colorA} strokeWidth={strokeWidth} />
       <Line points={[-w / 2, gap / 2, w / 2, gap / 2]} stroke={colorB} strokeWidth={strokeWidth} />

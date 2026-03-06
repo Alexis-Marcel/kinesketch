@@ -38,13 +38,14 @@ export const useDiagramStore = create<DiagramState>()(
       placingLiaison: null,
       linkSourceId: null,
       activeSolideId: 's0',
+      selectedMidpoint: null,
       stageX: 0,
       stageY: 0,
       stageScale: 1,
 
       addNode: (type: LiaisonType, x: number, y: number, view: LiaisonView = 1) => {
         const id = generateId('n');
-        const node: DiagramNode = { id, type, view, x, y, rotation: 0, label: '', labelOffsetX: 20, labelOffsetY: -20 };
+        const node: DiagramNode = { id, type, view, x, y, rotation: 0, scale: 1, label: '', labelOffsetX: 20, labelOffsetY: -20 };
         set((state) => {
           const nodes = new Map(state.nodes);
           nodes.set(id, node);
@@ -81,6 +82,16 @@ export const useDiagramStore = create<DiagramState>()(
           const node = nodes.get(id);
           if (!node) return state;
           nodes.set(id, { ...node, rotation });
+          return { nodes };
+        });
+      },
+
+      scaleNode: (id: string, scale: number) => {
+        set((state) => {
+          const nodes = new Map(state.nodes);
+          const node = nodes.get(id);
+          if (!node) return state;
+          nodes.set(id, { ...node, scale });
           return { nodes };
         });
       },
@@ -203,6 +214,30 @@ export const useDiagramStore = create<DiagramState>()(
           const link = links.get(id);
           if (!link) return state;
           links.set(id, { ...link, solideId });
+          return { links };
+        });
+      },
+
+      updateLinkAnchor: (id: string, end: 'from' | 'to', anchorIdx: number) => {
+        set((state) => {
+          const links = new Map(state.links);
+          const link = links.get(id);
+          if (!link) return state;
+          if (end === 'from') {
+            links.set(id, { ...link, fromAnchorIdx: anchorIdx });
+          } else {
+            links.set(id, { ...link, toAnchorIdx: anchorIdx });
+          }
+          return { links };
+        });
+      },
+
+      updateLinkMidpoints: (id: string, midpoints: Array<{ x: number; y: number }>) => {
+        set((state) => {
+          const links = new Map(state.links);
+          const link = links.get(id);
+          if (!link) return state;
+          links.set(id, { ...link, midpoints: midpoints.length > 0 ? midpoints : undefined });
           return { links };
         });
       },
@@ -408,15 +443,36 @@ export const useDiagramStore = create<DiagramState>()(
       },
 
       select: (id: string) => {
-        set({ selectedIds: new Set([id]) });
+        set({ selectedIds: new Set([id]), selectedMidpoint: null });
       },
 
       selectMultiple: (ids: string[]) => {
-        set({ selectedIds: new Set(ids) });
+        set({ selectedIds: new Set(ids), selectedMidpoint: null });
       },
 
       clearSelection: () => {
-        set({ selectedIds: new Set() });
+        set({ selectedIds: new Set(), selectedMidpoint: null });
+      },
+
+      selectMidpoint: (linkId: string, index: number) => {
+        set({ selectedMidpoint: { linkId, index } });
+      },
+
+      clearMidpointSelection: () => {
+        set({ selectedMidpoint: null });
+      },
+
+      deleteSelectedMidpoint: () => {
+        const state = get();
+        if (!state.selectedMidpoint) return;
+        const { linkId, index } = state.selectedMidpoint;
+        const links = new Map(state.links);
+        const link = links.get(linkId);
+        if (!link || !link.midpoints) return;
+        const newMidpoints = [...link.midpoints];
+        newMidpoints.splice(index, 1);
+        links.set(linkId, { ...link, midpoints: newMidpoints.length > 0 ? newMidpoints : undefined });
+        set({ links, selectedMidpoint: null });
       },
 
       deleteSelected: () => {
@@ -442,7 +498,7 @@ export const useDiagramStore = create<DiagramState>()(
             angleArcs.delete(id);
           }
         }
-        set({ nodes, links, angleArcs, selectedIds: new Set() });
+        set({ nodes, links, angleArcs, selectedIds: new Set(), selectedMidpoint: null });
       },
 
       setTool: (tool: ToolType) => {
@@ -509,6 +565,7 @@ export const useDiagramStore = create<DiagramState>()(
           solides: data.solides.size > 0 ? new Map(data.solides) : new Map([['s0', createBati()]]),
           angleArcs: data.angleArcs ? new Map(data.angleArcs) : new Map(),
           selectedIds: new Set(),
+          selectedMidpoint: null,
           activeTool: 'select',
           placingLiaison: null,
           linkSourceId: null,
@@ -545,6 +602,7 @@ export const useDiagramStore = create<DiagramState>()(
           solides: new Map([['s0', createBati()]]),
           angleArcs: new Map(),
           selectedIds: new Set(),
+          selectedMidpoint: null,
           activeTool: 'select',
           placingLiaison: null,
           linkSourceId: null,

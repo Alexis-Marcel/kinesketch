@@ -5,6 +5,7 @@ interface PivotProps {
   x: number;
   y: number;
   rotation: number;
+  scale?: number;
   view?: number;
   selected: boolean;
   colorA?: string;
@@ -15,7 +16,7 @@ interface PivotProps {
   onDblClick: () => void;
 }
 
-export function Pivot({ x, y, rotation, view = 1,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: PivotProps) {
+export function Pivot({ x, y, rotation, scale = 1, view = 1,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: PivotProps) {
   const r = 12;
   const strokeWidth = 1.5;
 
@@ -23,7 +24,7 @@ export function Pivot({ x, y, rotation, view = 1,  colorA = '#1a1a1a', colorB = 
     <Group
       x={x}
       y={y}
-      rotation={rotation}
+      rotation={rotation} scaleX={scale} scaleY={scale}
       draggable
       onClick={onSelect}
       onTap={onSelect}
@@ -43,6 +44,7 @@ export function Pivot({ x, y, rotation, view = 1,  colorA = '#1a1a1a', colorB = 
         onDragEnd(sx, sy);
       }}
     >
+      <Rect x={-26} y={-26} width={52} height={52} fill="transparent" />
       {view === 1 ? (
         <>
           {/* Plan view: rectangle (bearing=B) + horizontal shaft + vertical flanges (A) */}
