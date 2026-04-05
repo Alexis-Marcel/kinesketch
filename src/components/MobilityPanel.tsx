@@ -1,3 +1,5 @@
+'use client';
+
 import { useMemo } from 'react';
 import { useDiagramStore } from '../store/diagramStore';
 import { LIAISON_DEFS } from '../liaisons';

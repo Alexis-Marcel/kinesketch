@@ -1,4 +1,4 @@
-import type { DiagramNode, DiagramState, Link, Solide } from '../types';
+import type { DiagramNode, DiagramState, Link } from '../types';
 
 const SCALE = 1 / 40; // 40px = 1cm in TikZ
 
@@ -220,7 +220,7 @@ function nodeToTikZ(node: DiagramNode, isBati: boolean): string {
   return lines.join('\n');
 }
 
-function linkToTikZ(link: Link, from: DiagramNode, to: DiagramNode, _solides: Map<string, Solide>): string {
+function linkToTikZ(link: Link, from: DiagramNode, to: DiagramNode): string {
   const colorName = `solide${link.solideId.replace('s', '')}`;
   const lines: string[] = [];
 
@@ -265,7 +265,7 @@ export function generateLaTeXString(state: Pick<DiagramState, 'nodes' | 'links' 
       const from = state.nodes.get(link.fromNodeId);
       const to = state.nodes.get(link.toNodeId);
       if (from && to) {
-        lines.push(linkToTikZ(link, from, to, state.solides));
+        lines.push(linkToTikZ(link, from, to));
       }
     }
     lines.push('');

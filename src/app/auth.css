@@ -1,0 +1,415 @@
+/* Auth pages */
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+  padding: 20px;
+}
+
+.auth-card {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 8px 30px rgba(0, 0, 0, 0.06);
+  padding: 32px;
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+  text-align: center;
+  letter-spacing: -0.5px;
+}
+
+.auth-subtitle {
+  font-size: 14px;
+  color: #6b7280;
+  text-align: center;
+  margin-top: -8px;
+}
+
+.auth-trial-badge {
+  font-size: 13px;
+  color: #059669;
+  background: #ecfdf5;
+  padding: 6px 12px;
+  border-radius: 6px;
+  text-align: center;
+  font-weight: 500;
+}
+
+.auth-error {
+  font-size: 13px;
+  color: #dc2626;
+  background: #fef2f2;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #fecaca;
+}
+
+.auth-message {
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e5e7eb;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.auth-field label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.auth-field input {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #111827;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.auth-field input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.auth-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.auth-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auth-btn-primary {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+.auth-btn-primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.auth-btn-secondary {
+  background: #ffffff;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.auth-btn-secondary:hover:not(:disabled) {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.auth-btn-google {
+  background: #ffffff;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.auth-btn-google:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.auth-footer {
+  font-size: 13px;
+  color: #6b7280;
+  text-align: center;
+}
+
+.auth-footer a {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.auth-footer a:hover {
+  text-decoration: underline;
+}
+
+/* Account page */
+.account-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.account-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.account-label {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.account-value {
+  font-size: 13px;
+  color: #111827;
+  font-weight: 500;
+}
+
+.account-status {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.account-status-active {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.account-status-trialing {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.account-status-free {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.account-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Pricing page */
+.pricing-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+  padding: 20px;
+}
+
+.pricing-container {
+  text-align: center;
+  max-width: 700px;
+  width: 100%;
+}
+
+.pricing-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+}
+
+.pricing-subtitle {
+  font-size: 15px;
+  color: #6b7280;
+  margin-bottom: 24px;
+}
+
+.pricing-trial-notice {
+  font-size: 14px;
+  color: #2563eb;
+  background: #eff6ff;
+  padding: 8px 16px;
+  border-radius: 6px;
+  display: inline-block;
+  margin-bottom: 20px;
+}
+
+.pricing-expired-notice {
+  font-size: 14px;
+  color: #dc2626;
+  background: #fef2f2;
+  padding: 8px 16px;
+  border-radius: 6px;
+  display: inline-block;
+  margin-bottom: 20px;
+}
+
+.pricing-cards {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.pricing-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 24px;
+  width: 280px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+}
+
+.pricing-card-popular {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px #2563eb;
+}
+
+.pricing-badge {
+  position: absolute;
+  top: -10px;
+  right: 16px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 10px;
+}
+
+.pricing-card-header h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 4px;
+}
+
+.pricing-price {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.pricing-amount {
+  font-size: 36px;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -1px;
+}
+
+.pricing-period {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.pricing-savings {
+  font-size: 13px;
+  color: #059669;
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.pricing-features {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.pricing-features li {
+  font-size: 13px;
+  color: #374151;
+  padding-left: 20px;
+  position: relative;
+}
+
+.pricing-features li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 5px;
+  width: 12px;
+  height: 6px;
+  border-left: 2px solid #059669;
+  border-bottom: 2px solid #059669;
+  transform: rotate(-45deg);
+}
+
+.pricing-back {
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 8px;
+}
+
+.pricing-back:hover {
+  color: #374151;
+  text-decoration: underline;
+}
+
+.pricing-free-note {
+  font-size: 13px;
+  color: #6b7280;
+  background: #f9fafb;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin: 0 auto 16px;
+  max-width: 560px;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .pricing-cards {
+    flex-direction: column;
+    align-items: center;
+  }
+}

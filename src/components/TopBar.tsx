@@ -1,10 +1,14 @@
+'use client';
+
 import { useCallback, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useDiagramStore } from '../store/diagramStore';
 import { exportPNG } from '../export/png';
 import type { PNGExportOptions } from '../export/png';
 import { exportSVG } from '../export/svg';
 import { exportLaTeX } from '../export/latex';
 import { saveKineSketch, loadKineSketch } from '../export/kinesketch';
+import { useAuth } from '../auth/AuthProvider';
 
 interface TopBarProps {
   onZoomFit: () => void;
@@ -17,6 +21,9 @@ export function TopBar({ onZoomFit }: TopBarProps) {
     includeGrid: false,
     includeAxes: false,
   });
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const { user, isPro, signOut } = useAuth();
+  const router = useRouter();
 
   const handleNew = useCallback(() => {
     if (useDiagramStore.getState().nodes.size === 0 || window.confirm('Créer un nouveau schéma ? Les modifications non sauvegardées seront perdues.')) {
@@ -83,6 +90,65 @@ export function TopBar({ onZoomFit }: TopBarProps) {
         <button className="topbar-btn" onClick={onZoomFit} title="Zoom pour tout voir (F)">
           Cadrer
         </button>
+      </div>
+
+      {/* Auth / User menu */}
+      <div style={{ marginLeft: 'auto', position: 'relative', display: 'flex', alignItems: 'center', gap: 8 }}>
+        {!user ? (
+          <>
+            <span className="topbar-upgrade-btn" onClick={() => router.push('/pricing')}>
+              Pro
+            </span>
+            <button className="topbar-btn" onClick={() => router.push('/login')}>
+              Se connecter
+            </button>
+          </>
+        ) : (
+          <>
+            {!isPro && (
+              <span className="topbar-upgrade-btn" onClick={() => router.push('/pricing')}>
+                Passer à Pro
+              </span>
+            )}
+            {isPro && (
+              <span className="topbar-pro-badge">Pro</span>
+            )}
+            <button
+              className="topbar-user-btn"
+              onClick={() => setUserMenuOpen(!userMenuOpen)}
+              title="Mon compte"
+            >
+              {user.email?.charAt(0).toUpperCase() || '?'}
+            </button>
+            {userMenuOpen && (
+              <>
+                <div className="topbar-menu-overlay" onClick={() => setUserMenuOpen(false)} />
+                <div className="topbar-user-menu">
+                  <div className="topbar-user-email">{user.email}</div>
+                  <button
+                    className="topbar-menu-item"
+                    onClick={() => { setUserMenuOpen(false); router.push('/account'); }}
+                  >
+                    Mon compte
+                  </button>
+                  <button
+                    className="topbar-menu-item"
+                    onClick={() => { setUserMenuOpen(false); router.push('/pricing'); }}
+                  >
+                    {isPro ? 'Mon abonnement' : 'Passer à Pro'}
+                  </button>
+                  <div className="topbar-menu-divider" />
+                  <button
+                    className="topbar-menu-item topbar-menu-item-danger"
+                    onClick={async () => { setUserMenuOpen(false); await signOut(); }}
+                  >
+                    Se déconnecter
+                  </button>
+                </div>
+              </>
+            )}
+          </>
+        )}
       </div>
 
       {/* PNG export dialog */}
