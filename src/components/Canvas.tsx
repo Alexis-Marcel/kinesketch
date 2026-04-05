@@ -1,3 +1,5 @@
+'use client';
+
 import { useRef, useCallback, useEffect, useState, useMemo } from 'react';
 import { Stage, Layer, Line, Rect, Circle, Group } from 'react-konva';
 import type Konva from 'konva';
@@ -1231,7 +1233,7 @@ export function Canvas() {
           <div className="canvas-empty-icon">⊹</div>
           <div className="canvas-empty-title">Canvas vide</div>
           <div className="canvas-empty-hint">
-            Glissez une liaison depuis la barre d'outils<br />
+            Glissez une liaison depuis la barre d&apos;outils<br />
             ou appuyez sur <kbd>1</kbd>-<kbd>9</kbd> puis cliquez
           </div>
         </div>

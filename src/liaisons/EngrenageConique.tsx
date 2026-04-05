@@ -1,4 +1,5 @@
 import { Group, Line, Circle , Rect } from 'react-konva';
+import type Konva from 'konva';
 import { snap } from '../utils/snap';
 
 interface EngrenageConiqueProps {
@@ -29,14 +30,14 @@ export function EngrenageConique({ x, y, rotation, scale = 1, view = 1,  colorA 
     onClick: onSelect,
     onTap: onSelect,
     onDblClick,
-    onDragMove: (e: any) => {
+    onDragMove: (e: Konva.KonvaEventObject<DragEvent>) => {
       const sx = snap(e.target.x());
       const sy = snap(e.target.y());
       e.target.x(sx);
       e.target.y(sy);
       onDragMove(sx, sy);
     },
-    onDragEnd: (e: any) => {
+    onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
       const sx = snap(e.target.x());
       const sy = snap(e.target.y());
       e.target.x(sx);

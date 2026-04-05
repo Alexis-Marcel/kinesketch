@@ -1,3 +1,5 @@
+'use client';
+
 import { useDiagramStore } from '../store/diagramStore';
 import { LIAISON_DEFS } from '../liaisons';
 

@@ -1,3 +1,5 @@
+'use client';
+
 import type { ReactNode } from 'react';
 import { useDiagramStore, SOLIDE_COLORS } from '../store/diagramStore';
 import { LIAISON_LIST, BATI_DEF } from '../liaisons';
