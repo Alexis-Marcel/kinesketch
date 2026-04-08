@@ -6,7 +6,7 @@ import type Konva from 'konva';
 import { useDiagramStore } from '../store/diagramStore';
 import type { DiagramNode, Link } from '../types';
 import { getBestAnchor, type SolideMapping } from '../utils/anchors';
-import { snap } from '../utils/snap';
+import { snapPx, CELL } from '../utils/snap';
 
 interface LinkRendererProps {
   link: Link;
@@ -34,12 +34,26 @@ export function LinkRenderer({ link, fromNode, toNode, fromSolideMapping, toSoli
   const lineRef = React.useRef<Konva.Line>(null);
   const creatingRef = React.useRef<{ segIdx: number } | null>(null);
 
-  // Resolve anchor points (pinned if explicit index, otherwise auto-select)
-  const fromAnchor = getBestAnchor(fromNode, { x: toNode.x, y: toNode.y }, link.solideId, fromSolideMapping, link.fromAnchorIdx);
-  const toAnchor = getBestAnchor(toNode, { x: fromNode.x, y: fromNode.y }, link.solideId, toSolideMapping, link.toAnchorIdx);
-  // Second pass: refine auto-selected anchors using resolved positions
-  const fromFinal = getBestAnchor(fromNode, toAnchor, link.solideId, fromSolideMapping, link.fromAnchorIdx);
-  const toFinal = getBestAnchor(toNode, fromAnchor, link.solideId, toSolideMapping, link.toAnchorIdx);
+  // Resolve anchor points (pinned if explicit index, otherwise auto-select).
+  // For polylines with midpoints, the relevant target for the from-side is the
+  // first midpoint (the segment leaving the from-node), and symmetrically for
+  // the to-side. Without midpoints, the target is the other node center.
+  const midpoints = link.midpoints || [];
+  const midpointsPx = midpoints.map((mp) => ({ x: mp.x * CELL, y: mp.y * CELL }));
+
+  const fromTargetInit = midpointsPx[0] ?? { x: toNode.x * CELL, y: toNode.y * CELL };
+  const toTargetInit = midpointsPx[midpointsPx.length - 1] ?? { x: fromNode.x * CELL, y: fromNode.y * CELL };
+
+  const fromAnchor = getBestAnchor(fromNode, fromTargetInit, link.solideId, fromSolideMapping, link.fromAnchorIdx, link.fromAnchorOffset);
+  const toAnchor = getBestAnchor(toNode, toTargetInit, link.solideId, toSolideMapping, link.toAnchorIdx, link.toAnchorOffset);
+  // Second pass: refine using resolved positions on each side. With shape
+  // anchors (e.g. circles) this lets the projection settle on the actual
+  // tangent point between the two endpoints. Skipped when an offset pins
+  // the anchor: the position is fully determined by the stored offset.
+  const fromTargetFinal = midpointsPx[0] ?? toAnchor;
+  const toTargetFinal = midpointsPx[midpointsPx.length - 1] ?? fromAnchor;
+  const fromFinal = getBestAnchor(fromNode, fromTargetFinal, link.solideId, fromSolideMapping, link.fromAnchorIdx, link.fromAnchorOffset);
+  const toFinal = getBestAnchor(toNode, toTargetFinal, link.solideId, toSolideMapping, link.toAnchorIdx, link.toAnchorOffset);
 
   // Keep latest anchor refs for use in imperative handlers
   const fromRef = React.useRef(fromFinal);
@@ -47,11 +61,10 @@ export function LinkRenderer({ link, fromNode, toNode, fromSolideMapping, toSoli
   fromRef.current = fromFinal;
   toRef.current = toFinal;
 
-  // Build full point sequence: from → midpoints → to
-  const midpoints = link.midpoints || [];
+  // Build full point sequence: from → midpoints → to (all in pixels for Konva)
   const allPoints: Array<{ x: number; y: number }> = [
     fromFinal,
-    ...midpoints,
+    ...midpointsPx,
     toFinal,
   ];
 
@@ -94,8 +107,8 @@ export function LinkRenderer({ link, fromNode, toNode, fromSolideMapping, toSoli
   const handleSegmentDragMove = (_segIdx: number, e: Konva.KonvaEventObject<DragEvent>) => {
     e.cancelBubble = true;
     if (!creatingRef.current) return;
-    const newX = snap(e.target.x());
-    const newY = snap(e.target.y());
+    const newX = snapPx(e.target.x());
+    const newY = snapPx(e.target.y());
     const phantom = { x: newX, y: newY };
     const cur = getFreshMidpoints();
     const pts = [
@@ -112,10 +125,10 @@ export function LinkRenderer({ link, fromNode, toNode, fromSolideMapping, toSoli
     e.cancelBubble = true;
     if (!creatingRef.current) return;
     const segIdx = creatingRef.current.segIdx;
-    const newX = snap(e.target.x());
-    const newY = snap(e.target.y());
+    const newX = snapPx(e.target.x());
+    const newY = snapPx(e.target.y());
     const newMidpoints = [...getFreshMidpoints()];
-    newMidpoints.splice(segIdx, 0, { x: newX, y: newY });
+    newMidpoints.splice(segIdx, 0, { x: newX / CELL, y: newY / CELL });
     updateLinkMidpoints(link.id, newMidpoints);
     creatingRef.current = null;
   };
@@ -123,8 +136,8 @@ export function LinkRenderer({ link, fromNode, toNode, fromSolideMapping, toSoli
   // --- Existing midpoint handle: drag to move ---
   const handleExistingMidpointDragMove = (midIdx: number, e: Konva.KonvaEventObject<DragEvent>) => {
     e.cancelBubble = true;
-    const newX = snap(e.target.x());
-    const newY = snap(e.target.y());
+    const newX = snapPx(e.target.x());
+    const newY = snapPx(e.target.y());
     const cur = [...getFreshMidpoints()];
     cur[midIdx] = { x: newX, y: newY };
     updateLinePoints([fromRef.current, ...cur, toRef.current]);
@@ -132,10 +145,10 @@ export function LinkRenderer({ link, fromNode, toNode, fromSolideMapping, toSoli
 
   const handleExistingMidpointDragEnd = (midIdx: number, e: Konva.KonvaEventObject<DragEvent>) => {
     e.cancelBubble = true;
-    const newX = snap(e.target.x());
-    const newY = snap(e.target.y());
+    const newX = snapPx(e.target.x());
+    const newY = snapPx(e.target.y());
     const newMidpoints = [...getFreshMidpoints()];
-    newMidpoints[midIdx] = { x: newX, y: newY };
+    newMidpoints[midIdx] = { x: newX / CELL, y: newY / CELL };
     updateLinkMidpoints(link.id, newMidpoints);
   };
 

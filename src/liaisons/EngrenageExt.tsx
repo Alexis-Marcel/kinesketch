@@ -1,6 +1,8 @@
-import { Group, Line, Circle , Rect } from 'react-konva';
+import { Group, Line, Circle } from 'react-konva';
 import type Konva from 'konva';
-import { snap } from '../utils/snap';
+import { snapPx } from '../utils/snap';
+import { HitRect } from './HitRect';
+import { BIG_GEAR_R } from './bounds';
 
 interface EngrenageExtProps {
   x: number;
@@ -31,15 +33,15 @@ export function EngrenageExt({ x, y, rotation, scale = 1, view = 1, colorA = '#1
     onTap: onSelect,
     onDblClick,
     onDragMove: (e: Konva.KonvaEventObject<DragEvent>) => {
-      const sx = snap(e.target.x());
-      const sy = snap(e.target.y());
+      const sx = snapPx(e.target.x());
+      const sy = snapPx(e.target.y());
       e.target.x(sx);
       e.target.y(sy);
       onDragMove(sx, sy);
     },
     onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
-      const sx = snap(e.target.x());
-      const sy = snap(e.target.y());
+      const sx = snapPx(e.target.x());
+      const sy = snapPx(e.target.y());
       e.target.x(sx);
       e.target.y(sy);
       onDragEnd(sx, sy);
@@ -48,29 +50,29 @@ export function EngrenageExt({ x, y, rotation, scale = 1, view = 1, colorA = '#1
 
   if (view === 2) {
     // Two externally tangent circles — small on top, big on bottom
-    const r1 = 8; // small gear radius
-    const r2 = 14; // big gear radius
+    const r1 = 34; // small gear radius
+    const r2 = BIG_GEAR_R; // big gear radius (shared across gear-style liaisons)
     const oy = -(r2 - r1); // vertical offset to center bbox
     const cy1 = -r1 + oy; // small circle center
     const cy2 = r2 + oy; // big circle center
     return (
       <Group {...groupProps}>
-      <Rect x={-26} y={-26} width={52} height={52} fill="transparent" />
+      <HitRect type="engrenage_ext" view={view} />
         <Circle x={0} y={cy1} radius={r1} stroke={colorA} strokeWidth={strokeWidth} fill="white" />
         <Circle x={0} y={cy2} radius={r2} stroke={colorB} strokeWidth={strokeWidth} fill="white" />
       </Group>
     );
   }
 
-  const flangeW = 3;
-  const y1 = -20;
-  const y2 = -4;
-  const y3 = 20;
+  const flangeW = 7;
+  const y1 = -80;
+  const y2 = -16;
+  const y3 = 80;
   const o = strokeWidth / 2; // décalage perpendiculaire
 
   return (
     <Group {...groupProps}>
-      <Rect x={-26} y={-26} width={52} height={52} fill="transparent" />
+      <HitRect type="engrenage_ext" view={view} />
       {/* Vertical shaft — top half (A), bottom half (B) */}
       <Line points={[0, y1, 0, y2]} stroke={colorA} strokeWidth={strokeWidth} />
       <Line points={[0, y2, 0, y3]} stroke={colorB} strokeWidth={strokeWidth} />

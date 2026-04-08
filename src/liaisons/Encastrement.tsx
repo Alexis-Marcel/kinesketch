@@ -1,5 +1,6 @@
-import { Group, Line , Rect } from 'react-konva';
-import { snap } from '../utils/snap';
+import { Group, Line } from 'react-konva';
+import { snapPx } from '../utils/snap';
+import { HitRect } from './HitRect';
 
 interface EncastrementProps {
   x: number;
@@ -16,7 +17,7 @@ interface EncastrementProps {
   onDblClick: () => void;
 }
 
-export function Encastrement({ x, y, rotation, scale = 1,  colorA = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: EncastrementProps) {
+export function Encastrement({ x, y, rotation, scale = 1, view = 1, colorA = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: EncastrementProps) {
   const strokeWidth = 1.5;
 
   return (
@@ -29,23 +30,23 @@ export function Encastrement({ x, y, rotation, scale = 1,  colorA = '#1a1a1a', o
       onTap={onSelect}
       onDblClick={onDblClick}
       onDragMove={(e) => {
-        const sx = snap(e.target.x());
-        const sy = snap(e.target.y());
+        const sx = snapPx(e.target.x());
+        const sy = snapPx(e.target.y());
         e.target.x(sx);
         e.target.y(sy);
         onDragMove(sx, sy);
       }}
       onDragEnd={(e) => {
-        const sx = snap(e.target.x());
-        const sy = snap(e.target.y());
+        const sx = snapPx(e.target.x());
+        const sy = snapPx(e.target.y());
         e.target.x(sx);
         e.target.y(sy);
         onDragEnd(sx, sy);
       }}
     >
-      <Rect x={-26} y={-26} width={52} height={52} fill="transparent" />
+      <HitRect type="encastrement" view={view} />
       {/* Single horizontal line (A) */}
-      <Line points={[-22, 0, 22, 0]} stroke={colorA} strokeWidth={strokeWidth} />
+      <Line points={[-32, 0, 32, 0]} stroke={colorA} strokeWidth={strokeWidth} />
     </Group>
   );
 }

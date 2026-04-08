@@ -1,5 +1,6 @@
-import { Circle, Group, Line, Rect } from 'react-konva';
-import { snap } from '../utils/snap';
+import { Circle, Ellipse, Group, Line, Path, Rect } from 'react-konva';
+import { snapPx } from '../utils/snap';
+import { HitRect } from './HitRect';
 
 interface PivotGlissantProps {
   x: number;
@@ -18,7 +19,6 @@ interface PivotGlissantProps {
 
 export function PivotGlissant({ x, y, rotation, scale = 1, view = 1,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: PivotGlissantProps) {
   const r = 12;
-  const w = 44;
   const h = 22;
   const strokeWidth = 1.5;
 
@@ -32,32 +32,53 @@ export function PivotGlissant({ x, y, rotation, scale = 1, view = 1,  colorA = '
       onTap={onSelect}
       onDblClick={onDblClick}
       onDragMove={(e) => {
-        const sx = snap(e.target.x());
-        const sy = snap(e.target.y());
+        const sx = snapPx(e.target.x());
+        const sy = snapPx(e.target.y());
         e.target.x(sx);
         e.target.y(sy);
         onDragMove(sx, sy);
       }}
       onDragEnd={(e) => {
-        const sx = snap(e.target.x());
-        const sy = snap(e.target.y());
+        const sx = snapPx(e.target.x());
+        const sy = snapPx(e.target.y());
         e.target.x(sx);
         e.target.y(sy);
         onDragEnd(sx, sy);
       }}
     >
-      <Rect x={-26} y={-26} width={52} height={52} fill="transparent" />
-      {view === 1 ? (
+      <HitRect type="pivot_glissant" view={view} />
+      {view === 1 && (
         <>
-          {/* Plan view: rectangle (B) + horizontal shaft (A), like pivot but without vertical flanges */}
-          <Rect x={-w / 2} y={-h / 2} width={w} height={h} stroke={colorB} strokeWidth={strokeWidth} fill="white" />
-          <Line points={[-w / 2, 0, w / 2, 0]} stroke={colorA} strokeWidth={strokeWidth} />
+          {/* Vue 1: rectangle (B) + axe horizontal (A), comme pivot mais sans tourillons */}
+          <Rect x={-32} y={-h / 2} width={64} height={h} stroke={colorB} strokeWidth={strokeWidth} fill="white" />
+          <Line points={[-32, 0, 32, 0]} stroke={colorA} strokeWidth={strokeWidth} />
         </>
-      ) : (
+      )}
+      {view === 2 && (
         <>
-          {/* Section view: circle (A) + center dot (B) */}
+          {/* Vue 2: cercle (A) + point central (B) */}
           <Circle radius={r} stroke={colorA} strokeWidth={strokeWidth} fill="white" />
           <Circle radius={2.5} fill={colorB} />
+        </>
+      )}
+      {view === 3 && (
+        <>
+          {/* Vue 3: cylindre vertical en perspective cavalière, sans tourillons ni axes */}
+          {/* Corps du cylindre */}
+          <Rect x={-12} y={-22} width={24} height={44} fill="white" />
+          <Line points={[-12, -22, -12, 22]} stroke={colorB} strokeWidth={strokeWidth} />
+          <Line points={[12, -22, 12, 22]} stroke={colorB} strokeWidth={strokeWidth} />
+          {/* Ellipse du haut */}
+          <Ellipse x={0} y={-22} radiusX={12} radiusY={7} stroke={colorB} strokeWidth={strokeWidth} fill="white" />
+          {/* Demi-ellipse du bas — fill */}
+          <Path data="M -12 22 A 12 7 0 0 0 12 22 Z" fill="white" />
+          {/* Demi-ellipse du bas — stroke */}
+          <Path
+            data="M -12 22 A 12 7 0 0 0 12 22"
+            stroke={colorB}
+            strokeWidth={strokeWidth}
+            fill={undefined as unknown as string}
+          />
         </>
       )}
     </Group>

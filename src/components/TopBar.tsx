@@ -22,7 +22,7 @@ export function TopBar({ onZoomFit }: TopBarProps) {
     includeAxes: false,
   });
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const { user, isPro, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const router = useRouter();
 
   const handleNew = useCallback(() => {
@@ -90,29 +90,42 @@ export function TopBar({ onZoomFit }: TopBarProps) {
         <button className="topbar-btn" onClick={onZoomFit} title="Zoom pour tout voir (F)">
           Cadrer
         </button>
+        {/* 2D/3D toggle hidden for now — to be re-enabled later
+        <div className="topbar-separator" />
+        <div className="dimension-toggle">
+          <button
+            className={`dimension-btn ${dimension === '2d' ? 'dimension-btn-active' : ''}`}
+            onClick={() => setDimension('2d')}
+            title="Mode 2D"
+          >
+            2D
+          </button>
+          <button
+            className={`dimension-btn ${dimension === '3d' ? 'dimension-btn-active' : ''}`}
+            onClick={() => {
+              if (dimension === '2d' && useDiagramStore.getState().nodes.size > 0) {
+                if (!window.confirm('Passer en 3D ? Les nœuds existants seront placés sur le plan Z=0.')) return;
+              }
+              setDimension('3d');
+            }}
+            title="Mode 3D"
+          >
+            3D
+          </button>
+        </div>
+        */}
       </div>
 
       {/* Auth / User menu */}
       <div style={{ marginLeft: 'auto', position: 'relative', display: 'flex', alignItems: 'center', gap: 8 }}>
         {!user ? (
           <>
-            <span className="topbar-upgrade-btn" onClick={() => router.push('/pricing')}>
-              Pro
-            </span>
             <button className="topbar-btn" onClick={() => router.push('/login')}>
               Se connecter
             </button>
           </>
         ) : (
           <>
-            {!isPro && (
-              <span className="topbar-upgrade-btn" onClick={() => router.push('/pricing')}>
-                Passer à Pro
-              </span>
-            )}
-            {isPro && (
-              <span className="topbar-pro-badge">Pro</span>
-            )}
             <button
               className="topbar-user-btn"
               onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -130,12 +143,6 @@ export function TopBar({ onZoomFit }: TopBarProps) {
                     onClick={() => { setUserMenuOpen(false); router.push('/account'); }}
                   >
                     Mon compte
-                  </button>
-                  <button
-                    className="topbar-menu-item"
-                    onClick={() => { setUserMenuOpen(false); router.push('/pricing'); }}
-                  >
-                    {isPro ? 'Mon abonnement' : 'Passer à Pro'}
                   </button>
                   <div className="topbar-menu-divider" />
                   <button

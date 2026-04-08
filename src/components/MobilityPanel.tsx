@@ -22,6 +22,9 @@ const NC_2D: Record<LiaisonType, number> = {
   engrenage_ext: 1,
   engrenage_int: 1,
   engrenage_conique: 1,
+  roue_vis_sans_fin: 1,
+  transmission_poulie_courroie: 1,
+  transmission_pignons_chaine: 1,
 };
 
 export function MobilityPanel() {

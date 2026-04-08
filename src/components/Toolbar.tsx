@@ -26,6 +26,18 @@ const LIAISON_ICONS: Record<LiaisonType, Record<number, ReactNode>> = {
       <line x1="19" y1="7" x2="19" y2="13" />
     </>),
     2: li(<circle cx="10" cy="10" r="7" />),
+    3: li(<>
+      {/* Cylindre vertical en perspective cavalière */}
+      <ellipse cx="10" cy="5" rx="4" ry="1.5" />
+      <line x1="6" y1="5" x2="6" y2="15" />
+      <line x1="14" y1="5" x2="14" y2="15" />
+      <path d="M 6 15 A 4 1.5 0 0 0 14 15" />
+      {/* Axe traversant */}
+      <line x1="10" y1="1" x2="10" y2="19" />
+      {/* Tourillons */}
+      <line x1="7" y1="2" x2="13" y2="3" />
+      <line x1="7" y1="17" x2="13" y2="18" />
+    </>),
   },
   glissiere: {
     1: li(<rect x="3" y="6" width="14" height="8" />),
@@ -33,6 +45,15 @@ const LIAISON_ICONS: Record<LiaisonType, Record<number, ReactNode>> = {
       <rect x="5" y="5" width="10" height="10" />
       <line x1="5" y1="5" x2="15" y2="15" />
       <line x1="15" y1="5" x2="5" y2="15" />
+    </>),
+    3: li(<>
+      {/* Pavé droit vertical en perspective cavalière */}
+      <rect x="6" y="5" width="7" height="11" />
+      <line x1="6" y1="5" x2="9" y2="3" />
+      <line x1="13" y1="5" x2="16" y2="3" />
+      <line x1="9" y1="3" x2="16" y2="3" />
+      <line x1="13" y1="16" x2="16" y2="14" />
+      <line x1="16" y1="3" x2="16" y2="14" />
     </>),
   },
   pivot_glissant: {
@@ -43,6 +64,15 @@ const LIAISON_ICONS: Record<LiaisonType, Record<number, ReactNode>> = {
     2: li(<>
       <circle cx="10" cy="10" r="7" />
       <circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none" />
+    </>),
+    3: li(<>
+      {/* Cylindre vertical en perspective cavalière, sans tourillons */}
+      <ellipse cx="10" cy="5" rx="4" ry="1.5" />
+      <line x1="6" y1="5" x2="6" y2="15" />
+      <line x1="14" y1="5" x2="14" y2="15" />
+      <path d="M 6 15 A 4 1.5 0 0 0 14 15" />
+      {/* Axe traversant */}
+      <line x1="10" y1="1" x2="10" y2="19" />
     </>),
   },
   rotule: {
@@ -63,6 +93,15 @@ const LIAISON_ICONS: Record<LiaisonType, Record<number, ReactNode>> = {
       <circle cx="10" cy="10" r="7" />
       <path d="M 10,6.5 A 3.5,3.5 0 0,1 10,13.5" />
     </>),
+    3: li(<>
+      {/* Cylindre vertical en perspective cavalière avec hélice */}
+      <ellipse cx="10" cy="5" rx="4" ry="1.5" />
+      <line x1="6" y1="5" x2="6" y2="15" />
+      <line x1="14" y1="5" x2="14" y2="15" />
+      <path d="M 6 15 A 4 1.5 0 0 0 14 15" />
+      {/* Hélice diagonale */}
+      <path d="M 6 13 Q 8 10 10 8 T 14 5" />
+    </>),
   },
   rotule_doigt: {
     1: li(<>
@@ -76,6 +115,11 @@ const LIAISON_ICONS: Record<LiaisonType, Record<number, ReactNode>> = {
       <line x1="4" y1="8" x2="16" y2="8" />
       <line x1="4" y1="12" x2="16" y2="12" />
     </>),
+    3: li(<>
+      {/* Deux losanges en perspective cavalière, décalés */}
+      <polygon points="2,7 10,11 18,7 10,3" />
+      <polygon points="2,13 10,17 18,13 10,9" />
+    </>),
   },
   lineaire_annulaire: {
     1: li(<>
@@ -86,6 +130,14 @@ const LIAISON_ICONS: Record<LiaisonType, Record<number, ReactNode>> = {
       <circle cx="10" cy="6" r="5" />
       <path d="M 17,6 A 7,7 0 0,1 3,6" />
       <line x1="3" y1="13" x2="17" y2="13" />
+    </>),
+    3: li(<>
+      {/* Demi-cylindre horizontal en perspective + sphère à l'intérieur */}
+      <path d="M 2 8 A 6 2 0 0 0 14 8" />
+      <path d="M 6 5 A 6 2 0 0 0 18 5" />
+      <line x1="2" y1="8" x2="6" y2="5" />
+      <line x1="14" y1="8" x2="18" y2="5" />
+      <circle cx="9" cy="10" r="3" />
     </>),
   },
   lineaire_rectiligne: {
@@ -101,11 +153,25 @@ const LIAISON_ICONS: Record<LiaisonType, Record<number, ReactNode>> = {
       <line x1="18" y1="4" x2="10" y2="16" />
       <line x1="2" y1="16" x2="18" y2="16" />
     </>),
+    3: li(<>
+      {/* Plan en perspective + triangle extrudé */}
+      <polygon points="2,15 14,15 18,11 6,11" />
+      <polygon points="3,9 9,15 15,9" />
+      <polygon points="7,5 13,11 19,5" />
+      <line x1="3" y1="9" x2="7" y2="5" />
+      <line x1="15" y1="9" x2="19" y2="5" />
+      <line x1="9" y1="15" x2="13" y2="11" />
+    </>),
   },
   ponctuelle: {
     1: li(<>
       <circle cx="10" cy="7" r="5" />
       <line x1="3" y1="14" x2="17" y2="14" />
+    </>),
+    3: li(<>
+      {/* Cercle au-dessus + losange en perspective cavalière */}
+      <circle cx="10" cy="6" r="4" />
+      <polygon points="2,15 10,18 18,15 10,12" />
     </>),
   },
   bati: {
@@ -151,6 +217,60 @@ const LIAISON_ICONS: Record<LiaisonType, Record<number, ReactNode>> = {
     </>),
     2: li(<circle cx="10" cy="10" r="7" />),
   },
+  roue_vis_sans_fin: {
+    1: li(<>
+      <circle cx="10" cy="5" r="3" />
+      <path d="M 4 8 A 6 6 0 0 0 16 8" />
+      <line x1="10" y1="9" x2="10" y2="16" />
+      <path d="M 4 15 A 6 6 0 0 1 16 15" />
+    </>),
+    2: li(<>
+      <rect x="3" y="3" width="14" height="6" />
+      <circle cx="10" cy="14" r="5" />
+    </>),
+  },
+  transmission_poulie_courroie: {
+    1: li(<>
+      {/* small left pulley — caps go down only */}
+      <line x1="3" y1="9" x2="8" y2="9" />
+      <line x1="3" y1="9" x2="3" y2="14" />
+      <line x1="8" y1="9" x2="8" y2="14" />
+      {/* larger right pulley */}
+      <line x1="11" y1="9" x2="17" y2="9" />
+      <line x1="11" y1="9" x2="11" y2="15" />
+      <line x1="17" y1="9" x2="17" y2="15" />
+    </>),
+    2: li(<>
+      <circle cx="5" cy="10" r="3" />
+      <circle cx="14" cy="10" r="5" />
+      <line x1="5" y1="7" x2="14" y2="5" />
+      <line x1="5" y1="13" x2="14" y2="15" />
+    </>),
+  },
+  transmission_pignons_chaine: {
+    1: li(<>
+      {/* dashed chain visible in the gap */}
+      <line x1="8" y1="10" x2="12" y2="10" strokeDasharray="2 1" />
+      {/* small pignon arrow with arrowheads */}
+      <line x1="3" y1="10" x2="8" y2="10" />
+      <line x1="3" y1="10" x2="4.5" y2="8.5" />
+      <line x1="3" y1="10" x2="4.5" y2="11.5" />
+      <line x1="8" y1="10" x2="6.5" y2="8.5" />
+      <line x1="8" y1="10" x2="6.5" y2="11.5" />
+      {/* larger pignon arrow */}
+      <line x1="12" y1="10" x2="17" y2="10" />
+      <line x1="12" y1="10" x2="13.5" y2="8.5" />
+      <line x1="12" y1="10" x2="13.5" y2="11.5" />
+      <line x1="17" y1="10" x2="15.5" y2="8.5" />
+      <line x1="17" y1="10" x2="15.5" y2="11.5" />
+    </>),
+    2: li(<>
+      <circle cx="5" cy="10" r="3" />
+      <circle cx="14" cy="10" r="5" />
+      <line x1="5" y1="7" x2="14" y2="5" strokeDasharray="2 1" />
+      <line x1="5" y1="13" x2="14" y2="15" strokeDasharray="2 1" />
+    </>),
+  },
 };
 
 interface ToolbarProps {
@@ -187,14 +307,6 @@ export function Toolbar({ onCollapse }: ToolbarProps) {
             </svg>
           </button>
         </div>
-        <button
-          className={`toolbar-btn ${activeTool === 'move' ? 'active' : ''}`}
-          onClick={() => setTool('move')}
-          title="Déplacer le canvas (H)"
-        >
-          <span className="toolbar-btn-icon">{TOOL_ICONS.move}</span>
-          <span className="toolbar-btn-label">Déplacer</span>
-        </button>
         <button
           className={`toolbar-btn ${activeTool === 'select' && !placingLiaison ? 'active' : ''}`}
           onClick={() => setTool('select')}
@@ -296,7 +408,7 @@ export function Toolbar({ onCollapse }: ToolbarProps) {
           <span className="toolbar-btn-label">{BATI_DEF.name}</span>
         </button>
         {LIAISON_LIST.map((def) => {
-          const views = ([1, 2] as LiaisonView[]).slice(0, def.viewCount);
+          const views = ([1, 2, 3] as LiaisonView[]).slice(0, def.viewCount).filter((v) => LIAISON_ICONS[def.type][v]);
           const buttons = views.map((v) => {
             const isActive = placingLiaison?.type === def.type && placingLiaison?.view === v;
             const label = def.viewCount === 1 ? def.name : `${def.name} vue ${v}`;
@@ -328,7 +440,6 @@ export function Toolbar({ onCollapse }: ToolbarProps) {
 
       <div className="toolbar-section toolbar-help">
         <div className="toolbar-title">Raccourcis</div>
-        <div className="shortcut"><kbd>H</kbd> Déplacer</div>
         <div className="shortcut"><kbd>V</kbd> Sélection</div>
         <div className="shortcut"><kbd>L</kbd> Lien</div>
         <div className="shortcut"><kbd>R</kbd> Rotation (+15°)</div>

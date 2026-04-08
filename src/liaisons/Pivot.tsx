@@ -1,5 +1,6 @@
-import { Circle, Group, Line, Rect } from 'react-konva';
-import { snap } from '../utils/snap';
+import { Circle, Ellipse, Group, Line, Path, Rect } from 'react-konva';
+import { snapPx } from '../utils/snap';
+import { HitRect } from './HitRect';
 
 interface PivotProps {
   x: number;
@@ -30,33 +31,72 @@ export function Pivot({ x, y, rotation, scale = 1, view = 1,  colorA = '#1a1a1a'
       onTap={onSelect}
       onDblClick={onDblClick}
       onDragMove={(e) => {
-        const sx = snap(e.target.x());
-        const sy = snap(e.target.y());
+        const sx = snapPx(e.target.x());
+        const sy = snapPx(e.target.y());
         e.target.x(sx);
         e.target.y(sy);
         onDragMove(sx, sy);
       }}
       onDragEnd={(e) => {
-        const sx = snap(e.target.x());
-        const sy = snap(e.target.y());
+        const sx = snapPx(e.target.x());
+        const sy = snapPx(e.target.y());
         e.target.x(sx);
         e.target.y(sy);
         onDragEnd(sx, sy);
       }}
     >
-      <Rect x={-26} y={-26} width={52} height={52} fill="transparent" />
-      {view === 1 ? (
+      <HitRect type="pivot" view={view} />
+      {view === 1 && (
         <>
-          {/* Plan view: rectangle (bearing=B) + horizontal shaft + vertical flanges (A) */}
-          <Rect x={-22} y={-11} width={44} height={22} stroke={colorB} strokeWidth={strokeWidth} fill="white" />
-          <Line points={[-34, 0, 34, 0]} stroke={colorA} strokeWidth={strokeWidth} />
-          <Line points={[-34, -8, -34, 8]} stroke={colorA} strokeWidth={strokeWidth} />
-          <Line points={[34, -8, 34, 8]} stroke={colorA} strokeWidth={strokeWidth} />
+          {/* Vue 1: rectangle horizontal (palier=B) + barre horizontale (A) */}
+          <Rect x={-32} y={-11} width={64} height={22} stroke={colorB} strokeWidth={strokeWidth} fill="white" />
+          {/* Axe horizontal — s'arrête au tourillon */}
+          <Line points={[-36, 0, 36, 0]} stroke={colorA} strokeWidth={strokeWidth} />
+          {/* Tourillons — hauteur = largeur du rectangle (22), proches du rectangle */}
+          <Line points={[-36, -11, -36, 11]} stroke={colorA} strokeWidth={strokeWidth} />
+          <Line points={[36, -11, 36, 11]} stroke={colorA} strokeWidth={strokeWidth} />
         </>
-      ) : (
+      )}
+      {view === 2 && (
         <>
-          {/* Section view: simple circle colored by first solid */}
+          {/* Vue 2: cercle (vu de bout) */}
           <Circle radius={r} stroke={colorA} strokeWidth={strokeWidth} fill="white" />
+        </>
+      )}
+      {view === 3 && (
+        <>
+          {/* Vue 3: cylindre vertical en perspective cavalière (opaque) */}
+          {/* Barre au-dessus (s'arrête au tourillon) */}
+          <Line points={[0, -35, 0, -29]} stroke={colorA} strokeWidth={strokeWidth} />
+          {/* Tourillon haut — légère diagonale */}
+          <Line points={[-10, -37, 10, -33]} stroke={colorA} strokeWidth={strokeWidth} />
+
+          {/* Corps du cylindre — fond blanc opaque qui masque l'arrière */}
+          <Rect x={-12} y={-22} width={24} height={44} fill="white" />
+          {/* Côtés verticaux */}
+          <Line points={[-12, -22, -12, 22]} stroke={colorB} strokeWidth={strokeWidth} />
+          <Line points={[12, -22, 12, 22]} stroke={colorB} strokeWidth={strokeWidth} />
+          {/* Ellipse du haut — visible entièrement */}
+          <Ellipse x={0} y={-22} radiusX={12} radiusY={7} stroke={colorB} strokeWidth={strokeWidth} fill="white" />
+          {/* Barre qui pénètre dans l'ellipse du haut (rendue après l'ellipse pour passer par-dessus) */}
+          <Line points={[0, -29, 0, -22]} stroke={colorA} strokeWidth={strokeWidth} />
+          {/* Demi-ellipse du bas — fill blanc fermé */}
+          <Path
+            data="M -12 22 A 12 7 0 0 0 12 22 Z"
+            fill="white"
+          />
+          {/* Demi-ellipse du bas — stroke seulement de l'arc (sans la ligne de fermeture) */}
+          <Path
+            data="M -12 22 A 12 7 0 0 0 12 22"
+            stroke={colorB}
+            strokeWidth={strokeWidth}
+            fill={undefined as unknown as string}
+          />
+
+          {/* Barre sous le cylindre (s'arrête au tourillon) */}
+          <Line points={[0, 29, 0, 35]} stroke={colorA} strokeWidth={strokeWidth} />
+          {/* Tourillon bas — légère diagonale */}
+          <Line points={[-10, 33, 10, 37]} stroke={colorA} strokeWidth={strokeWidth} />
         </>
       )}
     </Group>

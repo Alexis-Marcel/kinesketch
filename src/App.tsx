@@ -8,7 +8,7 @@ import { LiaisonGraph } from './components/LiaisonGraph';
 import { MobilityPanel } from './components/MobilityPanel';
 import { useDiagramStore } from './store/diagramStore';
 import { autoSave, loadAutoSave, saveKineSketch } from './export/kinesketch';
-import { SNAP_SIZE } from './utils/snap';
+
 import { LIAISON_LIST } from './liaisons';
 import type { DiagramNode, Link } from './types';
 import './App.css';
@@ -163,12 +163,6 @@ export default function App() {
         return;
       }
 
-      // H — move/pan tool (hand)
-      if (e.key === 'h' || e.key === 'H') {
-        state.setTool('move');
-        return;
-      }
-
       // L — link tool
       if (e.key === 'l' || e.key === 'L') {
         state.setTool('link');
@@ -191,7 +185,7 @@ export default function App() {
       if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         if (state.selectedIds.size === 0) return;
         e.preventDefault();
-        const step = e.shiftKey ? 1 : SNAP_SIZE;
+        const step = e.shiftKey ? 0.1 : 1;
         const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
         const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
         const moves: Array<{ id: string; x: number; y: number }> = [];

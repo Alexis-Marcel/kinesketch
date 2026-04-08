@@ -1,5 +1,5 @@
 import { Arc, Group, Line, Text, Circle } from 'react-konva';
-import { snap } from '../utils/snap';
+import { snapPx, CELL } from '../utils/snap';
 import type { AngleArc, Solide } from '../types';
 
 interface AngleArcRendererProps {
@@ -61,25 +61,25 @@ export function AngleArcRenderer({ arc, fromSolide, toSolide, selected, onSelect
 
   return (
     <Group
-      x={arc.x}
-      y={arc.y}
+      x={arc.x * CELL}
+      y={arc.y * CELL}
       draggable
       onClick={onSelect}
       onTap={onSelect}
       onDblClick={onDblClick}
       onDragMove={(e) => {
-        const sx = snap(e.target.x());
-        const sy = snap(e.target.y());
+        const sx = snapPx(e.target.x());
+        const sy = snapPx(e.target.y());
         e.target.x(sx);
         e.target.y(sy);
-        onDragMove(sx, sy);
+        onDragMove(sx / CELL, sy / CELL);
       }}
       onDragEnd={(e) => {
-        const sx = snap(e.target.x());
-        const sy = snap(e.target.y());
+        const sx = snapPx(e.target.x());
+        const sy = snapPx(e.target.y());
         e.target.x(sx);
         e.target.y(sy);
-        onDragEnd(sx, sy);
+        onDragEnd(sx / CELL, sy / CELL);
       }}
     >
       {/* Origin dot */}

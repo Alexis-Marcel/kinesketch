@@ -21,6 +21,8 @@ export function PropertiesPanel() {
   const updateSolideFrameLabel = useDiagramStore((s) => s.updateSolideFrameLabel);
   const updateAngleArcLabel = useDiagramStore((s) => s.updateAngleArcLabel);
   const addAngleArc = useDiagramStore((s) => s.addAngleArc);
+  const moveNode = useDiagramStore((s) => s.moveNode);
+  const dimension = useDiagramStore((s) => s.dimension);
 
   const [arcCreating, setArcCreating] = useState(false);
 
@@ -153,7 +155,7 @@ export function PropertiesPanel() {
           <div className="prop-value">{def.dof}</div>
         </div>
 
-        {def.viewCount === 2 && (
+        {def.viewCount === 2 && dimension === '2d' && (
           <div className="prop-group">
             <label className="prop-label">Vue</label>
             <select
@@ -180,16 +182,45 @@ export function PropertiesPanel() {
 
         <div className="prop-group">
           <label className="prop-label">Rotation</label>
-          <div className="prop-row">
-            <input
-              className="prop-input prop-input-small"
-              type="number"
-              value={Math.round(node.rotation)}
-              onChange={(e) => rotateNode(node.id, Number(e.target.value))}
-              step={15}
-            />
-            <span className="prop-unit">°</span>
-          </div>
+          {dimension === '3d' ? (
+            <div className="prop-pos-grid">
+              <label className="prop-unit">x</label>
+              <input
+                className="prop-input prop-input-small"
+                type="number"
+                value={Math.round(node.rotationX)}
+                onChange={(e) => rotateNode(node.id, node.rotation, Number(e.target.value), node.rotationY)}
+                step={15}
+              />
+              <label className="prop-unit">y</label>
+              <input
+                className="prop-input prop-input-small"
+                type="number"
+                value={Math.round(node.rotation)}
+                onChange={(e) => rotateNode(node.id, Number(e.target.value), node.rotationX, node.rotationY)}
+                step={15}
+              />
+              <label className="prop-unit">z</label>
+              <input
+                className="prop-input prop-input-small"
+                type="number"
+                value={Math.round(node.rotationY)}
+                onChange={(e) => rotateNode(node.id, node.rotation, node.rotationX, Number(e.target.value))}
+                step={15}
+              />
+            </div>
+          ) : (
+            <div className="prop-row">
+              <input
+                className="prop-input prop-input-small"
+                type="number"
+                value={Math.round(node.rotation)}
+                onChange={(e) => rotateNode(node.id, Number(e.target.value))}
+                step={15}
+              />
+              <span className="prop-unit">°</span>
+            </div>
+          )}
         </div>
 
         <div className="prop-group">
@@ -210,8 +241,35 @@ export function PropertiesPanel() {
 
         <div className="prop-group">
           <label className="prop-label">Position</label>
-          <div className="prop-value prop-value-small">
-            x: {Math.round(node.x)}, y: {Math.round(node.y)}
+          <div className="prop-pos-grid">
+            <label className="prop-unit">x</label>
+            <input
+              className="prop-input prop-input-small"
+              type="number"
+              value={Math.round(node.x)}
+              onChange={(e) => moveNode(node.id, Number(e.target.value), node.y, node.z)}
+              step={1}
+            />
+            <label className="prop-unit">y</label>
+            <input
+              className="prop-input prop-input-small"
+              type="number"
+              value={Math.round(node.y)}
+              onChange={(e) => moveNode(node.id, node.x, Number(e.target.value), node.z)}
+              step={1}
+            />
+            {dimension === '3d' && (
+              <>
+                <label className="prop-unit">z</label>
+                <input
+                  className="prop-input prop-input-small"
+                  type="number"
+                  value={Math.round(node.z)}
+                  onChange={(e) => moveNode(node.id, node.x, node.y, Number(e.target.value))}
+                  step={1}
+                />
+              </>
+            )}
           </div>
         </div>
       </div>

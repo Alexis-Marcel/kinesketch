@@ -1,5 +1,6 @@
-import { Group, Line , Rect } from 'react-konva';
-import { snap } from '../utils/snap';
+import { Group, Line } from 'react-konva';
+import { snapPx } from '../utils/snap';
+import { HitRect } from './HitRect';
 
 interface AppuiPlanProps {
   x: number;
@@ -16,8 +17,8 @@ interface AppuiPlanProps {
   onDblClick: () => void;
 }
 
-export function AppuiPlan({ x, y, rotation, scale = 1,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: AppuiPlanProps) {
-  const w = 36;
+export function AppuiPlan({ x, y, rotation, scale = 1, view = 1, colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: AppuiPlanProps) {
+  const w = 64;
   const gap = 6;
   const strokeWidth = 1.5;
 
@@ -31,24 +32,44 @@ export function AppuiPlan({ x, y, rotation, scale = 1,  colorA = '#1a1a1a', colo
       onTap={onSelect}
       onDblClick={onDblClick}
       onDragMove={(e) => {
-        const sx = snap(e.target.x());
-        const sy = snap(e.target.y());
+        const sx = snapPx(e.target.x());
+        const sy = snapPx(e.target.y());
         e.target.x(sx);
         e.target.y(sy);
         onDragMove(sx, sy);
       }}
       onDragEnd={(e) => {
-        const sx = snap(e.target.x());
-        const sy = snap(e.target.y());
+        const sx = snapPx(e.target.x());
+        const sy = snapPx(e.target.y());
         e.target.x(sx);
         e.target.y(sy);
         onDragEnd(sx, sy);
       }}
     >
-      <Rect x={-26} y={-26} width={52} height={52} fill="transparent" />
-      {/* Two parallel horizontal lines */}
-      <Line points={[-w / 2, -gap / 2, w / 2, -gap / 2]} stroke={colorA} strokeWidth={strokeWidth} />
-      <Line points={[-w / 2, gap / 2, w / 2, gap / 2]} stroke={colorB} strokeWidth={strokeWidth} />
+      <HitRect type="appui_plan" view={view} />
+      {view !== 3 && (
+        <>
+          {/* Vue 1: deux lignes parallèles horizontales */}
+          <Line points={[-w / 2, -gap / 2, w / 2, -gap / 2]} stroke={colorA} strokeWidth={strokeWidth} />
+          <Line points={[-w / 2, gap / 2, w / 2, gap / 2]} stroke={colorB} strokeWidth={strokeWidth} />
+        </>
+      )}
+      {view === 3 && (() => {
+        {/* Vue 3: deux losanges en perspective cavalière, légèrement décalés */}
+        const offset = 8; // décalage vertical entre les deux plans
+        // Losange A (en haut)
+        const aPts = [-28, -offset / 2 + 0, 0, -offset / 2 + 14, 28, -offset / 2 + 0, 0, -offset / 2 + -14];
+        // Losange B (en bas)
+        const bPts = [-28, offset / 2 + 0, 0, offset / 2 + 14, 28, offset / 2 + 0, 0, offset / 2 + -14];
+        return (
+          <>
+            {/* B (bas) dessiné en premier — derrière */}
+            <Line points={bPts} closed stroke={colorB} strokeWidth={strokeWidth} fill="white" lineJoin="bevel" />
+            {/* A (haut) dessiné en dernier — devant */}
+            <Line points={aPts} closed stroke={colorA} strokeWidth={strokeWidth} fill="white" lineJoin="bevel" />
+          </>
+        );
+      })()}
     </Group>
   );
 }
