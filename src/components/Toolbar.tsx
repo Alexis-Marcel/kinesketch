@@ -5,272 +5,511 @@ import { useDiagramStore, SOLIDE_COLORS } from '../store/diagramStore';
 import { LIAISON_LIST, BATI_DEF } from '../liaisons';
 import type { LiaisonType, LiaisonView } from '../types';
 
-const TOOL_ICONS: Record<string, string> = {
-  move: '⇔',
-  select: '⊹',
-  link: '⟶',
-};
+// =============================================================================
+// Liaison icons — SVG mirrors of the actual canvas renderers.
+//
+// Each icon uses the renderer's NATURAL local coordinates (the same numbers
+// that appear in src/liaisons/*.tsx) wrapped in a viewBox sized to fit them.
+// `vector-effect: non-scaling-stroke` (set globally in App.css) keeps stroke
+// widths constant regardless of how the SVG is scaled in the toolbar.
+//
+// IMPORTANT: when a renderer's geometry changes, update the corresponding
+// icon here so the palette stays in sync with the canvas.
+// =============================================================================
 
-const li = (children: ReactNode) => (
-  <svg width="18" height="18" viewBox="-1 -1 22 22" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+const icon = (viewBox: string, children: ReactNode) => (
+  <svg
+    viewBox={viewBox}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="liaison-icon-svg"
+    preserveAspectRatio="xMidYMid meet"
+  >
     {children}
   </svg>
 );
 
+// Simplified vue-3 helper for liaisons that draw a vertical cylinder in
+// cavalier perspective (pivot, pivot_glissant, helicoidale). The body rect is
+// stroke="none" because the sides are drawn by the two explicit vertical
+// lines below and the top/bottom by the ellipses — without this, SVG would
+// draw the rect's full outline (Konva's <Rect> only strokes when given a
+// stroke prop, but SVG inherits from the parent).
+const verticalCylinder = (extras?: ReactNode) => (
+  <>
+    <rect x={-12} y={-22} width={24} height={44} fill="white" stroke="none" />
+    <line x1={-12} y1={-22} x2={-12} y2={22} />
+    <line x1={12} y1={-22} x2={12} y2={22} />
+    <ellipse cx={0} cy={-22} rx={12} ry={7} fill="white" />
+    <path d="M -12 22 A 12 7 0 0 0 12 22" fill="white" />
+    {extras}
+  </>
+);
+
+// Vue-3 prism for glissiere (vertical pavé in cavalier perspective)
+const glissiereVue3 = (() => {
+  const halfW = 7, halfH = 22, dx = 6, dy = 3.5;
+  const p = (sx: number, sy: number, sz: number) => ({
+    x: sx * halfW + sz * dx,
+    y: sy * halfH - sz * dy,
+  });
+  const fbl = p(-1, +1, -1), fbr = p(+1, +1, -1), bbr = p(+1, +1, +1);
+  const btr = p(+1, -1, +1), btl = p(-1, -1, +1), ftl = p(-1, -1, -1);
+  const yj = p(+1, -1, -1);
+  return (
+    <>
+      <polygon
+        points={`${fbl.x},${fbl.y} ${fbr.x},${fbr.y} ${bbr.x},${bbr.y} ${btr.x},${btr.y} ${btl.x},${btl.y} ${ftl.x},${ftl.y}`}
+        fill="white"
+      />
+      <line x1={yj.x} y1={yj.y} x2={ftl.x} y2={ftl.y} />
+      <line x1={yj.x} y1={yj.y} x2={fbr.x} y2={fbr.y} />
+      <line x1={yj.x} y1={yj.y} x2={btr.x} y2={btr.y} />
+    </>
+  );
+})();
+
+// 3/4 outer ring used by rotule and rotule_doigt
+const rotuleOuterArc = (
+  <path d="M 10.6 10.6 A 15 15 0 1 1 10.6 -10.6" />
+);
+
 const LIAISON_ICONS: Record<LiaisonType, Record<number, ReactNode>> = {
   pivot: {
-    1: li(<>
-      <rect x="3" y="6" width="14" height="8" />
-      <line x1="1" y1="10" x2="19" y2="10" />
-      <line x1="1" y1="7" x2="1" y2="13" />
-      <line x1="19" y1="7" x2="19" y2="13" />
-    </>),
-    2: li(<circle cx="10" cy="10" r="7" />),
-    3: li(<>
-      {/* Cylindre vertical en perspective cavalière */}
-      <ellipse cx="10" cy="5" rx="4" ry="1.5" />
-      <line x1="6" y1="5" x2="6" y2="15" />
-      <line x1="14" y1="5" x2="14" y2="15" />
-      <path d="M 6 15 A 4 1.5 0 0 0 14 15" />
-      {/* Axe traversant */}
-      <line x1="10" y1="1" x2="10" y2="19" />
-      {/* Tourillons */}
-      <line x1="7" y1="2" x2="13" y2="3" />
-      <line x1="7" y1="17" x2="13" y2="18" />
-    </>),
+    1: icon('-42 -16 84 32',
+      <>
+        <rect x={-32} y={-11} width={64} height={22} fill="white" />
+        <line x1={-36} y1={0} x2={36} y2={0} />
+        <line x1={-36} y1={-11} x2={-36} y2={11} />
+        <line x1={36} y1={-11} x2={36} y2={11} />
+      </>
+    ),
+    2: icon('-14 -14 28 28', <circle r={12} fill="white" />),
+    3: icon('-16 -40 32 80',
+      <>
+        <line x1={0} y1={-35} x2={0} y2={-29} />
+        <line x1={-10} y1={-37} x2={10} y2={-33} />
+        {verticalCylinder()}
+        <line x1={0} y1={-29} x2={0} y2={-22} />
+        <line x1={0} y1={29} x2={0} y2={35} />
+        <line x1={-10} y1={33} x2={10} y2={37} />
+      </>
+    ),
   },
+
   glissiere: {
-    1: li(<rect x="3" y="6" width="14" height="8" />),
-    2: li(<>
-      <rect x="5" y="5" width="10" height="10" />
-      <line x1="5" y1="5" x2="15" y2="15" />
-      <line x1="15" y1="5" x2="5" y2="15" />
-    </>),
-    3: li(<>
-      {/* Pavé droit vertical en perspective cavalière */}
-      <rect x="6" y="5" width="7" height="11" />
-      <line x1="6" y1="5" x2="9" y2="3" />
-      <line x1="13" y1="5" x2="16" y2="3" />
-      <line x1="9" y1="3" x2="16" y2="3" />
-      <line x1="13" y1="16" x2="16" y2="14" />
-      <line x1="16" y1="3" x2="16" y2="14" />
-    </>),
+    1: icon('-34 -14 68 28', <rect x={-32} y={-11} width={64} height={22} fill="white" />),
+    2: icon('-14 -14 28 28',
+      <>
+        <rect x={-11} y={-11} width={22} height={22} fill="white" />
+        <line x1={-11} y1={-11} x2={11} y2={11} />
+        <line x1={11} y1={-11} x2={-11} y2={11} />
+      </>
+    ),
+    3: icon('-16 -28 32 56', glissiereVue3),
   },
+
   pivot_glissant: {
-    1: li(<>
-      <rect x="3" y="6" width="14" height="8" />
-      <line x1="3" y1="10" x2="17" y2="10" />
-    </>),
-    2: li(<>
-      <circle cx="10" cy="10" r="7" />
-      <circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none" />
-    </>),
-    3: li(<>
-      {/* Cylindre vertical en perspective cavalière, sans tourillons */}
-      <ellipse cx="10" cy="5" rx="4" ry="1.5" />
-      <line x1="6" y1="5" x2="6" y2="15" />
-      <line x1="14" y1="5" x2="14" y2="15" />
-      <path d="M 6 15 A 4 1.5 0 0 0 14 15" />
-      {/* Axe traversant */}
-      <line x1="10" y1="1" x2="10" y2="19" />
-    </>),
+    1: icon('-34 -14 68 28',
+      <>
+        <rect x={-32} y={-11} width={64} height={22} fill="white" />
+        <line x1={-32} y1={0} x2={32} y2={0} />
+      </>
+    ),
+    2: icon('-14 -14 28 28',
+      <>
+        <circle r={12} fill="white" />
+        <circle r={2.2} fill="currentColor" stroke="none" />
+      </>
+    ),
+    3: icon('-16 -34 32 68', verticalCylinder()),
   },
+
   rotule: {
-    1: li(<>
-      <circle cx="10" cy="10" r="4.5" />
-      <path d="M 15,15 A 7,7 0 1,1 15,5" />
-    </>),
+    1: icon('-18 -18 36 36',
+      <>
+        <circle r={12} fill="white" />
+        {rotuleOuterArc}
+      </>
+    ),
   },
+
   encastrement: {
-    1: li(<line x1="3" y1="10" x2="17" y2="10" />),
+    1: icon('-36 -6 72 12', <line x1={-32} y1={0} x2={32} y2={0} />),
   },
+
   helicoidale: {
-    1: li(<>
-      <rect x="3" y="6" width="14" height="8" />
-      <line x1="3" y1="6" x2="17" y2="14" />
-    </>),
-    2: li(<>
-      <circle cx="10" cy="10" r="7" />
-      <path d="M 10,6.5 A 3.5,3.5 0 0,1 10,13.5" />
-    </>),
-    3: li(<>
-      {/* Cylindre vertical en perspective cavalière avec hélice */}
-      <ellipse cx="10" cy="5" rx="4" ry="1.5" />
-      <line x1="6" y1="5" x2="6" y2="15" />
-      <line x1="14" y1="5" x2="14" y2="15" />
-      <path d="M 6 15 A 4 1.5 0 0 0 14 15" />
-      {/* Hélice diagonale */}
-      <path d="M 6 13 Q 8 10 10 8 T 14 5" />
-    </>),
+    1: icon('-34 -14 68 28',
+      <>
+        <rect x={-32} y={-11} width={64} height={22} fill="white" />
+        <line x1={-32} y1={-11} x2={32} y2={11} />
+      </>
+    ),
+    2: icon('-14 -14 28 28',
+      <>
+        <circle r={12} fill="white" />
+        <path d="M 0 -8 A 8 8 0 0 1 0 8" />
+      </>
+    ),
+    3: icon('-16 -34 32 68',
+      verticalCylinder(
+        <>
+          {[-15, -8, -1, 6, 13].map((y) => (
+            <path key={y} d={`M -12 ${y} A 12 7 0 0 0 12 ${y}`} />
+          ))}
+        </>
+      )
+    ),
   },
+
   rotule_doigt: {
-    1: li(<>
-      <circle cx="10" cy="10" r="4.5" />
-      <path d="M 15,15 A 7,7 0 1,1 15,5" />
-      <line x1="6.8" y1="13.2" x2="3.5" y2="16.5" />
-    </>),
+    1: icon('-22 -18 40 36',
+      <>
+        <circle r={12} fill="white" />
+        {rotuleOuterArc}
+        <line x1={-8.5} y1={8.5} x2={-14.1} y2={14.1} />
+      </>
+    ),
   },
+
   appui_plan: {
-    1: li(<>
-      <line x1="4" y1="8" x2="16" y2="8" />
-      <line x1="4" y1="12" x2="16" y2="12" />
-    </>),
-    3: li(<>
-      {/* Deux losanges en perspective cavalière, décalés */}
-      <polygon points="2,7 10,11 18,7 10,3" />
-      <polygon points="2,13 10,17 18,13 10,9" />
-    </>),
+    1: icon('-34 -8 68 16',
+      <>
+        <line x1={-32} y1={-3} x2={32} y2={-3} />
+        <line x1={-32} y1={3} x2={32} y2={3} />
+      </>
+    ),
+    3: icon('-32 -20 64 40',
+      <>
+        <polygon points="-28,4 0,18 28,4 0,-10" fill="white" />
+        <polygon points="-28,-4 0,10 28,-4 0,-18" fill="white" />
+      </>
+    ),
   },
+
   lineaire_annulaire: {
-    1: li(<>
-      <rect x="3" y="9" width="14" height="8" />
-      <circle cx="10" cy="9" r="5" fill="white" />
-    </>),
-    2: li(<>
-      <circle cx="10" cy="6" r="5" />
-      <path d="M 17,6 A 7,7 0 0,1 3,6" />
-      <line x1="3" y1="13" x2="17" y2="13" />
-    </>),
-    3: li(<>
-      {/* Demi-cylindre horizontal en perspective + sphère à l'intérieur */}
-      <path d="M 2 8 A 6 2 0 0 0 14 8" />
-      <path d="M 6 5 A 6 2 0 0 0 18 5" />
-      <line x1="2" y1="8" x2="6" y2="5" />
-      <line x1="14" y1="8" x2="18" y2="5" />
-      <circle cx="9" cy="10" r="3" />
-    </>),
+    1: icon('-34 -16 68 32',
+      <>
+        <rect x={-32} y={-2} width={64} height={16} fill="white" />
+        <circle cx={0} cy={-2} r={12} fill="white" />
+      </>
+    ),
+    2: icon('-22 -14 44 32',
+      <>
+        <circle r={12} fill="white" />
+        <path d="M 15 0 A 15 15 0 0 1 -15 0" />
+        <line x1={-19} y1={15} x2={19} y2={15} />
+      </>
+    ),
+    3: icon('-32 -24 64 48', (() => {
+      // Mirror the LineaireAnnulaire vue 3 renderer exactly:
+      // gouttière (demi-cylindre) + sphère à l'intérieur, en perspective cavalière.
+      const halfLen = 18;
+      const erx = 10;
+      const ery = 12;
+      const tilt = 3;
+      const depthRise = 15;
+      const fx = -halfLen, fy = depthRise / 2;       // front (left, lower)
+      const bx = halfLen, by = -depthRise / 2;       // back (right, higher)
+      const silhouette =
+        `M ${fx - erx} ${fy - tilt}` +
+        ` A ${erx} ${ery} 0 0 0 ${fx + erx} ${fy + tilt}` +
+        ` L ${bx + erx} ${by + tilt}` +
+        ` A ${erx} ${ery} 0 0 1 ${bx - erx} ${by - tilt}` +
+        ` Z`;
+      const fbrX = fx + erx * 0.6, fbrY = fy + ery * 0.9;
+      const bbrX = bx + erx * 0.6, bbrY = by + ery * 0.9;
+      const undersidePath =
+        `M ${fx + erx} ${fy + tilt}` +
+        ` L ${bx + erx} ${by + tilt}` +
+        ` A ${erx} ${ery} 0 0 1 ${bbrX} ${bbrY}` +
+        ` L ${fbrX} ${fbrY}` +
+        ` A ${erx} ${ery} 0 0 0 ${fx + erx} ${fy + tilt}` +
+        ` Z`;
+      const sphereCx = (fx + bx) / 2 - 5;
+      const sphereCy = (fy + by) / 2 + 2;
+      return (
+        <>
+          <path d={silhouette} fill="white" />
+          <circle cx={sphereCx} cy={sphereCy} r={10} fill="white" />
+          <path
+            d={
+              `M ${fx + erx} ${fy + tilt}` +
+              ` L ${bx + erx} ${by + tilt}` +
+              ` A ${erx} ${ery} 0 0 1 ${bx - erx} ${by - tilt}`
+            }
+          />
+          <path d={undersidePath} fill="white" />
+        </>
+      );
+    })()),
   },
+
   lineaire_rectiligne: {
-    1: li(<>
-      <line x1="2" y1="4" x2="18" y2="4" />
-      <line x1="2" y1="4" x2="7" y2="16" />
-      <line x1="18" y1="4" x2="13" y2="16" />
-      <line x1="2" y1="16" x2="18" y2="16" />
-    </>),
-    2: li(<>
-      <line x1="2" y1="4" x2="18" y2="4" />
-      <line x1="2" y1="4" x2="10" y2="16" />
-      <line x1="18" y1="4" x2="10" y2="16" />
-      <line x1="2" y1="16" x2="18" y2="16" />
-    </>),
-    3: li(<>
-      {/* Plan en perspective + triangle extrudé */}
-      <polygon points="2,15 14,15 18,11 6,11" />
-      <polygon points="3,9 9,15 15,9" />
-      <polygon points="7,5 13,11 19,5" />
-      <line x1="3" y1="9" x2="7" y2="5" />
-      <line x1="15" y1="9" x2="19" y2="5" />
-      <line x1="9" y1="15" x2="13" y2="11" />
-    </>),
+    1: icon('-34 -12 68 28',
+      <>
+        <polygon points="-19,11 -26,-8 26,-8 19,11" fill="white" />
+        <line x1={-32} y1={11} x2={32} y2={11} />
+      </>
+    ),
+    2: icon('-22 -14 44 30',
+      <>
+        <polygon points="-19,-11 0,11 19,-11" fill="white" />
+        <line x1={-19} y1={12} x2={19} y2={12} />
+      </>
+    ),
+    3: icon('-32 -22 64 44', (() => {
+      // Mirror the LineaireRectiligne vue 3 renderer:
+      // bottom plane (parallelogram) + triangular prism extruded above.
+      const yShift = 5;
+      const pL = { x: -28, y: 0 + yShift };
+      const pF = { x: 0, y: 14 + yShift };
+      const pR = { x: 28, y: 0 + yShift };
+      const pB = { x: 0, y: -14 + yShift };
+      const mStart = { x: (pL.x + pF.x) / 2, y: (pL.y + pF.y) / 2 };
+      const mEnd = { x: (pB.x + pR.x) / 2, y: (pB.y + pR.y) / 2 };
+      const w = 6, h = 12;
+      const d1x = pF.x - pL.x, d1y = pF.y - pL.y;
+      const d1len = Math.sqrt(d1x * d1x + d1y * d1y);
+      const ex = (d1x / d1len) * w, ey = (d1y / d1len) * w;
+      const tA = { x: mStart.x - ex, y: mStart.y - ey - h };
+      const tB = { x: mEnd.x - ex, y: mEnd.y - ey - h };
+      const tC = { x: mEnd.x + ex, y: mEnd.y + ey - h };
+      const tD = { x: mStart.x + ex, y: mStart.y + ey - h };
+      return (
+        <>
+          {/* 1. Plan B */}
+          <polygon
+            points={`${pL.x},${pL.y} ${pF.x},${pF.y} ${pR.x},${pR.y} ${pB.x},${pB.y}`}
+            fill="white"
+          />
+          {/* 2. Right face — fill only, no stroke */}
+          <polygon
+            points={`${tD.x},${tD.y} ${mStart.x},${mStart.y} ${mEnd.x},${mEnd.y} ${tC.x},${tC.y}`}
+            fill="white"
+            stroke="none"
+          />
+          {/* 3. Front face — fill only */}
+          <polygon
+            points={`${tA.x},${tA.y} ${mStart.x},${mStart.y} ${tD.x},${tD.y}`}
+            fill="white"
+            stroke="none"
+          />
+          {/* 4. Top face — fill + stroke */}
+          <polygon
+            points={`${tA.x},${tA.y} ${tB.x},${tB.y} ${tC.x},${tC.y} ${tD.x},${tD.y}`}
+            fill="white"
+          />
+          {/* 5. tC → mEnd → mStart → tA */}
+          <path
+            d={`M ${tC.x} ${tC.y} L ${mEnd.x} ${mEnd.y} L ${mStart.x} ${mStart.y} L ${tA.x} ${tA.y}`}
+            fill="none"
+          />
+          {/* 6. tD → mStart */}
+          <line x1={tD.x} y1={tD.y} x2={mStart.x} y2={mStart.y} />
+        </>
+      );
+    })()),
   },
+
   ponctuelle: {
-    1: li(<>
-      <circle cx="10" cy="7" r="5" />
-      <line x1="3" y1="14" x2="17" y2="14" />
-    </>),
-    3: li(<>
-      {/* Cercle au-dessus + losange en perspective cavalière */}
-      <circle cx="10" cy="6" r="4" />
-      <polygon points="2,15 10,18 18,15 10,12" />
-    </>),
+    1: icon('-34 -16 68 32',
+      <>
+        <circle r={12} fill="white" />
+        <line x1={-32} y1={12} x2={32} y2={12} />
+      </>
+    ),
+    3: icon('-32 -22 64 44',
+      <>
+        <polygon points="-28,5 0,19 28,5 0,-9" fill="white" />
+        <circle cx={0} cy={-7} r={12} fill="white" />
+      </>
+    ),
   },
+
   bati: {
-    1: li(<>
-      <line x1="2" y1="10" x2="18" y2="10" />
-      <line x1="4" y1="10" x2="2" y2="14" />
-      <line x1="7" y1="10" x2="5" y2="14" />
-      <line x1="10" y1="10" x2="8" y2="14" />
-      <line x1="13" y1="10" x2="11" y2="14" />
-      <line x1="16" y1="10" x2="14" y2="14" />
-    </>),
+    1: icon('-26 -8 52 16',
+      <>
+        <line x1={-22} y1={-4} x2={22} y2={-4} />
+        {[-16, -10, -4, 2, 8, 14].map((o) => (
+          <line key={o} x1={o} y1={-4} x2={o - 7} y2={4} strokeWidth={1.2} />
+        ))}
+      </>
+    ),
   },
+
   engrenage_ext: {
-    1: li(<>
-      <line x1="10" y1="3" x2="10" y2="17" />
-      <line x1="6" y1="3" x2="14" y2="3" />
-      <line x1="6" y1="8" x2="14" y2="8" />
-      <line x1="6" y1="17" x2="14" y2="17" />
-    </>),
-    2: li(<>
-      <circle cx="10" cy="6" r="4" />
-      <circle cx="10" cy="14" r="6" />
-    </>),
+    1: icon('-14 -52 28 104',
+      <>
+        <line x1={0} y1={-48} x2={0} y2={48} />
+        <line x1={-7} y1={-48} x2={7} y2={-48} />
+        <line x1={-7} y1={-10} x2={7} y2={-10} />
+        <line x1={-7} y1={48} x2={7} y2={48} />
+      </>
+    ),
+    2: icon('-40 -100 80 200',
+      <>
+        <circle cx={0} cy={-58} r={34} fill="white" />
+        <circle cx={0} cy={34} r={58} fill="white" />
+      </>
+    ),
   },
+
   engrenage_int: {
-    1: li(<>
-      <line x1="10" y1="3" x2="10" y2="17" />
-      <line x1="6" y1="3" x2="14" y2="3" />
-      <line x1="6" y1="8" x2="14" y2="8" />
-      <line x1="14" y1="3" x2="14" y2="17" />
-    </>),
-    2: li(<>
-      <circle cx="10" cy="7" r="4" />
-      <circle cx="10" cy="10" r="9" />
-    </>),
+    1: icon('-30 -52 60 104',
+      <>
+        <line x1={-12} y1={-48} x2={-12} y2={-10} />
+        <line x1={-19} y1={-40} x2={-5} y2={-40} />
+        <line x1={-19} y1={-10} x2={-5} y2={-10} />
+        <path d="M -12 -40 L -12 -48 L 12 -48 L 12 48 L -12 48 L -12 30" />
+        <line x1={-19} y1={30} x2={-5} y2={30} />
+      </>
+    ),
+    2: icon('-66 -66 132 132',
+      <>
+        <circle r={58} fill="white" />
+        <circle cx={0} cy={-34} r={24} fill="white" />
+      </>
+    ),
   },
+
   engrenage_conique: {
-    1: li(<>
-      <line x1="10" y1="3" x2="10" y2="17" />
-      <line x1="6" y1="3" x2="14" y2="3" />
-      <line x1="6" y1="10" x2="14" y2="10" />
-      <line x1="6" y1="17" x2="14" y2="17" />
-    </>),
-    2: li(<circle cx="10" cy="10" r="7" />),
+    1: icon('-52 -52 104 104',
+      <>
+        <line x1={40} y1={-40} x2={-40} y2={-40} />
+        <line x1={-40} y1={-40} x2={-40} y2={40} />
+        <line x1={36} y1={-44} x2={44} y2={-36} />
+        <line x1={-36} y1={44} x2={-44} y2={36} />
+      </>
+    ),
+    2: icon('-100 -66 200 132',
+      <>
+        <circle r={58} fill="white" />
+        <line x1={-58} y1={-50} x2={-58} y2={50} />
+        <line x1={-66} y1={-58} x2={-50} y2={-42} />
+        <line x1={-66} y1={58} x2={-50} y2={42} />
+      </>
+    ),
   },
+
   roue_vis_sans_fin: {
-    1: li(<>
-      <circle cx="10" cy="5" r="3" />
-      <path d="M 4 8 A 6 6 0 0 0 16 8" />
-      <line x1="10" y1="9" x2="10" y2="16" />
-      <path d="M 4 15 A 6 6 0 0 1 16 15" />
-    </>),
-    2: li(<>
-      <rect x="3" y="3" width="14" height="6" />
-      <circle cx="10" cy="14" r="5" />
-    </>),
+    1: icon('-26 -90 52 180', (() => {
+      // Mirror the RoueVisSansFin vue 1 renderer exactly:
+      // wheel + concentric top-slice arc just below it (concave up),
+      // vertical worm shaft, mirror arc at the bottom (concave down).
+      const WHEEL_CY = -62, WHEEL_R = 20;
+      const ARC_R = 26, ARC_SPAN = 0.5;
+      const TOP_ARC_BOTTOM_Y = WHEEL_CY + ARC_R; // -36
+      const BOT_ARC_CY = 104;
+      const BOT_ARC_TOP_Y = BOT_ARC_CY - ARC_R; // 78
+      const dx = ARC_R * Math.sin(ARC_SPAN); // ≈ 12.46
+      const dy = ARC_R * Math.cos(ARC_SPAN); // ≈ 22.82
+      const topTipY = WHEEL_CY + dy; // ≈ -39.18
+      const botTipY = BOT_ARC_CY - dy; // ≈ 81.18
+      return (
+        <>
+          <circle cx={0} cy={WHEEL_CY} r={WHEEL_R} fill="white" />
+          {/* Top arc — bottom slice of the wheel-concentric circle (∪) */}
+          <path d={`M ${-dx} ${topTipY} A ${ARC_R} ${ARC_R} 0 0 0 ${dx} ${topTipY}`} />
+          {/* Vertical worm shaft */}
+          <line x1={0} y1={TOP_ARC_BOTTOM_Y} x2={0} y2={BOT_ARC_TOP_Y} />
+          {/* Bottom arc — top slice of a circle below (∩) */}
+          <path d={`M ${-dx} ${botTipY} A ${ARC_R} ${ARC_R} 0 0 1 ${dx} ${botTipY}`} />
+        </>
+      );
+    })()),
+    2: icon('-66 -84 132 168',
+      <>
+        <circle cx={0} cy={17} r={58} fill="white" />
+        <rect x={-35} y={-75} width={70} height={34} fill="white" />
+        <line x1={-5} y1={-63} x2={5} y2={-53} />
+        <line x1={-5} y1={-53} x2={5} y2={-63} />
+      </>
+    ),
   },
+
   transmission_poulie_courroie: {
-    1: li(<>
-      {/* small left pulley — caps go down only */}
-      <line x1="3" y1="9" x2="8" y2="9" />
-      <line x1="3" y1="9" x2="3" y2="14" />
-      <line x1="8" y1="9" x2="8" y2="14" />
-      {/* larger right pulley */}
-      <line x1="11" y1="9" x2="17" y2="9" />
-      <line x1="11" y1="9" x2="11" y2="15" />
-      <line x1="17" y1="9" x2="17" y2="15" />
-    </>),
-    2: li(<>
-      <circle cx="5" cy="10" r="3" />
-      <circle cx="14" cy="10" r="5" />
-      <line x1="5" y1="7" x2="14" y2="5" />
-      <line x1="5" y1="13" x2="14" y2="15" />
-    </>),
+    1: icon('-132 -16 264 32',
+      <>
+        <line x1={-126} y1={-9} x2={-54} y2={-9} />
+        <line x1={-126} y1={-9} x2={-126} y2={9} />
+        <line x1={-54} y1={-9} x2={-54} y2={9} />
+        <line x1={6} y1={-9} x2={126} y2={-9} />
+        <line x1={6} y1={-9} x2={6} y2={9} />
+        <line x1={126} y1={-9} x2={126} y2={9} />
+        <line x1={-126} y1={-3} x2={126} y2={-3} stroke="#22c55e" />
+      </>
+    ),
+    2: icon('-132 -68 264 136',
+      <>
+        <line x1={-90} y1={-36} x2={66} y2={-60} stroke="#22c55e" />
+        <line x1={-90} y1={36} x2={66} y2={60} stroke="#22c55e" />
+        <circle cx={-90} cy={0} r={36} fill="white" />
+        <circle cx={66} cy={0} r={60} fill="white" />
+      </>
+    ),
   },
+
   transmission_pignons_chaine: {
-    1: li(<>
-      {/* dashed chain visible in the gap */}
-      <line x1="8" y1="10" x2="12" y2="10" strokeDasharray="2 1" />
-      {/* small pignon arrow with arrowheads */}
-      <line x1="3" y1="10" x2="8" y2="10" />
-      <line x1="3" y1="10" x2="4.5" y2="8.5" />
-      <line x1="3" y1="10" x2="4.5" y2="11.5" />
-      <line x1="8" y1="10" x2="6.5" y2="8.5" />
-      <line x1="8" y1="10" x2="6.5" y2="11.5" />
-      {/* larger pignon arrow */}
-      <line x1="12" y1="10" x2="17" y2="10" />
-      <line x1="12" y1="10" x2="13.5" y2="8.5" />
-      <line x1="12" y1="10" x2="13.5" y2="11.5" />
-      <line x1="17" y1="10" x2="15.5" y2="8.5" />
-      <line x1="17" y1="10" x2="15.5" y2="11.5" />
-    </>),
-    2: li(<>
-      <circle cx="5" cy="10" r="3" />
-      <circle cx="14" cy="10" r="5" />
-      <line x1="5" y1="7" x2="14" y2="5" strokeDasharray="2 1" />
-      <line x1="5" y1="13" x2="14" y2="15" strokeDasharray="2 1" />
-    </>),
+    1: icon('-132 -14 264 28',
+      <>
+        <line x1={-30} y1={0} x2={6} y2={0} stroke="#22c55e" strokeDasharray="6 4" />
+        {/* arrows are simplified to lines + chevrons */}
+        <line x1={-90} y1={0} x2={-30} y2={0} />
+        <line x1={-90} y1={0} x2={-84} y2={-4} />
+        <line x1={-90} y1={0} x2={-84} y2={4} />
+        <line x1={-30} y1={0} x2={-36} y2={-4} />
+        <line x1={-30} y1={0} x2={-36} y2={4} />
+        <line x1={6} y1={0} x2={126} y2={0} />
+        <line x1={6} y1={0} x2={12} y2={-4} />
+        <line x1={6} y1={0} x2={12} y2={4} />
+        <line x1={126} y1={0} x2={120} y2={-4} />
+        <line x1={126} y1={0} x2={120} y2={4} />
+      </>
+    ),
+    2: icon('-132 -68 264 136',
+      <>
+        <line x1={-90} y1={-36} x2={66} y2={-60} stroke="#22c55e" strokeDasharray="6 4" />
+        <line x1={-90} y1={36} x2={66} y2={60} stroke="#22c55e" strokeDasharray="6 4" />
+        <circle cx={-90} cy={0} r={36} fill="white" />
+        <circle cx={66} cy={0} r={60} fill="white" />
+      </>
+    ),
   },
+};
+
+// View number → human label, used inside multi-view liaison tiles.
+const VIEW_LABELS: Record<number, string> = {
+  1: 'Face',
+  2: 'Côté',
+  3: 'Persp.',
+};
+
+// =============================================================================
+// Toolbar component
+// =============================================================================
+
+const TOOL_ICONS = {
+  select: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m4 4 6 16 2-7 7-2z" />
+    </svg>
+  ),
+  link: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </svg>
+  ),
+  collapse: (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
+      <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" />
+      <line x1="6" y1="2.5" x2="6" y2="13.5" />
+    </svg>
+  ),
 };
 
 interface ToolbarProps {
@@ -291,6 +530,50 @@ export function Toolbar({ onCollapse }: ToolbarProps) {
 
   const solideList = Array.from(solides.values());
 
+  const renderLiaisonCard = (
+    type: LiaisonType,
+    name: string,
+    description: string,
+    viewCount: number
+  ) => {
+    const views = ([1, 2, 3] as LiaisonView[])
+      .slice(0, viewCount)
+      .filter((v) => LIAISON_ICONS[type]?.[v]);
+    if (views.length === 0) return null;
+    return (
+      <div className="liaison-card" key={type}>
+        <div className="liaison-card-name">{name}</div>
+        <div className="liaison-tiles" data-count={views.length}>
+          {views.map((v) => {
+            const isActive = placingLiaison?.type === type && placingLiaison?.view === v;
+            const label = views.length === 1 ? name : `${name} — vue ${v}`;
+            return (
+              <button
+                key={`${type}:${v}`}
+                className={`liaison-tile ${isActive ? 'active' : ''}`}
+                onClick={() => setPlacingLiaison(isActive ? null : { type, view: v })}
+                title={`${label}\n${description}`}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData(
+                    'application/kinesketch-liaison',
+                    JSON.stringify({ type, view: v })
+                  );
+                  e.dataTransfer.effectAllowed = 'copy';
+                }}
+              >
+                <span className="liaison-tile-icon">{LIAISON_ICONS[type][v]}</span>
+                {views.length > 1 && (
+                  <span className="liaison-tile-label">{VIEW_LABELS[v]}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="toolbar">
       <div className="toolbar-section">
@@ -301,10 +584,7 @@ export function Toolbar({ onCollapse }: ToolbarProps) {
             onClick={onCollapse}
             title="Masquer le volet gauche"
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-              <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" />
-              <line x1="6" y1="2.5" x2="6" y2="13.5" />
-            </svg>
+            {TOOL_ICONS.collapse}
           </button>
         </div>
         <button
@@ -390,52 +670,11 @@ export function Toolbar({ onCollapse }: ToolbarProps) {
 
       <div className="toolbar-section">
         <div className="toolbar-title">Liaisons</div>
-        {/* Bâti button — separate from liaison list */}
-        <button
-          className={`toolbar-btn ${placingLiaison?.type === 'bati' ? 'active' : ''}`}
-          onClick={() => {
-            const isActive = placingLiaison?.type === 'bati';
-            setPlacingLiaison(isActive ? null : { type: 'bati', view: 1 });
-          }}
-          title={`${BATI_DEF.name} — ${BATI_DEF.description}`}
-          draggable
-          onDragStart={(e) => {
-            e.dataTransfer.setData('application/kinesketch-liaison', JSON.stringify({ type: 'bati', view: 1 }));
-            e.dataTransfer.effectAllowed = 'copy';
-          }}
-        >
-          <span className="toolbar-btn-icon">{LIAISON_ICONS.bati[1]}</span>
-          <span className="toolbar-btn-label">{BATI_DEF.name}</span>
-        </button>
-        {LIAISON_LIST.map((def) => {
-          const views = ([1, 2, 3] as LiaisonView[]).slice(0, def.viewCount).filter((v) => LIAISON_ICONS[def.type][v]);
-          const buttons = views.map((v) => {
-            const isActive = placingLiaison?.type === def.type && placingLiaison?.view === v;
-            const label = def.viewCount === 1 ? def.name : `${def.name} vue ${v}`;
-            return (
-              <button
-                key={`${def.type}:${v}`}
-                className={`toolbar-btn ${isActive ? 'active' : ''}`}
-                onClick={() => setPlacingLiaison(isActive ? null : { type: def.type, view: v })}
-                title={`${label} — ${def.description}`}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData('application/kinesketch-liaison', JSON.stringify({ type: def.type, view: v }));
-                  e.dataTransfer.effectAllowed = 'copy';
-                }}
-              >
-                <span className="toolbar-btn-icon">{LIAISON_ICONS[def.type][v]}</span>
-                <span className="toolbar-btn-label">{label}</span>
-              </button>
-            );
-          });
-          return (
-            <div key={def.type} className="toolbar-liaison-category">
-              <div className="toolbar-liaison-name">{def.name}</div>
-              {buttons}
-            </div>
-          );
-        })}
+        {/* Bâti is treated like any other liaison card */}
+        {renderLiaisonCard('bati', BATI_DEF.name, BATI_DEF.description, 1)}
+        {LIAISON_LIST.map((def) =>
+          renderLiaisonCard(def.type, def.name, def.description, def.viewCount)
+        )}
       </div>
 
       <div className="toolbar-section toolbar-help">
