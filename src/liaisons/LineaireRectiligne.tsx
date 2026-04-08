@@ -47,15 +47,15 @@ export function LineaireRectiligne({ x, y, rotation, scale = 1, view = 1,  color
       <HitRect type="lineaire_rectiligne" view={view} />
       {view === 1 && (
         <>
-          {/* Vue 1: trapèze ouvert (A) + ligne horizontale (B) */}
-          <Line points={[-19, 11, -26, -8, 26, -8, 19, 11]} stroke={colorA} strokeWidth={strokeWidth} lineJoin="miter" />
+          {/* Vue 1: trapèze (A) avec fond blanc + ligne horizontale (B) */}
+          <Line points={[-19, 11, -26, -8, 26, -8, 19, 11]} closed fill="white" stroke={colorA} strokeWidth={strokeWidth} lineJoin="miter" />
           <Line points={[-32, 11, 32, 11]} stroke={colorB} strokeWidth={strokeWidth} />
         </>
       )}
       {view === 2 && (
         <>
-          {/* Vue 2: triangle fermé (A) + ligne horizontale (B) */}
-          <Line points={[-19, -11, 0, 11, 19, -11]} stroke={colorA} strokeWidth={strokeWidth} lineJoin="miter" closed />
+          {/* Vue 2: triangle fermé (A) avec fond blanc + ligne horizontale (B) */}
+          <Line points={[-19, -11, 0, 11, 19, -11]} closed fill="white" stroke={colorA} strokeWidth={strokeWidth} lineJoin="miter" />
           <Line points={[-19, 12, 19, 12]} stroke={colorB} strokeWidth={strokeWidth} />
         </>
       )}

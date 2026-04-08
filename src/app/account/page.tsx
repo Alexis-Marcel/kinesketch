@@ -82,23 +82,7 @@ export default function AccountPage() {
             </button>
           )}
 
-          {!isPro && (
-            <button
-              className="auth-btn auth-btn-primary"
-              onClick={() => router.push('/pricing')}
-            >
-              Passer à Pro
-            </button>
-          )}
-
-          {isPro && profile?.plan_type === 'annual' && (
-            <button
-              className="auth-btn auth-btn-secondary"
-              onClick={() => router.push('/pricing')}
-            >
-              Passer à la licence à vie
-            </button>
-          )}
+          {/* "Passer à Pro" / "Passer à la licence à vie" hidden until pricing is re-enabled */}
 
           <button
             className="auth-btn auth-btn-primary"
