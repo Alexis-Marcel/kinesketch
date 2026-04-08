@@ -1,6 +1,8 @@
-import { Group, Line, Circle , Rect } from 'react-konva';
+import { Group, Line, Circle } from 'react-konva';
 import type Konva from 'konva';
-import { snap } from '../utils/snap';
+import { snapPx } from '../utils/snap';
+import { HitRect } from './HitRect';
+import { BIG_GEAR_R } from './bounds';
 
 interface EngrenageConiqueProps {
   x: number;
@@ -31,15 +33,15 @@ export function EngrenageConique({ x, y, rotation, scale = 1, view = 1,  colorA 
     onTap: onSelect,
     onDblClick,
     onDragMove: (e: Konva.KonvaEventObject<DragEvent>) => {
-      const sx = snap(e.target.x());
-      const sy = snap(e.target.y());
+      const sx = snapPx(e.target.x());
+      const sy = snapPx(e.target.y());
       e.target.x(sx);
       e.target.y(sy);
       onDragMove(sx, sy);
     },
     onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
-      const sx = snap(e.target.x());
-      const sy = snap(e.target.y());
+      const sx = snapPx(e.target.x());
+      const sy = snapPx(e.target.y());
       e.target.x(sx);
       e.target.y(sy);
       onDragEnd(sx, sy);
@@ -48,13 +50,13 @@ export function EngrenageConique({ x, y, rotation, scale = 1, view = 1,  colorA 
 
   if (view === 2) {
     // Circle with vertical line + angled flanges on the left
-    const r = 14;
+    const r = BIG_GEAR_R; // shared across gear-style liaisons
     const vx = -r; // vertical line touching circle
-    const vLen = 12; // half-length of vertical line
-    const f = 2;     // flange half-size
+    const vLen = 50; // half-length of vertical line
+    const f = 8;     // flange half-size
     return (
       <Group {...groupProps}>
-      <Rect x={-26} y={-26} width={52} height={52} fill="transparent" />
+      <HitRect type="engrenage_conique" view={view} />
         <Circle x={0} y={0} radius={r} stroke={colorA} strokeWidth={strokeWidth} fill="white" />
         {/* Vertical line touching left of circle */}
         <Line points={[vx, -vLen, vx, vLen]} stroke={colorB} strokeWidth={strokeWidth} />
@@ -68,13 +70,13 @@ export function EngrenageConique({ x, y, rotation, scale = 1, view = 1,  colorA 
 
   // View 1: L-shape (right angle to the right) with 45° flanges
   // Vertical part (A), horizontal part (B), angle at center
-  const len = 20;
-  const f = 2;
+  const len = 80;
+  const f = 7;
   const o = strokeWidth / (4 * Math.sqrt(2)); // ≈ 0.265
 
   return (
     <Group {...groupProps}>
-      <Rect x={-26} y={-26} width={52} height={52} fill="transparent" />
+      <HitRect type="engrenage_conique" view={view} />
       {/* Horizontal arm (A) */}
       <Line points={[len/2, -len/2, -len/2, -len/2]} stroke={colorA} strokeWidth={strokeWidth} />
       {/* Vertical arm (B) */}

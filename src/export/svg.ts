@@ -1,7 +1,8 @@
 import type { DiagramNode, DiagramState, Link, Solide } from '../types';
+import { CELL } from '../utils/snap';
 
 function nodeToSVG(node: DiagramNode): string {
-  const transform = `translate(${node.x}, ${node.y}) rotate(${node.rotation})`;
+  const transform = `translate(${node.x * CELL}, ${node.y * CELL}) rotate(${node.rotation})`;
   const stroke = '#1a1a1a';
   const sw = 2;
   const view = node.view ?? 1;
@@ -314,10 +315,11 @@ function labelSVG(node: DiagramNode): string {
 function linkToSVG(link: Link, from: DiagramNode, to: DiagramNode, solides: Map<string, Solide>): string {
   const solide = solides.get(link.solideId);
   const color = solide?.color || '#4b5563';
-  const midX = (from.x + to.x) / 2;
-  const midY = (from.y + to.y) / 2;
+  const fx = from.x * CELL, fy = from.y * CELL, tx = to.x * CELL, ty = to.y * CELL;
+  const midX = (fx + tx) / 2;
+  const midY = (fy + ty) / 2;
   return `<g>
-    <line x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}" stroke="${color}" stroke-width="2"/>
+    <line x1="${fx}" y1="${fy}" x2="${tx}" y2="${ty}" stroke="${color}" stroke-width="2"/>
     ${link.label ? `<text x="${midX + 8}" y="${midY - 10}" font-size="13" font-family="Inter,system-ui,sans-serif" fill="${color}">${escapeXml(link.label)}</text>` : ''}
   </g>`;
 }
@@ -329,10 +331,11 @@ function escapeXml(s: string): string {
 function computeBounds(nodes: Map<string, DiagramNode>): { minX: number; minY: number; maxX: number; maxY: number } {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const node of nodes.values()) {
-    minX = Math.min(minX, node.x - 40);
-    minY = Math.min(minY, node.y - 40);
-    maxX = Math.max(maxX, node.x + 40);
-    maxY = Math.max(maxY, node.y + 40);
+    const px = node.x * CELL, py = node.y * CELL;
+    minX = Math.min(minX, px - 40);
+    minY = Math.min(minY, py - 40);
+    maxX = Math.max(maxX, px + 40);
+    maxY = Math.max(maxY, py + 40);
   }
   if (!isFinite(minX)) {
     return { minX: 0, minY: 0, maxX: 200, maxY: 200 };

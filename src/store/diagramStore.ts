@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { temporal } from 'zundo';
-import type { AngleArc, DiagramNode, DiagramState, LiaisonType, LiaisonView, Link, Solide, ToolType } from '../types';
+import type { AngleArc, DiagramDimension, DiagramNode, DiagramState, LiaisonType, LiaisonView, Link, Solide, ToolType } from '../types';
 
 export const SOLIDE_COLORS = [
   '#6b7280', // S0 bâti — gris
@@ -29,6 +29,7 @@ function createBati(): Solide {
 export const useDiagramStore = create<DiagramState>()(
   temporal(
     (set, get) => ({
+      dimension: '2d' as DiagramDimension,
       nodes: new Map<string, DiagramNode>(),
       links: new Map<string, Link>(),
       solides: new Map<string, Solide>([['s0', createBati()]]),
@@ -43,9 +44,13 @@ export const useDiagramStore = create<DiagramState>()(
       stageY: 0,
       stageScale: 1,
 
-      addNode: (type: LiaisonType, x: number, y: number, view: LiaisonView = 1) => {
+      setDimension: (dim: DiagramDimension) => {
+        set({ dimension: dim });
+      },
+
+      addNode: (type: LiaisonType, x: number, y: number, view: LiaisonView = 1, z = 0) => {
         const id = generateId('n');
-        const node: DiagramNode = { id, type, view, x, y, rotation: 0, scale: 1, label: '', labelOffsetX: 20, labelOffsetY: -20 };
+        const node: DiagramNode = { id, type, view, x, y, z, rotation: 0, rotationX: 0, rotationY: 0, scale: 1, label: '', labelOffsetX: 20, labelOffsetY: -20 };
         set((state) => {
           const nodes = new Map(state.nodes);
           nodes.set(id, node);
@@ -53,35 +58,40 @@ export const useDiagramStore = create<DiagramState>()(
         });
       },
 
-      moveNode: (id: string, x: number, y: number) => {
+      moveNode: (id: string, x: number, y: number, z?: number) => {
         set((state) => {
           const nodes = new Map(state.nodes);
           const node = nodes.get(id);
           if (!node) return state;
-          nodes.set(id, { ...node, x, y });
+          nodes.set(id, { ...node, x, y, ...(z !== undefined && { z }) });
           return { nodes };
         });
       },
 
-      moveNodes: (moves: Array<{ id: string; x: number; y: number }>) => {
+      moveNodes: (moves: Array<{ id: string; x: number; y: number; z?: number }>) => {
         set((state) => {
           const nodes = new Map(state.nodes);
           for (const move of moves) {
             const node = nodes.get(move.id);
             if (node) {
-              nodes.set(move.id, { ...node, x: move.x, y: move.y });
+              nodes.set(move.id, { ...node, x: move.x, y: move.y, ...(move.z !== undefined && { z: move.z }) });
             }
           }
           return { nodes };
         });
       },
 
-      rotateNode: (id: string, rotation: number) => {
+      rotateNode: (id: string, rotation: number, rotationX?: number, rotationY?: number) => {
         set((state) => {
           const nodes = new Map(state.nodes);
           const node = nodes.get(id);
           if (!node) return state;
-          nodes.set(id, { ...node, rotation });
+          nodes.set(id, {
+            ...node,
+            rotation,
+            ...(rotationX !== undefined && { rotationX }),
+            ...(rotationY !== undefined && { rotationY }),
+          });
           return { nodes };
         });
       },
@@ -142,7 +152,7 @@ export const useDiagramStore = create<DiagramState>()(
         });
       },
 
-      addLink: (fromNodeId: string, toNodeId: string, fromAnchorIdx?: number, toAnchorIdx?: number) => {
+      addLink: (fromNodeId: string, toNodeId: string, fromAnchorIdx?: number, toAnchorIdx?: number, fromAnchorOffset?: import('../utils/anchors').AnchorOffset, toAnchorOffset?: import('../utils/anchors').AnchorOffset) => {
         const state = get();
         const fromNode = state.nodes.get(fromNodeId);
         const toNode = state.nodes.get(toNodeId);
@@ -170,7 +180,7 @@ export const useDiagramStore = create<DiagramState>()(
           label = `L${nums[0]}${nums[1]}`;
         }
 
-        const link: Link = { id, fromNodeId, toNodeId, solideId, label, labelOffsetX: 8, labelOffsetY: -18, fromAnchorIdx, toAnchorIdx };
+        const link: Link = { id, fromNodeId, toNodeId, solideId, label, labelOffsetX: 8, labelOffsetY: -18, fromAnchorIdx, toAnchorIdx, fromAnchorOffset, toAnchorOffset };
         set((s) => {
           const links = new Map(s.links);
           links.set(id, link);
@@ -218,15 +228,15 @@ export const useDiagramStore = create<DiagramState>()(
         });
       },
 
-      updateLinkAnchor: (id: string, end: 'from' | 'to', anchorIdx: number) => {
+      updateLinkAnchor: (id: string, end: 'from' | 'to', anchorIdx: number, offset?: import('../utils/anchors').AnchorOffset) => {
         set((state) => {
           const links = new Map(state.links);
           const link = links.get(id);
           if (!link) return state;
           if (end === 'from') {
-            links.set(id, { ...link, fromAnchorIdx: anchorIdx });
+            links.set(id, { ...link, fromAnchorIdx: anchorIdx, fromAnchorOffset: offset });
           } else {
-            links.set(id, { ...link, toAnchorIdx: anchorIdx });
+            links.set(id, { ...link, toAnchorIdx: anchorIdx, toAnchorOffset: offset });
           }
           return { links };
         });
@@ -537,6 +547,9 @@ export const useDiagramStore = create<DiagramState>()(
               id: newId,
               x: srcNode.x + 40,
               y: srcNode.y + 40,
+              z: srcNode.z ?? 0,
+              rotationX: srcNode.rotationX ?? 0,
+              rotationY: srcNode.rotationY ?? 0,
             });
           }
 
@@ -614,6 +627,7 @@ export const useDiagramStore = create<DiagramState>()(
     }),
     {
       partialize: (state) => ({
+        dimension: state.dimension,
         nodes: state.nodes,
         links: state.links,
         solides: state.solides,

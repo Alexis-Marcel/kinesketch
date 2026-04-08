@@ -1,5 +1,5 @@
 import { Arrow, Circle, Group, Text } from 'react-konva';
-import { snap } from '../utils/snap';
+import { snapPx, CELL } from '../utils/snap';
 import type { Solide } from '../types';
 
 interface LocalFrameRendererProps {
@@ -14,8 +14,8 @@ interface LocalFrameRendererProps {
 export function LocalFrameRenderer({ solide, selected, onSelect, onDragMove, onDragEnd, onDblClick }: LocalFrameRendererProps) {
   if (!solide.showFrame) return null;
 
-  const x = solide.frameX ?? 0;
-  const y = solide.frameY ?? 0;
+  const x = (solide.frameX ?? 0) * CELL;
+  const y = (solide.frameY ?? 0) * CELL;
   const rotation = solide.frameRotation ?? 0;
   const color = solide.color;
   const label = solide.frameLabel ?? `R${solide.id.replace('s', '')}`;
@@ -33,18 +33,18 @@ export function LocalFrameRenderer({ solide, selected, onSelect, onDragMove, onD
       onTap={onSelect}
       onDblClick={onDblClick}
       onDragMove={(e) => {
-        const sx = snap(e.target.x());
-        const sy = snap(e.target.y());
+        const sx = snapPx(e.target.x());
+        const sy = snapPx(e.target.y());
         e.target.x(sx);
         e.target.y(sy);
-        onDragMove(sx, sy);
+        onDragMove(sx / CELL, sy / CELL);
       }}
       onDragEnd={(e) => {
-        const sx = snap(e.target.x());
-        const sy = snap(e.target.y());
+        const sx = snapPx(e.target.x());
+        const sy = snapPx(e.target.y());
         e.target.x(sx);
         e.target.y(sy);
-        onDragEnd(sx, sy);
+        onDragEnd(sx / CELL, sy / CELL);
       }}
     >
       {/* Origin point */}

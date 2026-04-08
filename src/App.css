@@ -70,6 +70,38 @@ body {
   margin: 0 4px;
 }
 
+/* Dimension toggle */
+.dimension-toggle {
+  display: flex;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.dimension-btn {
+  padding: 4px 10px;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.dimension-btn:hover {
+  background: #f3f4f6;
+}
+
+.dimension-btn-active {
+  background: #2563eb;
+  color: white;
+}
+
+.dimension-btn-active:hover {
+  background: #1d4ed8;
+}
+
 /* Export dialog */
 .export-overlay {
   position: fixed;
@@ -479,6 +511,18 @@ body {
   color: #9ca3af;
 }
 
+.prop-pos-grid {
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr;
+  align-items: center;
+  gap: 4px;
+}
+
+.prop-pos-grid .prop-input-small {
+  width: 100%;
+  min-width: 0;
+}
+
 .prop-select {
   padding: 4px 8px;
   border: 1px solid #d1d5db;
@@ -525,6 +569,22 @@ body {
 
 .liaison-table tr:hover td {
   background: #f9fafb;
+}
+
+.liaison-table-delete {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.liaison-table-delete:hover {
+  color: #dc2626;
+  background: #fef2f2;
 }
 
 /* Mobility panel */

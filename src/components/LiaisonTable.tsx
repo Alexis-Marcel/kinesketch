@@ -7,6 +7,7 @@ export function LiaisonTable() {
   const nodes = useDiagramStore((s) => s.nodes);
   const links = useDiagramStore((s) => s.links);
   const solides = useDiagramStore((s) => s.solides);
+  const deleteLink = useDiagramStore((s) => s.deleteLink);
 
   const linkList = Array.from(links.values());
 
@@ -22,6 +23,7 @@ export function LiaisonTable() {
             <th>Type</th>
             <th>Solides</th>
             <th>DDL</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -47,6 +49,15 @@ export function LiaisonTable() {
                   {solideName}
                 </td>
                 <td>{def?.dof ?? '—'}</td>
+                <td>
+                  <button
+                    className="liaison-table-delete"
+                    onClick={() => deleteLink(link.id)}
+                    title="Supprimer cette liaison"
+                  >
+                    ×
+                  </button>
+                </td>
               </tr>
             );
           })}

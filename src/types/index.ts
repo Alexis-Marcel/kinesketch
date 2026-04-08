@@ -13,11 +13,16 @@ export type LiaisonType =
   | 'bati'
   | 'engrenage_ext'
   | 'engrenage_int'
-  | 'engrenage_conique';
+  | 'engrenage_conique'
+  | 'roue_vis_sans_fin'
+  | 'transmission_poulie_courroie'
+  | 'transmission_pignons_chaine';
 
-export type LiaisonView = 1 | 2;
+export type LiaisonView = 1 | 2 | 3;
 
-export type ToolType = 'move' | 'select' | 'place' | 'link';
+export type ToolType = 'select' | 'place' | 'link';
+
+export type DiagramDimension = '2d' | '3d';
 
 export interface Solide {
   id: string;
@@ -38,7 +43,10 @@ export interface DiagramNode {
   view: LiaisonView;
   x: number;
   y: number;
+  z: number;
   rotation: number;
+  rotationX: number;
+  rotationY: number;
   scale: number;
   label: string;
   labelOffsetX: number;
@@ -55,7 +63,15 @@ export interface Link {
   labelOffsetY: number;
   fromAnchorIdx?: number;
   toAnchorIdx?: number;
-  midpoints?: Array<{ x: number; y: number }>;
+  /**
+   * Captured offset on the from-end shape anchor (e.g. an angle on a circle).
+   * When set, the attachment point stays fixed at that exact spot on the shape
+   * regardless of where the other end of the link moves. When undefined, the
+   * attachment slides dynamically toward the other end (default).
+   */
+  fromAnchorOffset?: import('../utils/anchors').AnchorOffset;
+  toAnchorOffset?: import('../utils/anchors').AnchorOffset;
+  midpoints?: Array<{ x: number; y: number; z?: number }>;
 }
 
 export interface AngleArc {
@@ -78,6 +94,9 @@ export interface DiagramData {
 }
 
 export interface DiagramState extends DiagramData {
+  // Diagram dimension
+  dimension: DiagramDimension;
+
   // UI state (not persisted in undo history)
   selectedIds: Set<string>;
   activeTool: ToolType;
@@ -91,11 +110,14 @@ export interface DiagramState extends DiagramData {
   stageY: number;
   stageScale: number;
 
+  // Dimension
+  setDimension: (dim: DiagramDimension) => void;
+
   // Node actions
-  addNode: (type: LiaisonType, x: number, y: number, view?: LiaisonView) => void;
-  moveNode: (id: string, x: number, y: number) => void;
-  moveNodes: (moves: Array<{ id: string; x: number; y: number }>) => void;
-  rotateNode: (id: string, rotation: number) => void;
+  addNode: (type: LiaisonType, x: number, y: number, view?: LiaisonView, z?: number) => void;
+  moveNode: (id: string, x: number, y: number, z?: number) => void;
+  moveNodes: (moves: Array<{ id: string; x: number; y: number; z?: number }>) => void;
+  rotateNode: (id: string, rotation: number, rotationX?: number, rotationY?: number) => void;
   scaleNode: (id: string, scale: number) => void;
   deleteNode: (id: string) => void;
   updateNodeLabel: (id: string, label: string) => void;
@@ -103,12 +125,19 @@ export interface DiagramState extends DiagramData {
   updateNodeLabelOffset: (id: string, ox: number, oy: number) => void;
 
   // Link actions
-  addLink: (fromNodeId: string, toNodeId: string, fromAnchorIdx?: number, toAnchorIdx?: number) => void;
+  addLink: (
+    fromNodeId: string,
+    toNodeId: string,
+    fromAnchorIdx?: number,
+    toAnchorIdx?: number,
+    fromAnchorOffset?: import('../utils/anchors').AnchorOffset,
+    toAnchorOffset?: import('../utils/anchors').AnchorOffset
+  ) => void;
   deleteLink: (id: string) => void;
   updateLinkLabel: (id: string, label: string) => void;
   updateLinkLabelOffset: (id: string, ox: number, oy: number) => void;
   updateLinkSolide: (id: string, solideId: string) => void;
-  updateLinkAnchor: (id: string, end: 'from' | 'to', anchorIdx: number) => void;
+  updateLinkAnchor: (id: string, end: 'from' | 'to', anchorIdx: number, offset?: import('../utils/anchors').AnchorOffset) => void;
   updateLinkMidpoints: (id: string, midpoints: Array<{ x: number; y: number }>) => void;
 
   // Solide actions
@@ -158,6 +187,7 @@ export interface DiagramState extends DiagramData {
 export interface KineSketchFile {
   version: string;
   name: string;
+  dimension: DiagramDimension;
   nodes: Array<DiagramNode>;
   links: Array<Link>;
   solides: Array<Solide>;
@@ -178,5 +208,5 @@ export interface LiaisonDefinition {
   name: string;
   dof: number;
   description: string;
-  viewCount: 1 | 2;
+  viewCount: 1 | 2 | 3;
 }

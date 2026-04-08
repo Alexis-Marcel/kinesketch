@@ -4,10 +4,11 @@ import type { AngleArc, DiagramNode, DiagramState, KineSketchFile, Link, Solide 
 const CURRENT_VERSION = '1.3';
 const AUTOSAVE_KEY = 'kinesketch-autosave';
 
-export function saveKineSketch(state: Pick<DiagramState, 'nodes' | 'links' | 'solides' | 'angleArcs' | 'stageX' | 'stageY' | 'stageScale'>) {
+export function saveKineSketch(state: Pick<DiagramState, 'dimension' | 'nodes' | 'links' | 'solides' | 'angleArcs' | 'stageX' | 'stageY' | 'stageScale'>) {
   const file: KineSketchFile = {
     version: CURRENT_VERSION,
     name: 'Schema cinématique',
+    dimension: state.dimension,
     nodes: Array.from(state.nodes.values()),
     links: Array.from(state.links.values()),
     solides: Array.from(state.solides.values()),
@@ -43,7 +44,7 @@ export async function loadKineSketch(file: File) {
 
   const nodes = new Map<string, DiagramNode>();
   for (const node of data.nodes) {
-    nodes.set(node.id, { ...node, view: node.view ?? 1, labelOffsetX: node.labelOffsetX ?? 20, labelOffsetY: node.labelOffsetY ?? -20 });
+    nodes.set(node.id, { ...node, view: node.view ?? 1, z: node.z ?? 0, rotationX: node.rotationX ?? 0, rotationY: node.rotationY ?? 0, labelOffsetX: node.labelOffsetX ?? 20, labelOffsetY: node.labelOffsetY ?? -20 });
   }
 
   const links = new Map<string, Link>();
@@ -66,6 +67,7 @@ export async function loadKineSketch(file: File) {
   }
 
   const store = useDiagramStore.getState();
+  store.setDimension(data.dimension || '2d');
   store.loadDiagram({ nodes, links, solides, angleArcs });
 
   if (data.canvas) {
@@ -80,6 +82,7 @@ export function autoSave() {
   const data: KineSketchFile = {
     version: CURRENT_VERSION,
     name: 'autosave',
+    dimension: state.dimension,
     nodes: Array.from(state.nodes.values()),
     links: Array.from(state.links.values()),
     solides: Array.from(state.solides.values()),
@@ -110,7 +113,7 @@ export function loadAutoSave(): boolean {
 
     const nodes = new Map<string, DiagramNode>();
     for (const node of data.nodes) {
-      nodes.set(node.id, { ...node, view: node.view ?? 1, labelOffsetX: node.labelOffsetX ?? 20, labelOffsetY: node.labelOffsetY ?? -20 });
+      nodes.set(node.id, { ...node, view: node.view ?? 1, z: node.z ?? 0, rotationX: node.rotationX ?? 0, rotationY: node.rotationY ?? 0, labelOffsetX: node.labelOffsetX ?? 20, labelOffsetY: node.labelOffsetY ?? -20 });
     }
 
     const links = new Map<string, Link>();
@@ -133,6 +136,7 @@ export function loadAutoSave(): boolean {
     }
 
     const store = useDiagramStore.getState();
+    store.setDimension(data.dimension || '2d');
     store.loadDiagram({ nodes, links, solides, angleArcs });
 
     if (data.canvas) {

@@ -1,5 +1,6 @@
-import { Group, Line , Rect } from 'react-konva';
-import { snap } from '../utils/snap';
+import { Group, Line } from 'react-konva';
+import { snapPx } from '../utils/snap';
+import { HitRect } from './HitRect';
 
 interface BatiProps {
   x: number;
@@ -16,7 +17,7 @@ interface BatiProps {
   onDblClick: () => void;
 }
 
-export function Bati({ x, y, rotation, scale = 1, colorA = '#374151', onSelect, onDragMove, onDragEnd, onDblClick }: BatiProps) {
+export function Bati({ x, y, rotation, scale = 1, view = 1, colorA = '#374151', onSelect, onDragMove, onDragEnd, onDblClick }: BatiProps) {
   const strokeWidth = 1.5;
   const color = colorA;
 
@@ -30,21 +31,21 @@ export function Bati({ x, y, rotation, scale = 1, colorA = '#374151', onSelect, 
       onTap={onSelect}
       onDblClick={onDblClick}
       onDragMove={(e) => {
-        const sx = snap(e.target.x());
-        const sy = snap(e.target.y());
+        const sx = snapPx(e.target.x());
+        const sy = snapPx(e.target.y());
         e.target.x(sx);
         e.target.y(sy);
         onDragMove(sx, sy);
       }}
       onDragEnd={(e) => {
-        const sx = snap(e.target.x());
-        const sy = snap(e.target.y());
+        const sx = snapPx(e.target.x());
+        const sy = snapPx(e.target.y());
         e.target.x(sx);
         e.target.y(sy);
         onDragEnd(sx, sy);
       }}
     >
-      <Rect x={-26} y={-26} width={52} height={52} fill="transparent" />
+      <HitRect type="bati" view={view} />
       {/* Horizontal ground line */}
       <Line points={[-22, -4, 22, -4]} stroke={color} strokeWidth={strokeWidth} />
       {/* Diagonal hatching strokes (ISO 3952) */}

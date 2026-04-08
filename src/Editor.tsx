@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Canvas } from './components/Canvas';
+import { Canvas3D } from './components/Canvas3D';
 import { Toolbar } from './components/Toolbar';
 import { TopBar } from './components/TopBar';
 import { PropertiesPanel } from './components/PropertiesPanel';
@@ -10,7 +11,7 @@ import { LiaisonGraph } from './components/LiaisonGraph';
 import { MobilityPanel } from './components/MobilityPanel';
 import { useDiagramStore } from './store/diagramStore';
 import { autoSave, loadAutoSave, saveKineSketch } from './export/kinesketch';
-import { SNAP_SIZE } from './utils/snap';
+import { CELL } from './utils/snap';
 import { LIAISON_LIST } from './liaisons';
 import type { DiagramNode, Link } from './types';
 import './App.css';
@@ -29,10 +30,12 @@ function zoomFit() {
 
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const node of nodes.values()) {
-    minX = Math.min(minX, node.x - 50);
-    minY = Math.min(minY, node.y - 50);
-    maxX = Math.max(maxX, node.x + 50);
-    maxY = Math.max(maxY, node.y + 50);
+    const px = node.x * CELL;
+    const py = node.y * CELL;
+    minX = Math.min(minX, px - 50);
+    minY = Math.min(minY, py - 50);
+    maxX = Math.max(maxX, px + 50);
+    maxY = Math.max(maxY, py + 50);
   }
 
   const canvasEl = document.querySelector('.canvas-wrapper');
@@ -61,6 +64,7 @@ export default function Editor() {
   const initialized = useRef(false);
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
+  const dimension = useDiagramStore((s) => s.dimension);
 
   // Load autosave on mount
   useEffect(() => {
@@ -165,12 +169,6 @@ export default function Editor() {
         return;
       }
 
-      // H — move/pan tool (hand)
-      if (e.key === 'h' || e.key === 'H') {
-        state.setTool('move');
-        return;
-      }
-
       // L — link tool
       if (e.key === 'l' || e.key === 'L') {
         state.setTool('link');
@@ -193,7 +191,7 @@ export default function Editor() {
       if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         if (state.selectedIds.size === 0) return;
         e.preventDefault();
-        const step = e.shiftKey ? 1 : SNAP_SIZE;
+        const step = e.shiftKey ? 0.1 : 1; // 1 = one grid cell, 0.1 = fine movement
         const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
         const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
         const moves: Array<{ id: string; x: number; y: number }> = [];
@@ -249,7 +247,7 @@ export default function Editor() {
             </button>
           </div>
         )}
-        <Canvas />
+        {dimension === '3d' ? <Canvas3D /> : <Canvas />}
         {rightOpen ? (
           <div className="right-panel">
             <div className="right-panel-header">

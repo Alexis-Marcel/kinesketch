@@ -1,6 +1,8 @@
 import type { DiagramNode, DiagramState, Link } from '../types';
 
-const SCALE = 1 / 40; // 40px = 1cm in TikZ
+import { CELL } from '../utils/snap';
+
+const SCALE = CELL / 40; // 4 grid cells = 1cm in TikZ
 
 function tx(x: number): string {
   return (x * SCALE).toFixed(2);

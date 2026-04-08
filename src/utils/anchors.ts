@@ -1,16 +1,45 @@
 import type { DiagramNode, LiaisonType, LiaisonView } from '../types';
+import { CELL } from './snap';
+
+/**
+ * Shape extent for an anchor. Defaults to a point (zero extent). When the
+ * anchor is a shape (e.g. a circle), links connecting to it project to the
+ * nearest point on the shape rather than to the center, so a link can attach
+ * anywhere on the perimeter.
+ *
+ * All shape coordinates are in the same local frame as `AnchorPoint.x/y`
+ * (the node's local pixel space, before rotation/scale).
+ */
+export type AnchorShape =
+  | { kind: 'point' }
+  | { kind: 'circle'; r: number };
 
 export interface AnchorPoint {
+  /** Local x of the anchor center (point) or shape center. */
   x: number;
+  /** Local y of the anchor center (point) or shape center. */
   y: number;
   side: 'A' | 'B';
+  /** If true, links connecting to this anchor are rendered BEHIND the node (the node masks the link). */
+  behind?: boolean;
+  /** Optional shape extent. If absent, the anchor is a single point. */
+  shape?: AnchorShape;
 }
 
+/**
+ * A frozen position on a shape anchor — captured when the user clicks a
+ * specific spot. Stored on the link so the attachment point stays put even
+ * when the other end of the link moves. Coordinates are in the node's LOCAL
+ * frame so node rotation/scale is applied automatically.
+ */
+export type AnchorOffset =
+  | { kind: 'circle'; angle: number /* radians, local frame */ };
+
 const ANCHOR_TABLE: Record<string, AnchorPoint[]> = {
-  // Pivot vue 1: flanges (A) left/right, rectangle (B) top/bottom
+  // Pivot vue 1: tourillons (A) left/right, rectangle (B) top/bottom
   'pivot:1': [
-    { x: -34, y: 0, side: 'A' },
-    { x: 34, y: 0, side: 'A' },
+    { x: -36, y: 0, side: 'A' },
+    { x: 36, y: 0, side: 'A' },
     { x: 0, y: -11, side: 'B' },
     { x: 0, y: 11, side: 'B' },
   ],
@@ -21,12 +50,18 @@ const ANCHOR_TABLE: Record<string, AnchorPoint[]> = {
     { x: -12, y: 0, side: 'A' },
     { x: 12, y: 0, side: 'A' },
   ],
+  // Pivot vue 3: cylindre vertical en perspective cavalière
+  'pivot:3': [
+    { x: 0, y: -35, side: 'A' },
+    { x: 0, y: 35, side: 'A' },
+    { x: 0, y: 0, side: 'B', behind: true },
+  ],
   // Glissière vue 1: simple rectangle — top/bottom (A), sides (B)
   'glissiere:1': [
     { x: 0, y: -11, side: 'A' },
     { x: 0, y: 11, side: 'A' },
-    { x: -22, y: 0, side: 'B' },
-    { x: 22, y: 0, side: 'B' },
+    { x: -32, y: 0, side: 'B' },
+    { x: 32, y: 0, side: 'B' },
   ],
   // Glissière vue 2: square (A) edges, cross (B) center
   'glissiere:2': [
@@ -36,10 +71,18 @@ const ANCHOR_TABLE: Record<string, AnchorPoint[]> = {
     { x: 10, y: 0, side: 'A' },
     { x: 0, y: 0, side: 'B' },
   ],
+  // Glissière vue 3: pavé droit vertical en perspective cavalière
+  // Centre du carré du dessus (haut) et du dessous (bas) — perspective cavalière
+  'glissiere:3': [
+    { x: 3, y: -24, side: 'A' },
+    { x: 3, y: 20, side: 'A', behind: true },
+    { x: -10, y: 0, side: 'B' },
+    { x: 10, y: 0, side: 'B' },
+  ],
   // Pivot glissant vue 1: shaft (A) left/right, rectangle (B) top/bottom
   'pivot_glissant:1': [
-    { x: -22, y: 0, side: 'A' },
-    { x: 22, y: 0, side: 'A' },
+    { x: -32, y: 0, side: 'A' },
+    { x: 32, y: 0, side: 'A' },
     { x: 0, y: -11, side: 'B' },
     { x: 0, y: 11, side: 'B' },
   ],
@@ -49,6 +92,14 @@ const ANCHOR_TABLE: Record<string, AnchorPoint[]> = {
     { x: 0, y: 12, side: 'A' },
     { x: -12, y: 0, side: 'B' },
     { x: 12, y: 0, side: 'B' },
+  ],
+  // Pivot glissant vue 3: cylindre vertical en perspective cavalière
+  // A = centre des cercles (haut et bas du cylindre)
+  // Le bottom anchor passe derrière le cylindre, le top reste devant
+  'pivot_glissant:3': [
+    { x: 0, y: -22, side: 'A' },
+    { x: 0, y: 22, side: 'A', behind: true },
+    { x: 0, y: 0, side: 'B', behind: true },
   ],
   // Rotule: inner circle (A) right, 3/4 outer circle (B) left
   'rotule:1': [
@@ -63,8 +114,8 @@ const ANCHOR_TABLE: Record<string, AnchorPoint[]> = {
   'helicoidale:1': [
     { x: 0, y: -11, side: 'A' },
     { x: 0, y: 11, side: 'A' },
-    { x: -22, y: 0, side: 'B' },
-    { x: 22, y: 0, side: 'B' },
+    { x: -32, y: 0, side: 'B' },
+    { x: 32, y: 0, side: 'B' },
   ],
   // Hélicoïdale vue 2: outer circle (A) + inner semicircle (B) — anchors on circle edge
   'helicoidale:2': [
@@ -72,6 +123,12 @@ const ANCHOR_TABLE: Record<string, AnchorPoint[]> = {
     { x: 0, y: 12, side: 'A' },
     { x: -12, y: 0, side: 'B' },
     { x: 12, y: 0, side: 'B' },
+  ],
+  // Hélicoïdale vue 3: cylindre vertical en perspective cavalière avec hélice
+  'helicoidale:3': [
+    { x: 0, y: -22, side: 'A' },
+    { x: 0, y: 22, side: 'A', behind: true },
+    { x: 0, y: 0, side: 'B', behind: true },
   ],
   // Rotule à doigt: inner circle+doigt (A) right, 3/4 outer circle (B) left
   'rotule_doigt:1': [
@@ -83,6 +140,13 @@ const ANCHOR_TABLE: Record<string, AnchorPoint[]> = {
     { x: 0, y: -3, side: 'A' },
     { x: 0, y: 3, side: 'B' },
   ],
+  // Appui plan vue 3: deux losanges en perspective cavalière
+  // A = centre du losange du haut (devant)
+  // B = centre du losange du bas (derrière, masqué par celui du haut)
+  'appui_plan:3': [
+    { x: 0, y: -4, side: 'A' },
+    { x: 0, y: 4, side: 'B', behind: true },
+  ],
   // Linéaire annulaire vue 1: circle (A) top, rectangle (B) bottom
   'lineaire_annulaire:1': [
     { x: 0, y: -14, side: 'A' },
@@ -92,6 +156,11 @@ const ANCHOR_TABLE: Record<string, AnchorPoint[]> = {
   'lineaire_annulaire:2': [
     { x: 0, y: -12, side: 'A' },
     { x: 0, y: 15, side: 'B' },
+  ],
+  // Linéaire annulaire vue 3: demi-cylindre horizontal + sphère à l'intérieur
+  'lineaire_annulaire:3': [
+    { x: 4, y: 1, side: 'A' },
+    { x: 0, y: 0, side: 'B', behind: true },
   ],
   // Linéaire rectiligne vue 1: trapezoid (A) top, line (B) bottom
   'lineaire_rectiligne:1': [
@@ -103,10 +172,23 @@ const ANCHOR_TABLE: Record<string, AnchorPoint[]> = {
     { x: 0, y: -11, side: 'A' },
     { x: 0, y: 11, side: 'B' },
   ],
+  // Linéaire rectiligne vue 3: perspective cavalière
+  // A = centre du parallélogramme de la face du dessus du cylindre
+  // B = centre du losange du plan (le link passe derrière le losange)
+  'lineaire_rectiligne:3': [
+    { x: 0, y: -7, side: 'A' },
+    { x: 0, y: 5, side: 'B', behind: true },
+  ],
   // Ponctuelle: circle (A) top, line (B) bottom
   'ponctuelle:1': [
     { x: 0, y: -12, side: 'A' },
     { x: 0, y: 12, side: 'B' },
+  ],
+  // Ponctuelle vue 3: cercle (A) au-dessus + losange (B) en perspective cavalière
+  // Anchor A légèrement au-dessus du centre de la sphère
+  'ponctuelle:3': [
+    { x: 0, y: -13, side: 'A' },
+    { x: 0, y: 5, side: 'B', behind: true },
   ],
   // Bâti: single anchor on top
   'bati:1': [
@@ -114,33 +196,71 @@ const ANCHOR_TABLE: Record<string, AnchorPoint[]> = {
   ],
   // Engrenage extérieur vue 1: center of small gear (A), center of big gear (B)
   'engrenage_ext:1': [
-    { x: 0, y: -12, side: 'A' },
-    { x: 0, y: 8, side: 'B' },
+    { x: 0, y: -48, side: 'A' },
+    { x: 0, y: 32, side: 'B' },
   ],
-  // Engrenage extérieur vue 2: center of small circle (A), center of big circle (B)
+  // Engrenage extérieur vue 2: small circle (A), big circle (B) — links snap anywhere on the perimeter
   'engrenage_ext:2': [
-    { x: 0, y: -14, side: 'A' },
-    { x: 0, y: 8, side: 'B' },
+    { x: 0, y: -58, side: 'A', shape: { kind: 'circle', r: 34 } },
+    { x: 0, y: 34, side: 'B', shape: { kind: 'circle', r: 58 } },
   ],
   // Engrenage intérieur vue 1: A between lines 1&2 on left, B center of right vertical (hook)
   'engrenage_int:1': [
-    { x: -3, y: -10, side: 'A' },
-    { x: 6, y: 0, side: 'B' },
+    { x: -12, y: -40, side: 'A' },
+    { x: 24, y: 0, side: 'B' },
   ],
-  // Engrenage intérieur vue 2: center of small circle (A), center of big circle (B)
+  // Engrenage intérieur vue 2: small circle (A) inside big circle (B) — both circular
   'engrenage_int:2': [
-    { x: 0, y: -8, side: 'A' },
-    { x: 0, y: 0, side: 'B' },
+    { x: 0, y: -34, side: 'A', shape: { kind: 'circle', r: 24 } },
+    { x: 0, y: 0, side: 'B', shape: { kind: 'circle', r: 58 } },
   ],
   // Engrenage conique vue 1
   'engrenage_conique:1': [
-    { x: 0, y: -10, side: 'A' },
-    { x: -10, y: 0, side: 'B' },
+    { x: 0, y: -40, side: 'A' },
+    { x: -40, y: 0, side: 'B' },
   ],
-  // Engrenage conique vue 2: circle center (A), vertical bar center (B)
+  // Engrenage conique vue 2: circle (A) — link snaps on the perimeter; vertical bar (B) is a point
   'engrenage_conique:2': [
-    { x: 0, y: 0, side: 'A' },
-    { x: -14, y: 0, side: 'B' },
+    { x: 0, y: 0, side: 'A', shape: { kind: 'circle', r: 58 } },
+    { x: -58, y: 0, side: 'B' },
+  ],
+  // Roue et vis sans fin vue 1: wheel circle (A) — link snaps anywhere on the
+  // perimeter; midpoint of the vertical worm shaft (B) — point anchor.
+  'roue_vis_sans_fin:1': [
+    { x: 0, y: -62, side: 'A', shape: { kind: 'circle', r: 20 } },
+    { x: 0, y: 21, side: 'B' },
+  ],
+  // Roue et vis sans fin vue 2: big wheel circle (A) — link snaps anywhere on
+  // the perimeter; rectangle center (B) — point anchor, rendered BEHIND so the
+  // rectangle masks the incoming link.
+  'roue_vis_sans_fin:2': [
+    { x: 0, y: 17, side: 'A', shape: { kind: 'circle', r: 58 } },
+    { x: 0, y: -58, side: 'B', behind: true },
+  ],
+  // Transmission par poulie courroie vue 1: small left pulley (A) + larger
+  // right pulley (B). Anchors at the center of each pulley's horizontal bar
+  // (which sits at y=-9 after the bbox shift).
+  'transmission_poulie_courroie:1': [
+    { x: -90, y: -9, side: 'A' },
+    { x: 66, y: -9, side: 'B' },
+  ],
+  // Transmission par poulie courroie vue 2: two pulley circles connected by a
+  // belt. Both anchors are circle shapes so the link can attach anywhere on
+  // the perimeter. Diameters and spacing match the view-1 bars/gap.
+  // cxSmall = -90, cxBig = 66 (with r1=36, r2=60, G=60).
+  'transmission_poulie_courroie:2': [
+    { x: -90, y: 0, side: 'A', shape: { kind: 'circle', r: 36 } },
+    { x: 66, y: 0, side: 'B', shape: { kind: 'circle', r: 60 } },
+  ],
+  // Transmission par pignons et chaîne — same layout as poulie courroie but
+  // view 1 has arrows (no caps) and the chain is dashed at the same y.
+  'transmission_pignons_chaine:1': [
+    { x: -90, y: 0, side: 'A' },
+    { x: 66, y: 0, side: 'B' },
+  ],
+  'transmission_pignons_chaine:2': [
+    { x: -90, y: 0, side: 'A', shape: { kind: 'circle', r: 36 } },
+    { x: 66, y: 0, side: 'B', shape: { kind: 'circle', r: 60 } },
   ],
 };
 
@@ -166,6 +286,162 @@ export function anchorToWorld(
   };
 }
 
+/** Inverse of the local→world transform: world point → node-local pixel coords. */
+function worldToLocal(
+  worldX: number,
+  worldY: number,
+  nodeX: number,
+  nodeY: number,
+  rotationDeg: number,
+  scale: number
+): { x: number; y: number } {
+  const rad = -(rotationDeg * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const dx = worldX - nodeX;
+  const dy = worldY - nodeY;
+  return {
+    x: (dx * cos - dy * sin) / scale,
+    y: (dx * sin + dy * cos) / scale,
+  };
+}
+
+/**
+ * Given a click world position on a shape anchor, capture the offset that
+ * pins the attachment to that exact spot. Returns undefined for non-shape
+ * anchors (point anchors don't need an offset — they have only one position).
+ */
+export function computeAnchorOffsetFromWorld(
+  anchor: AnchorPoint,
+  node: DiagramNode,
+  worldPos: { x: number; y: number }
+): AnchorOffset | undefined {
+  const shape = anchor.shape ?? { kind: 'point' as const };
+  if (shape.kind !== 'circle') return undefined;
+  const local = worldToLocal(
+    worldPos.x,
+    worldPos.y,
+    node.x * CELL,
+    node.y * CELL,
+    node.rotation,
+    node.scale ?? 1
+  );
+  const angle = Math.atan2(local.y - anchor.y, local.x - anchor.x);
+  return { kind: 'circle', angle };
+}
+
+/**
+ * Apply a stored offset to an anchor and return the world position. Returns
+ * null if the offset is incompatible with the anchor's current shape (e.g.
+ * the anchor was redefined).
+ */
+export function applyAnchorOffset(
+  anchor: AnchorPoint,
+  node: DiagramNode,
+  offset: AnchorOffset
+): { x: number; y: number } | null {
+  const shape = anchor.shape ?? { kind: 'point' as const };
+  if (shape.kind !== 'circle' || offset.kind !== 'circle') return null;
+  const scale = node.scale ?? 1;
+  // Local point on the perimeter
+  const lx = anchor.x + shape.r * Math.cos(offset.angle);
+  const ly = anchor.y + shape.r * Math.sin(offset.angle);
+  // Local → world (reuses anchorToWorld math by passing a synthetic anchor)
+  return anchorToWorld({ x: lx, y: ly, side: anchor.side }, node.x * CELL, node.y * CELL, node.rotation, scale);
+}
+
+/**
+ * Project a target world position onto an anchor shape, returning the actual
+ * point a link should connect to. For point anchors, this is just the anchor
+ * world position. For circle anchors, it's the point on the perimeter closest
+ * to the target.
+ */
+export function projectAnchorToTarget(
+  anchor: AnchorPoint,
+  nodeX: number,
+  nodeY: number,
+  rotationDeg: number,
+  scale: number,
+  target: { x: number; y: number }
+): { x: number; y: number } {
+  const center = anchorToWorld(anchor, nodeX, nodeY, rotationDeg, scale);
+  const shape = anchor.shape ?? { kind: 'point' };
+  if (shape.kind === 'circle') {
+    const r = shape.r * scale;
+    const dx = target.x - center.x;
+    const dy = target.y - center.y;
+    const d = Math.hypot(dx, dy);
+    if (d < 1e-6) return center;
+    return { x: center.x + (dx / d) * r, y: center.y + (dy / d) * r };
+  }
+  return center;
+}
+
+/**
+ * Distance from a target world point to the *shape* of an anchor — not its
+ * center. Used to pick the nearest anchor among candidates: a target sitting
+ * on the perimeter of a circle anchor should report distance ≈ 0 even if the
+ * circle's center is far away.
+ */
+function distanceToAnchorShape(
+  anchor: AnchorPoint,
+  nodeX: number,
+  nodeY: number,
+  rotationDeg: number,
+  scale: number,
+  target: { x: number; y: number }
+): number {
+  const center = anchorToWorld(anchor, nodeX, nodeY, rotationDeg, scale);
+  const dx = target.x - center.x;
+  const dy = target.y - center.y;
+  const d = Math.hypot(dx, dy);
+  const shape = anchor.shape ?? { kind: 'point' };
+  if (shape.kind === 'circle') {
+    return Math.abs(d - shape.r * scale);
+  }
+  return d;
+}
+
+/** Within this distance (px, world coords), a point anchor wins over any shape anchor. */
+const POINT_ANCHOR_PRIORITY_RADIUS = 30;
+
+/**
+ * Pick the index of the anchor closest to `target` among `anchors`. Point
+ * anchors are preferred over shape anchors when within
+ * POINT_ANCHOR_PRIORITY_RADIUS — discrete points should always win over
+ * continuous shapes when the cursor is reasonably close to one.
+ */
+function pickAnchorIdx(
+  anchors: AnchorPoint[],
+  nodeX: number,
+  nodeY: number,
+  rotationDeg: number,
+  scale: number,
+  target: { x: number; y: number }
+): number {
+  let bestPointIdx = -1;
+  let bestPointDist = Infinity;
+  let bestAnyIdx = 0;
+  let bestAnyDist = Infinity;
+  for (let i = 0; i < anchors.length; i++) {
+    const a = anchors[i];
+    const d = distanceToAnchorShape(a, nodeX, nodeY, rotationDeg, scale, target);
+    const isPoint = !a.shape || a.shape.kind === 'point';
+    if (d < bestAnyDist) {
+      bestAnyDist = d;
+      bestAnyIdx = i;
+    }
+    if (isPoint && d < bestPointDist) {
+      bestPointDist = d;
+      bestPointIdx = i;
+    }
+  }
+  if (bestPointIdx >= 0 && bestPointDist <= POINT_ANCHOR_PRIORITY_RADIUS) {
+    return bestPointIdx;
+  }
+  return bestAnyIdx;
+}
+
 export interface SolideMapping {
   a: string | null;
   b: string | null;
@@ -177,7 +453,30 @@ export function getAnchorWorldByIndex(
 ): { x: number; y: number } | null {
   const anchors = getAnchors(node.type, node.view);
   if (anchorIdx < 0 || anchorIdx >= anchors.length) return null;
-  return anchorToWorld(anchors[anchorIdx], node.x, node.y, node.rotation, node.scale ?? 1);
+  return anchorToWorld(anchors[anchorIdx], node.x * CELL, node.y * CELL, node.rotation, node.scale ?? 1);
+}
+
+/**
+ * Pick the anchor on `node` whose shape is closest to `target` (a world point,
+ * typically the cursor), and return both the anchor index and the projected
+ * point on that anchor's shape. Also returns the captured offset for shape
+ * anchors so the caller can pin the link at this exact spot on commit.
+ */
+export function pickNearestAnchor(
+  node: DiagramNode,
+  target: { x: number; y: number }
+): { idx: number; pos: { x: number; y: number }; offset?: AnchorOffset } | null {
+  const anchors = getAnchors(node.type, node.view);
+  if (anchors.length === 0) return null;
+  const nodePx = node.x * CELL;
+  const nodePy = node.y * CELL;
+  const rot = node.rotation;
+  const scl = node.scale ?? 1;
+  const bestIdx = pickAnchorIdx(anchors, nodePx, nodePy, rot, scl, target);
+  const bestAnchor = anchors[bestIdx];
+  const pos = projectAnchorToTarget(bestAnchor, nodePx, nodePy, rot, scl, target);
+  const offset = computeAnchorOffsetFromWorld(bestAnchor, node, pos);
+  return { idx: bestIdx, pos, offset };
 }
 
 export function getBestAnchor(
@@ -185,17 +484,32 @@ export function getBestAnchor(
   targetPos: { x: number; y: number },
   linkSolideId: string | null,
   solideMapping: SolideMapping,
-  forcedAnchorIdx?: number
+  forcedAnchorIdx?: number,
+  forcedOffset?: AnchorOffset
 ): { x: number; y: number } {
-  // If a specific anchor is pinned, use it directly
+  const nodePx = node.x * CELL;
+  const nodePy = node.y * CELL;
+  const rot = node.rotation;
+  const scl = node.scale ?? 1;
+
+  // If a specific anchor is pinned, honor it. With a stored offset, use the
+  // exact captured spot on the shape; otherwise, project the shape toward the
+  // target (dynamic snap, current default).
   if (forcedAnchorIdx !== undefined) {
-    const pinned = getAnchorWorldByIndex(node, forcedAnchorIdx);
-    if (pinned) return pinned;
+    const all = getAnchors(node.type, node.view);
+    const pinned = all[forcedAnchorIdx];
+    if (pinned) {
+      if (forcedOffset) {
+        const fixed = applyAnchorOffset(pinned, node, forcedOffset);
+        if (fixed) return fixed;
+      }
+      return projectAnchorToTarget(pinned, nodePx, nodePy, rot, scl, targetPos);
+    }
   }
 
   const anchors = getAnchors(node.type, node.view);
   if (anchors.length === 0) {
-    return { x: node.x, y: node.y };
+    return { x: nodePx, y: nodePy };
   }
 
   // Filter by matching side if possible
@@ -211,18 +525,9 @@ export function getBestAnchor(
     candidates = anchors;
   }
 
-  // Find nearest anchor to target
-  let bestDist = Infinity;
-  let bestPos = { x: node.x, y: node.y };
-  for (const anchor of candidates) {
-    const world = anchorToWorld(anchor, node.x, node.y, node.rotation, node.scale ?? 1);
-    const dx = world.x - targetPos.x;
-    const dy = world.y - targetPos.y;
-    const dist = dx * dx + dy * dy;
-    if (dist < bestDist) {
-      bestDist = dist;
-      bestPos = world;
-    }
-  }
-  return bestPos;
+  // Pick the anchor whose SHAPE is closest to the target, then project to it.
+  // Point anchors take precedence over shape anchors when reasonably close.
+  const bestIdxIn = pickAnchorIdx(candidates, nodePx, nodePy, rot, scl, targetPos);
+  const bestAnchor = candidates[bestIdxIn];
+  return projectAnchorToTarget(bestAnchor, nodePx, nodePy, rot, scl, targetPos);
 }
