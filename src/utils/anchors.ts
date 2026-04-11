@@ -4,6 +4,35 @@ import { CELL } from './snap';
 export type { AnchorOffset };
 
 /**
+ * Find the closest node to a world point, within `LiaisonBounds.halfDiag * scale + extra`
+ * of its center. Used by the link tool to figure out which node to show
+ * anchor markers / snap to. `excludeId` skips the source node so the link
+ * doesn't snap back to itself.
+ */
+export function findNearestNode(
+  nodes: Map<string, DiagramNode>,
+  target: { x: number; y: number },
+  extraRadius: number,
+  excludeId: string | null | undefined,
+  getBounds: (type: LiaisonType, view: LiaisonView) => { halfW: number; halfH: number }
+): { node: DiagramNode; dist: number } | null {
+  let best: { node: DiagramNode; dist: number } | null = null;
+  for (const node of nodes.values()) {
+    if (excludeId && node.id === excludeId) continue;
+    const dx = target.x - node.x * CELL;
+    const dy = target.y - node.y * CELL;
+    const dist = Math.hypot(dx, dy);
+    const bounds = getBounds(node.type, node.view);
+    const nodeScale = node.scale ?? 1;
+    const halfDiag = Math.hypot(bounds.halfW, bounds.halfH) * nodeScale;
+    if (dist < halfDiag + extraRadius && (!best || dist < best.dist)) {
+      best = { node, dist };
+    }
+  }
+  return best;
+}
+
+/**
  * Shape extent for an anchor. Defaults to a point (zero extent). When the
  * anchor is a shape (e.g. a circle), links connecting to it project to the
  * nearest point on the shape rather than to the center, so a link can attach

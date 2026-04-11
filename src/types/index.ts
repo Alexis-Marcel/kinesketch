@@ -146,6 +146,7 @@ export interface DiagramState extends DiagramData {
   updateLinkLabelOffset: (id: string, ox: number, oy: number) => void;
   updateLinkSolide: (id: string, solideId: string) => void;
   updateLinkAnchor: (id: string, end: 'from' | 'to', anchorIdx: number, offset?: AnchorOffset) => void;
+  reanchorLink: (id: string, end: 'from' | 'to', newNodeId: string, anchorIdx: number, offset?: AnchorOffset) => void;
   updateLinkMidpoints: (id: string, midpoints: Array<{ x: number; y: number }>) => void;
 
   // Solide actions
