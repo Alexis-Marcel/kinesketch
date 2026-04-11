@@ -3,15 +3,17 @@
 import { useRef, useCallback, useEffect, useState, useMemo } from 'react';
 import { Stage, Layer, Line, Rect, Circle, Group } from 'react-konva';
 import type Konva from 'konva';
-import { useDiagramStore } from '../store/diagramStore';
+import { useDiagramStore, pauseHistory, resumeHistory } from '../store/diagramStore';
 import { ShapeRenderer } from './ShapeRenderer';
 import { LinkRenderer } from './LinkRenderer';
 import { LocalFrameRenderer } from './LocalFrameRenderer';
 import { AngleArcRenderer } from './AngleArcRenderer';
 import { AxisWidget } from './AxisWidget';
 import { AnchorMarker } from './AnchorMarker';
-import type { LiaisonType } from '../types';
+import { GridLayer } from './GridLayer';
+import type { AnchorOffset, LiaisonType } from '../types';
 import { snap, CELL } from '../utils/snap';
+import { pointerToWorld } from '../utils/stage';
 import { getBestAnchor, getAnchors, anchorToWorld, pickNearestAnchor, type SolideMapping } from '../utils/anchors';
 import { getLiaisonBounds } from '../liaisons/bounds';
 
@@ -34,8 +36,8 @@ export function Canvas() {
   const [linkHoverNodeId, setLinkHoverNodeId] = useState<string | null>(null);
   const [linkSourceAnchorIdx, setLinkSourceAnchorIdx] = useState<number | undefined>(undefined);
   const [linkTargetAnchorIdx, setLinkTargetAnchorIdx] = useState<number | undefined>(undefined);
-  const [linkSourceAnchorOffset, setLinkSourceAnchorOffset] = useState<import('../utils/anchors').AnchorOffset | undefined>(undefined);
-  const [linkTargetAnchorOffset, setLinkTargetAnchorOffset] = useState<import('../utils/anchors').AnchorOffset | undefined>(undefined);
+  const [linkSourceAnchorOffset, setLinkSourceAnchorOffset] = useState<AnchorOffset | undefined>(undefined);
+  const [linkTargetAnchorOffset, setLinkTargetAnchorOffset] = useState<AnchorOffset | undefined>(undefined);
   /** World position of the live snap point on a shape anchor (where a click would attach). */
   const [snapPointPos, setSnapPointPos] = useState<{ x: number; y: number } | null>(null);
   const [reanchoring, setReanchoring] = useState<{ linkId: string; end: 'from' | 'to' } | null>(null);
@@ -221,10 +223,7 @@ export function Canvas() {
         const pointer = stage.getPointerPosition();
         if (!pointer) return;
 
-        const mousePointTo = {
-          x: (pointer.x - stageX) / oldScale,
-          y: (pointer.y - stageY) / oldScale,
-        };
+        const mousePointTo = pointerToWorld(pointer, stageX, stageY, oldScale);
 
         // Pinch deltaY is smaller, use a smoother factor
         const zoomFactor = 1 - e.evt.deltaY * 0.01;
@@ -260,7 +259,7 @@ export function Canvas() {
   // surface in link mode (stage / node / anchor marker) so the start/complete
   // logic lives in one place.
   const commitLinkAtAnchor = useCallback(
-    (nodeId: string, anchorIdx: number, offset: import('../utils/anchors').AnchorOffset | undefined) => {
+    (nodeId: string, anchorIdx: number, offset: AnchorOffset | undefined) => {
       if (!linkSourceId) {
         setLinkSource(nodeId);
         setLinkSourceAnchorIdx(anchorIdx);
@@ -289,8 +288,7 @@ export function Canvas() {
       const pointer = stage.getPointerPosition();
       if (!pointer) return;
 
-      const x = (pointer.x - stageX) / stageScale;
-      const y = (pointer.y - stageY) / stageScale;
+      const { x, y } = pointerToWorld(pointer, stageX, stageY, stageScale);
 
       if (activeTool === 'place' && placingLiaison) {
         addNode(placingLiaison.type, snap(x / CELL), snap(y / CELL), placingLiaison.view);
@@ -417,7 +415,7 @@ export function Canvas() {
   // Drag move: update store in real-time (pause undo tracking) + snap + group drag
   const handleDragMove = useCallback(
     (nodeId: string, x: number, y: number) => {
-      useDiagramStore.temporal.getState().pause();
+      pauseHistory();
       const snappedX = snap(x);
       const snappedY = snap(y);
 
@@ -450,7 +448,7 @@ export function Canvas() {
   // Drag end: resume undo tracking and commit final snapped position + group drag
   const handleDragEnd = useCallback(
     (nodeId: string, x: number, y: number) => {
-      useDiagramStore.temporal.getState().resume();
+      resumeHistory();
       const snappedX = snap(x);
       const snappedY = snap(y);
 
@@ -535,8 +533,7 @@ export function Canvas() {
       const pointer = stage.getPointerPosition();
       if (!pointer) return;
 
-      const worldX = (pointer.x - stageX) / stageScale;
-      const worldY = (pointer.y - stageY) / stageScale;
+      const { x: worldX, y: worldY } = pointerToWorld(pointer, stageX, stageY, stageScale);
 
       // Rotation mode
       if (isRotating.current && rotatingNodeId.current) {
@@ -648,8 +645,7 @@ export function Canvas() {
       const pointer = stage.getPointerPosition();
       if (!pointer) return;
 
-      const worldX = (pointer.x - stageX) / stageScale;
-      const worldY = (pointer.y - stageY) / stageScale;
+      const { x: worldX, y: worldY } = pointerToWorld(pointer, stageX, stageY, stageScale);
 
       isSelecting.current = true;
       setSelectionRect({ x1: worldX, y1: worldY, x2: worldX, y2: worldY });
@@ -761,8 +757,7 @@ export function Canvas() {
       if (!stage) return;
       const pointer = stage.getPointerPosition();
       if (!pointer) return;
-      const worldX = (pointer.x - stageX) / stageScale;
-      const worldY = (pointer.y - stageY) / stageScale;
+      const { x: worldX, y: worldY } = pointerToWorld(pointer, stageX, stageY, stageScale);
       const dx = worldX - node.x * CELL;
       const dy = worldY - node.y * CELL;
       scalingStart.current = { dist: Math.sqrt(dx * dx + dy * dy), scale: node.scale ?? 1 };
@@ -774,44 +769,6 @@ export function Canvas() {
   useEffect(() => {
     (window as unknown as Record<string, unknown>).__kineSketchStage = stageRef;
   }, []);
-
-  // Grid lines — minor every 20px, major every 40px
-  const MINOR_GRID = 20;
-  const MAJOR_GRID = 40;
-  const gridLines = (() => {
-    const lines: React.ReactNode[] = [];
-    const pad = MAJOR_GRID * 2;
-    const startX = Math.floor((-stageX / stageScale) / MINOR_GRID) * MINOR_GRID - pad;
-    const endX = Math.ceil((-stageX / stageScale + size.width / stageScale) / MINOR_GRID) * MINOR_GRID + pad;
-    const startY = Math.floor((-stageY / stageScale) / MINOR_GRID) * MINOR_GRID - pad;
-    const endY = Math.ceil((-stageY / stageScale + size.height / stageScale) / MINOR_GRID) * MINOR_GRID + pad;
-
-    for (let x = startX; x <= endX; x += MINOR_GRID) {
-      const isMajor = x % MAJOR_GRID === 0;
-      lines.push(
-        <Line
-          key={`gv${x}`}
-          points={[x, startY, x, endY]}
-          stroke={isMajor ? '#d1d5db' : '#f0f0f0'}
-          strokeWidth={(isMajor ? 0.6 : 0.3) / stageScale}
-          listening={false}
-        />
-      );
-    }
-    for (let y = startY; y <= endY; y += MINOR_GRID) {
-      const isMajor = y % MAJOR_GRID === 0;
-      lines.push(
-        <Line
-          key={`gh${y}`}
-          points={[startX, y, endX, y]}
-          stroke={isMajor ? '#d1d5db' : '#f0f0f0'}
-          strokeWidth={(isMajor ? 0.6 : 0.3) / stageScale}
-          listening={false}
-        />
-      );
-    }
-    return lines;
-  })();
 
   // Cursor logic
   const cursor =
@@ -863,9 +820,7 @@ export function Canvas() {
         onMouseDown={handleStageMouseDown}
         onMouseUp={handleStageMouseUp}
       >
-        <Layer listening={false} name="grid-layer">
-          {gridLines}
-        </Layer>
+        <GridLayer width={size.width} height={size.height} stageX={stageX} stageY={stageY} stageScale={stageScale} />
         <Layer>
           {/* Local reference frames */}
           {Array.from(solides.values()).map((solide) => {
@@ -878,11 +833,11 @@ export function Canvas() {
                 selected={selectedIds.has(frameId)}
                 onSelect={() => select(frameId)}
                 onDragMove={(x, y) => {
-                  useDiagramStore.temporal.getState().pause();
+                  pauseHistory();
                   moveSolideFrame(solide.id, x, y);
                 }}
                 onDragEnd={(x, y) => {
-                  useDiagramStore.temporal.getState().resume();
+                  resumeHistory();
                   moveSolideFrame(solide.id, x, y);
                 }}
                 onDblClick={() => handleFrameDblClick(solide.id)}
@@ -904,11 +859,11 @@ export function Canvas() {
                 selected={selectedIds.has(arc.id)}
                 onSelect={() => select(arc.id)}
                 onDragMove={(x, y) => {
-                  useDiagramStore.temporal.getState().pause();
+                  pauseHistory();
                   moveAngleArc(arc.id, x, y);
                 }}
                 onDragEnd={(x, y) => {
-                  useDiagramStore.temporal.getState().resume();
+                  resumeHistory();
                   moveAngleArc(arc.id, x, y);
                 }}
                 onDblClick={() => handleArcDblClick(arc.id)}

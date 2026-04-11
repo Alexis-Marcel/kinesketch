@@ -1,5 +1,7 @@
-import type { DiagramNode, LiaisonType, LiaisonView } from '../types';
+import type { AnchorOffset, DiagramNode, LiaisonType, LiaisonView } from '../types';
 import { CELL } from './snap';
+
+export type { AnchorOffset };
 
 /**
  * Shape extent for an anchor. Defaults to a point (zero extent). When the
@@ -25,15 +27,6 @@ export interface AnchorPoint {
   /** Optional shape extent. If absent, the anchor is a single point. */
   shape?: AnchorShape;
 }
-
-/**
- * A frozen position on a shape anchor — captured when the user clicks a
- * specific spot. Stored on the link so the attachment point stays put even
- * when the other end of the link moves. Coordinates are in the node's LOCAL
- * frame so node rotation/scale is applied automatically.
- */
-export type AnchorOffset =
-  | { kind: 'circle'; angle: number /* radians, local frame */ };
 
 type AnchorKey = `${LiaisonType}:${LiaisonView}`;
 

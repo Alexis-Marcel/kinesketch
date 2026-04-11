@@ -3,22 +3,15 @@
 import { type JSX, useMemo } from 'react';
 import { useDiagramStore } from '../store/diagramStore';
 import { LIAISON_DEFS } from '../liaisons';
+import { buildNodeSolidesMap } from '../utils/liaisons';
 
 export function LiaisonGraph() {
   const nodes = useDiagramStore((s) => s.nodes);
   const links = useDiagramStore((s) => s.links);
   const solides = useDiagramStore((s) => s.solides);
 
-  // Build adjacency: for each node (liaison), find which solides connect through it
   const graph = useMemo(() => {
-    // Collect solides per node
-    const nodeSolides = new Map<string, Set<string>>();
-    for (const link of links.values()) {
-      if (!nodeSolides.has(link.fromNodeId)) nodeSolides.set(link.fromNodeId, new Set());
-      if (!nodeSolides.has(link.toNodeId)) nodeSolides.set(link.toNodeId, new Set());
-      nodeSolides.get(link.fromNodeId)!.add(link.solideId);
-      nodeSolides.get(link.toNodeId)!.add(link.solideId);
-    }
+    const nodeSolides = buildNodeSolidesMap(links);
 
     // For each node connecting 2+ solides, create edges between all solide pairs
     const connections: Array<{

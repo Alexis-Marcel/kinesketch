@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { useDiagramStore } from '../store/diagramStore';
 import { LIAISON_DEFS } from '../liaisons';
+import { buildNodeSolidesMap } from '../utils/liaisons';
 import type { LiaisonType } from '../types';
 
 // 2D planar constraints per liaison type (nc = 3 - dof_2D)
@@ -33,14 +34,7 @@ export function MobilityPanel() {
   const solides = useDiagramStore((s) => s.solides);
 
   const analysis = useMemo(() => {
-    // For each node, find which solides connect through it
-    const nodeSolides = new Map<string, Set<string>>();
-    for (const link of links.values()) {
-      if (!nodeSolides.has(link.fromNodeId)) nodeSolides.set(link.fromNodeId, new Set());
-      if (!nodeSolides.has(link.toNodeId)) nodeSolides.set(link.toNodeId, new Set());
-      nodeSolides.get(link.fromNodeId)!.add(link.solideId);
-      nodeSolides.get(link.toNodeId)!.add(link.solideId);
-    }
+    const nodeSolides = buildNodeSolidesMap(links);
 
     // Count effective liaisons (nodes connecting 2+ solides)
     // A node connecting k solides counts as (k-1) binary liaisons

@@ -1,5 +1,6 @@
 import { Arrow, Circle, Group, Text } from 'react-konva';
-import { snapPx, CELL } from '../utils/snap';
+import { CELL } from '../utils/snap';
+import { makeSnapDragHandlers } from '../utils/snapDrag';
 import type { Solide } from '../types';
 
 interface LocalFrameRendererProps {
@@ -32,20 +33,7 @@ export function LocalFrameRenderer({ solide, selected, onSelect, onDragMove, onD
       onClick={onSelect}
       onTap={onSelect}
       onDblClick={onDblClick}
-      onDragMove={(e) => {
-        const sx = snapPx(e.target.x());
-        const sy = snapPx(e.target.y());
-        e.target.x(sx);
-        e.target.y(sy);
-        onDragMove(sx / CELL, sy / CELL);
-      }}
-      onDragEnd={(e) => {
-        const sx = snapPx(e.target.x());
-        const sy = snapPx(e.target.y());
-        e.target.x(sx);
-        e.target.y(sy);
-        onDragEnd(sx / CELL, sy / CELL);
-      }}
+      {...makeSnapDragHandlers(onDragMove, onDragEnd)}
     >
       {/* Origin point */}
       <Circle radius={3} fill={color} stroke={selected ? '#2563eb' : color} strokeWidth={1} />

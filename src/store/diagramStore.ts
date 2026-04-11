@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { temporal } from 'zundo';
-import type { AngleArc, DiagramDimension, DiagramNode, DiagramState, LiaisonType, LiaisonView, Link, Solide, ToolType } from '../types';
+import type { AnchorOffset, AngleArc, DiagramDimension, DiagramNode, DiagramState, LiaisonType, LiaisonView, Link, Solide, ToolType } from '../types';
 
 export const SOLIDE_COLORS = [
   '#6b7280', // S0 bâti — gris
@@ -36,6 +36,19 @@ function patchInMap<T>(map: Map<string, T>, id: string, patch: Partial<T>): Map<
 
 function createBati(): Solide {
   return { id: 's0', name: 'S0', color: SOLIDE_COLORS[0], isBati: true };
+}
+
+/**
+ * Pause and resume the zundo temporal middleware. Call `pauseHistory()` at the
+ * start of a drag (so intermediate frames don't pollute the undo stack) and
+ * `resumeHistory()` at the end so the final position becomes the single
+ * commit. Both wrap the verbose `useDiagramStore.temporal.getState()` access.
+ */
+export function pauseHistory() {
+  useDiagramStore.temporal.getState().pause();
+}
+export function resumeHistory() {
+  useDiagramStore.temporal.getState().resume();
 }
 
 export const useDiagramStore = create<DiagramState>()(
@@ -145,7 +158,7 @@ export const useDiagramStore = create<DiagramState>()(
         });
       },
 
-      addLink: (fromNodeId: string, toNodeId: string, fromAnchorIdx?: number, toAnchorIdx?: number, fromAnchorOffset?: import('../utils/anchors').AnchorOffset, toAnchorOffset?: import('../utils/anchors').AnchorOffset) => {
+      addLink: (fromNodeId: string, toNodeId: string, fromAnchorIdx?: number, toAnchorIdx?: number, fromAnchorOffset?: AnchorOffset, toAnchorOffset?: AnchorOffset) => {
         const state = get();
         const fromNode = state.nodes.get(fromNodeId);
         const toNode = state.nodes.get(toNodeId);
@@ -212,7 +225,7 @@ export const useDiagramStore = create<DiagramState>()(
         });
       },
 
-      updateLinkAnchor: (id: string, end: 'from' | 'to', anchorIdx: number, offset?: import('../utils/anchors').AnchorOffset) => {
+      updateLinkAnchor: (id: string, end: 'from' | 'to', anchorIdx: number, offset?: AnchorOffset) => {
         set((state) => {
           const patch: Partial<Link> = end === 'from'
             ? { fromAnchorIdx: anchorIdx, fromAnchorOffset: offset }

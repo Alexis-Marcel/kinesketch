@@ -1,5 +1,6 @@
 import { Arc, Group, Line, Text, Circle } from 'react-konva';
-import { snapPx, CELL } from '../utils/snap';
+import { CELL } from '../utils/snap';
+import { makeSnapDragHandlers } from '../utils/snapDrag';
 import type { AngleArc, Solide } from '../types';
 
 interface AngleArcRendererProps {
@@ -67,20 +68,7 @@ export function AngleArcRenderer({ arc, fromSolide, toSolide, selected, onSelect
       onClick={onSelect}
       onTap={onSelect}
       onDblClick={onDblClick}
-      onDragMove={(e) => {
-        const sx = snapPx(e.target.x());
-        const sy = snapPx(e.target.y());
-        e.target.x(sx);
-        e.target.y(sy);
-        onDragMove(sx / CELL, sy / CELL);
-      }}
-      onDragEnd={(e) => {
-        const sx = snapPx(e.target.x());
-        const sy = snapPx(e.target.y());
-        e.target.x(sx);
-        e.target.y(sy);
-        onDragEnd(sx / CELL, sy / CELL);
-      }}
+      {...makeSnapDragHandlers(onDragMove, onDragEnd)}
     >
       {/* Origin dot */}
       <Circle radius={2.5} fill={strokeColor} />
