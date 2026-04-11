@@ -201,6 +201,50 @@ function nodeToTikZ(node: DiagramNode, isBati: boolean): string {
         lines.push('    }');
       }
       break;
+
+    case 'roue_vis_sans_fin':
+      if (view === 2) {
+        lines.push('    \\draw (-0.875,-1.05) rectangle (0.875,-1.875);');
+        lines.push('    \\draw (-0.125,-1.575) -- (0.125,-1.325);');
+        lines.push('    \\draw (-0.125,-1.325) -- (0.125,-1.575);');
+        lines.push('    \\draw (0,0.425) circle (1.45);');
+      } else {
+        lines.push('    \\draw (0,1.55) circle (0.5);');
+        lines.push('    \\draw (-0.31,0.98) arc[start angle=200, end angle=340, radius=0.65];');
+        lines.push('    \\draw (0,0.9) -- (0,-1.95);');
+        lines.push('    \\draw (-0.31,-2.03) arc[start angle=160, end angle=20, radius=0.65];');
+      }
+      break;
+
+    case 'transmission_poulie_courroie':
+      if (view === 2) {
+        lines.push('    \\definecolor{beltcolor}{RGB}{34,197,94}');
+        lines.push('    \\draw[beltcolor] (-2.25,-0.9) -- (1.65,-1.5);');
+        lines.push('    \\draw[beltcolor] (-2.25,0.9) -- (1.65,1.5);');
+        lines.push('    \\draw[fill=white] (-2.25,0) circle (0.9);');
+        lines.push('    \\draw[fill=white] (1.65,0) circle (1.5);');
+      } else {
+        lines.push('    \\definecolor{beltcolor}{RGB}{34,197,94}');
+        lines.push('    \\draw (-3.15,-0.225) -- (-3.15,0.225) -- (-1.35,0.225) -- (-1.35,-0.225);');
+        lines.push('    \\draw (0.15,-0.225) -- (0.15,0.225) -- (3.15,0.225) -- (3.15,-0.225);');
+        lines.push('    \\draw[beltcolor] (-3.15,0.075) -- (3.15,0.075);');
+      }
+      break;
+
+    case 'transmission_pignons_chaine':
+      if (view === 2) {
+        lines.push('    \\definecolor{chaincolor}{RGB}{34,197,94}');
+        lines.push('    \\draw[chaincolor, dashed] (-2.25,-0.9) -- (1.65,-1.5);');
+        lines.push('    \\draw[chaincolor, dashed] (-2.25,0.9) -- (1.65,1.5);');
+        lines.push('    \\draw[fill=white] (-2.25,0) circle (0.9);');
+        lines.push('    \\draw[fill=white] (1.65,0) circle (1.5);');
+      } else {
+        lines.push('    \\definecolor{chaincolor}{RGB}{34,197,94}');
+        lines.push('    \\draw[chaincolor, dashed] (-1.35,0) -- (0.15,0);');
+        lines.push('    \\draw[<->] (-3.15,0) -- (-1.35,0);');
+        lines.push('    \\draw[<->] (0.15,0) -- (3.15,0);');
+      }
+      break;
   }
 
   // Bâti hatching

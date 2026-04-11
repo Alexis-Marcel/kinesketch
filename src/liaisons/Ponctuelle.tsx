@@ -1,51 +1,13 @@
-import { Circle, Group, Line } from 'react-konva';
-import { snapPx } from '../utils/snap';
-import { HitRect } from './HitRect';
+import { Circle, Line } from 'react-konva';
+import { LiaisonNode, type LiaisonComponentProps } from './LiaisonNode';
 
-interface PonctuelleProps {
-  x: number;
-  y: number;
-  rotation: number;
-  scale?: number;
-  view?: number;
-  selected: boolean;
-  colorA?: string;
-  colorB?: string;
-  onSelect: () => void;
-  onDragMove: (x: number, y: number) => void;
-  onDragEnd: (x: number, y: number) => void;
-  onDblClick: () => void;
-}
-
-export function Ponctuelle({ x, y, rotation, scale = 1, view = 1, colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: PonctuelleProps) {
+export function Ponctuelle(props: LiaisonComponentProps) {
+  const { view = 1, colorA = '#1a1a1a', colorB = '#1a1a1a' } = props;
   const r = 12;
   const strokeWidth = 1.5;
 
   return (
-    <Group
-      x={x}
-      y={y}
-      rotation={rotation} scaleX={scale} scaleY={scale}
-      draggable
-      onClick={onSelect}
-      onTap={onSelect}
-      onDblClick={onDblClick}
-      onDragMove={(e) => {
-        const sx = snapPx(e.target.x());
-        const sy = snapPx(e.target.y());
-        e.target.x(sx);
-        e.target.y(sy);
-        onDragMove(sx, sy);
-      }}
-      onDragEnd={(e) => {
-        const sx = snapPx(e.target.x());
-        const sy = snapPx(e.target.y());
-        e.target.x(sx);
-        e.target.y(sy);
-        onDragEnd(sx, sy);
-      }}
-    >
-      <HitRect type="ponctuelle" view={view} />
+    <LiaisonNode type="ponctuelle" {...props}>
       {view !== 3 && (
         <>
           {/* Vue 1: cercle (A) + ligne horizontale (B) */}
@@ -56,7 +18,6 @@ export function Ponctuelle({ x, y, rotation, scale = 1, view = 1, colorA = '#1a1
       {view === 3 && (
         <>
           {/* Vue 3: losange en perspective cavalière (B) + cercle au-dessus (A) */}
-          {/* Losange du plan B */}
           <Line
             points={[-28, 5, 0, 19, 28, 5, 0, -9]}
             closed
@@ -65,10 +26,9 @@ export function Ponctuelle({ x, y, rotation, scale = 1, view = 1, colorA = '#1a1
             fill="white"
             lineJoin="bevel"
           />
-          {/* Cercle (A) au-dessus du plan, son bas passe par le centre du losange */}
           <Circle x={0} y={-7} radius={r} stroke={colorA} strokeWidth={strokeWidth} fill="white" />
         </>
       )}
-    </Group>
+    </LiaisonNode>
   );
 }

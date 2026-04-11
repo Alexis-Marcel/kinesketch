@@ -1,52 +1,13 @@
-import { Group, Line } from 'react-konva';
-import { snapPx } from '../utils/snap';
-import { HitRect } from './HitRect';
+import { Line } from 'react-konva';
+import { LiaisonNode, type LiaisonComponentProps } from './LiaisonNode';
 
-interface EncastrementProps {
-  x: number;
-  y: number;
-  rotation: number;
-  scale?: number;
-  view?: number;
-  selected: boolean;
-  colorA?: string;
-  colorB?: string;
-  onSelect: () => void;
-  onDragMove: (x: number, y: number) => void;
-  onDragEnd: (x: number, y: number) => void;
-  onDblClick: () => void;
-}
-
-export function Encastrement({ x, y, rotation, scale = 1, view = 1, colorA = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: EncastrementProps) {
+export function Encastrement(props: LiaisonComponentProps) {
+  const { colorA = '#1a1a1a' } = props;
   const strokeWidth = 1.5;
 
   return (
-    <Group
-      x={x}
-      y={y}
-      rotation={rotation} scaleX={scale} scaleY={scale}
-      draggable
-      onClick={onSelect}
-      onTap={onSelect}
-      onDblClick={onDblClick}
-      onDragMove={(e) => {
-        const sx = snapPx(e.target.x());
-        const sy = snapPx(e.target.y());
-        e.target.x(sx);
-        e.target.y(sy);
-        onDragMove(sx, sy);
-      }}
-      onDragEnd={(e) => {
-        const sx = snapPx(e.target.x());
-        const sy = snapPx(e.target.y());
-        e.target.x(sx);
-        e.target.y(sy);
-        onDragEnd(sx, sy);
-      }}
-    >
-      <HitRect type="encastrement" view={view} />
-      {/* Single horizontal line (A) */}
+    <LiaisonNode type="encastrement" {...props}>
       <Line points={[-32, 0, 32, 0]} stroke={colorA} strokeWidth={strokeWidth} />
-    </Group>
+    </LiaisonNode>
   );
 }

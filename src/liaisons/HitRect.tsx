@@ -4,7 +4,7 @@ import { getLiaisonBounds } from './bounds';
 
 interface HitRectProps {
   type: LiaisonType;
-  view: number;
+  view: LiaisonView;
 }
 
 /**
@@ -13,7 +13,7 @@ interface HitRectProps {
  * the dashed selection rectangle drawn by Canvas.
  */
 export function HitRect({ type, view }: HitRectProps) {
-  const { halfW, halfH } = getLiaisonBounds(type, view as LiaisonView);
+  const { halfW, halfH } = getLiaisonBounds(type, view);
   return (
     <Rect
       x={-halfW}

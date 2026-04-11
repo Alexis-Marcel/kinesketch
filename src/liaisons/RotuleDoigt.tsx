@@ -1,53 +1,15 @@
-import { Circle, Group, Line } from 'react-konva';
-import { snapPx } from '../utils/snap';
-import { HitRect } from './HitRect';
+import { Circle, Line } from 'react-konva';
+import { LiaisonNode, type LiaisonComponentProps } from './LiaisonNode';
 
-interface RotuleDoigtProps {
-  x: number;
-  y: number;
-  rotation: number;
-  scale?: number;
-  view?: number;
-  selected: boolean;
-  colorA?: string;
-  colorB?: string;
-  onSelect: () => void;
-  onDragMove: (x: number, y: number) => void;
-  onDragEnd: (x: number, y: number) => void;
-  onDblClick: () => void;
-}
-
-export function RotuleDoigt({ x, y, rotation, scale = 1, view = 1, colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: RotuleDoigtProps) {
+export function RotuleDoigt(props: LiaisonComponentProps) {
+  const { colorA = '#1a1a1a', colorB = '#1a1a1a' } = props;
   const r = 12;
   const cos45 = Math.cos(Math.PI / 4);
   const sin45 = Math.sin(Math.PI / 4);
   const strokeWidth = 1.5;
 
   return (
-    <Group
-      x={x}
-      y={y}
-      rotation={rotation} scaleX={scale} scaleY={scale}
-      draggable
-      onClick={onSelect}
-      onTap={onSelect}
-      onDblClick={onDblClick}
-      onDragMove={(e) => {
-        const sx = snapPx(e.target.x());
-        const sy = snapPx(e.target.y());
-        e.target.x(sx);
-        e.target.y(sy);
-        onDragMove(sx, sy);
-      }}
-      onDragEnd={(e) => {
-        const sx = snapPx(e.target.x());
-        const sy = snapPx(e.target.y());
-        e.target.x(sx);
-        e.target.y(sy);
-        onDragEnd(sx, sy);
-      }}
-    >
-      <HitRect type="rotule_doigt" view={view} />
+    <LiaisonNode type="rotule_doigt" {...props}>
       {/* Inner circle (A) + 3/4 outer circle opening right (B) + doigt line (A) */}
       <Circle radius={r} stroke={colorA} strokeWidth={strokeWidth} fill="white" />
       <Line
@@ -64,6 +26,6 @@ export function RotuleDoigt({ x, y, rotation, scale = 1, view = 1, colorA = '#1a
         stroke={colorA}
         strokeWidth={strokeWidth}
       />
-    </Group>
+    </LiaisonNode>
   );
 }
