@@ -43,10 +43,10 @@ export function Canvas() {
   const [cursorMode, setCursorMode] = useState<'default' | 'grab' | 'grabbing'>('default');
   const [linkSnapTarget, setLinkSnapTarget] = useState<string | null>(null);
   const [linkHoverNodeId, setLinkHoverNodeId] = useState<string | null>(null);
-  const [linkSourceAnchorIdx, setLinkSourceAnchorIdx] = useState<number | undefined>(undefined);
-  const [linkTargetAnchorIdx, setLinkTargetAnchorIdx] = useState<number | undefined>(undefined);
-  const [linkSourceAnchorOffset, setLinkSourceAnchorOffset] = useState<AnchorOffset | undefined>(undefined);
-  const [linkTargetAnchorOffset, setLinkTargetAnchorOffset] = useState<AnchorOffset | undefined>(undefined);
+  /** Anchor pinned on the link's source side once the user clicks the first node. */
+  const [linkSourceAnchor, setLinkSourceAnchor] = useState<{ idx: number; offset?: AnchorOffset } | null>(null);
+  /** Anchor under the cursor on the snap target — updated by the hover handler. */
+  const [linkTargetAnchor, setLinkTargetAnchor] = useState<{ idx: number; offset?: AnchorOffset } | null>(null);
   /** World position of the live snap point on a shape anchor (where a click would attach). */
   const [snapPointPos, setSnapPointPos] = useState<{ x: number; y: number } | null>(null);
   const [reanchoring, setReanchoring] = useState<{ linkId: string; end: 'from' | 'to' } | null>(null);
@@ -259,10 +259,8 @@ export function Canvas() {
     setLinkSource(null);
     setMousePos(null);
     setLinkSnapTarget(null);
-    setLinkSourceAnchorIdx(undefined);
-    setLinkTargetAnchorIdx(undefined);
-    setLinkSourceAnchorOffset(undefined);
-    setLinkTargetAnchorOffset(undefined);
+    setLinkSourceAnchor(null);
+    setLinkTargetAnchor(null);
   }, [setLinkSource]);
 
   // Start or complete a link at (nodeId, anchorIdx). Used by every click
@@ -272,15 +270,14 @@ export function Canvas() {
     (nodeId: string, anchorIdx: number, offset: AnchorOffset | undefined) => {
       if (!linkSourceId) {
         setLinkSource(nodeId);
-        setLinkSourceAnchorIdx(anchorIdx);
-        setLinkSourceAnchorOffset(offset);
+        setLinkSourceAnchor({ idx: anchorIdx, offset });
         return;
       }
       if (linkSourceId === nodeId) return;
-      addLink(linkSourceId, nodeId, linkSourceAnchorIdx, anchorIdx, linkSourceAnchorOffset, offset);
+      addLink(linkSourceId, nodeId, linkSourceAnchor?.idx, anchorIdx, linkSourceAnchor?.offset, offset);
       resetLinkState();
     },
-    [linkSourceId, linkSourceAnchorIdx, linkSourceAnchorOffset, addLink, setLinkSource, resetLinkState]
+    [linkSourceId, linkSourceAnchor, addLink, setLinkSource, resetLinkState]
   );
 
   // Click on empty canvas
@@ -308,8 +305,8 @@ export function Canvas() {
         // The snap radius extends past every node bbox, so an anchor may
         // already be tracked even when the click hits empty stage. Treat the
         // click as if it had landed on the snapped node; otherwise exit.
-        if (linkSnapTarget && linkTargetAnchorIdx !== undefined) {
-          commitLinkAtAnchor(linkSnapTarget, linkTargetAnchorIdx, linkTargetAnchorOffset);
+        if (linkSnapTarget && linkTargetAnchor) {
+          commitLinkAtAnchor(linkSnapTarget, linkTargetAnchor.idx, linkTargetAnchor.offset);
           return;
         }
         resetLinkState();
@@ -318,7 +315,7 @@ export function Canvas() {
       }
       clearSelection();
     },
-    [activeTool, placingLiaison, stageX, stageY, stageScale, addNode, clearSelection, setTool, linkSnapTarget, linkTargetAnchorIdx, linkTargetAnchorOffset, commitLinkAtAnchor, resetLinkState]
+    [activeTool, placingLiaison, stageX, stageY, stageScale, addNode, clearSelection, setTool, linkSnapTarget, linkTargetAnchor, commitLinkAtAnchor, resetLinkState]
   );
 
   // Click on a node body. In link mode, the hover handler has already aligned
@@ -329,11 +326,11 @@ export function Canvas() {
         select(nodeId);
         return;
       }
-      if (linkSnapTarget === nodeId && linkTargetAnchorIdx !== undefined) {
-        commitLinkAtAnchor(nodeId, linkTargetAnchorIdx, linkTargetAnchorOffset);
+      if (linkSnapTarget === nodeId && linkTargetAnchor) {
+        commitLinkAtAnchor(nodeId, linkTargetAnchor.idx, linkTargetAnchor.offset);
       }
     },
-    [activeTool, linkSnapTarget, linkTargetAnchorIdx, linkTargetAnchorOffset, commitLinkAtAnchor, select]
+    [activeTool, linkSnapTarget, linkTargetAnchor, commitLinkAtAnchor, select]
   );
 
   // Click directly on an anchor marker. Use the explicit index but reuse the
@@ -341,10 +338,10 @@ export function Canvas() {
   const handleAnchorClick = useCallback(
     (nodeId: string, anchorIdx: number) => {
       if (activeTool !== 'link') return;
-      const offset = linkTargetAnchorIdx === anchorIdx ? linkTargetAnchorOffset : undefined;
+      const offset = linkTargetAnchor?.idx === anchorIdx ? linkTargetAnchor.offset : undefined;
       commitLinkAtAnchor(nodeId, anchorIdx, offset);
     },
-    [activeTool, linkTargetAnchorIdx, linkTargetAnchorOffset, commitLinkAtAnchor]
+    [activeTool, linkTargetAnchor, commitLinkAtAnchor]
   );
 
   // Double-click to edit label
@@ -597,13 +594,11 @@ export function Canvas() {
           const followCursor = linkSourceId || reanchoring;
           if (picked) {
             if (followCursor) setMousePos(picked.pos);
-            setLinkTargetAnchorIdx(picked.idx);
-            setLinkTargetAnchorOffset(picked.offset);
+            setLinkTargetAnchor({ idx: picked.idx, offset: picked.offset });
             setSnapPointPos(picked.pos);
           } else {
             if (followCursor) setMousePos({ x: nearest.node.x * CELL, y: nearest.node.y * CELL });
-            setLinkTargetAnchorIdx(undefined);
-            setLinkTargetAnchorOffset(undefined);
+            setLinkTargetAnchor(null);
             setSnapPointPos(null);
           }
           setLinkSnapTarget(nearest.node.id);
@@ -611,8 +606,7 @@ export function Canvas() {
         } else {
           if (linkSourceId || reanchoring) setMousePos({ x: worldX, y: worldY });
           setLinkSnapTarget(null);
-          setLinkTargetAnchorIdx(undefined);
-          setLinkTargetAnchorOffset(undefined);
+          setLinkTargetAnchor(null);
           setSnapPointPos(null);
           setLinkHoverNodeId(null);
         }
@@ -682,14 +676,13 @@ export function Canvas() {
 
       // End re-anchoring (drag release)
       if (reanchoring) {
-        if (linkSnapTarget && linkTargetAnchorIdx !== undefined) {
-          reanchorLink(reanchoring.linkId, reanchoring.end, linkSnapTarget, linkTargetAnchorIdx, linkTargetAnchorOffset);
+        if (linkSnapTarget && linkTargetAnchor) {
+          reanchorLink(reanchoring.linkId, reanchoring.end, linkSnapTarget, linkTargetAnchor.idx, linkTargetAnchor.offset);
         }
         setReanchoring(null);
         setMousePos(null);
         setLinkSnapTarget(null);
-        setLinkTargetAnchorIdx(undefined);
-        setLinkTargetAnchorOffset(undefined);
+        setLinkTargetAnchor(null);
         return;
       }
 
@@ -726,7 +719,7 @@ export function Canvas() {
 
       setSelectionRect(null);
     },
-    [selectionRect, reanchoring, linkSnapTarget, linkTargetAnchorIdx, linkTargetAnchorOffset, nodes, selectMultiple, reanchorLink]
+    [selectionRect, reanchoring, linkSnapTarget, linkTargetAnchor, nodes, selectMultiple, reanchorLink]
   );
 
   // Start rotation from handle
@@ -950,8 +943,8 @@ export function Canvas() {
                 mousePos={mousePos}
                 activeSolideId={useDiagramStore.getState().activeSolideId}
                 sourceMapping={nodeSolideMapping.get(linkSourceId) || { a: null, b: null }}
-                sourceAnchorIdx={linkSourceAnchorIdx}
-                sourceAnchorOffset={linkSourceAnchorOffset}
+                sourceAnchorIdx={linkSourceAnchor?.idx}
+                sourceAnchorOffset={linkSourceAnchor?.offset}
               />
             );
           })()}
@@ -980,7 +973,7 @@ export function Canvas() {
               <HoverAnchorMarkers
                 hoverNode={hoverNode}
                 isTarget={linkSnapTarget === linkHoverNodeId}
-                targetAnchorIdx={linkTargetAnchorIdx}
+                targetAnchorIdx={linkTargetAnchor?.idx}
               />
             );
           })()}
@@ -991,10 +984,10 @@ export function Canvas() {
           {/* Snap point indicator on shape anchors — small blue dot showing where
               the link will attach if the user clicks. Only drawn for non-point
               shapes since point anchors already show a dot at their center. */}
-          {(activeTool === 'link' || reanchoring) && linkSnapTarget && linkTargetAnchorIdx !== undefined && snapPointPos && (() => {
+          {(activeTool === 'link' || reanchoring) && linkSnapTarget && linkTargetAnchor && snapPointPos && (() => {
             const targetNode = nodes.get(linkSnapTarget);
             if (!targetNode) return null;
-            const targetAnchor = getAnchors(targetNode.type, targetNode.view)[linkTargetAnchorIdx];
+            const targetAnchor = getAnchors(targetNode.type, targetNode.view)[linkTargetAnchor.idx];
             if (!targetAnchor?.shape || targetAnchor.shape.kind === 'point') return null;
             return <SnapPointDot pos={snapPointPos} />;
           })()}
@@ -1007,7 +1000,7 @@ export function Canvas() {
               <HoverAnchorMarkers
                 hoverNode={hoverNode}
                 isTarget={linkHoverNodeId === linkSnapTarget}
-                targetAnchorIdx={linkTargetAnchorIdx}
+                targetAnchorIdx={linkTargetAnchor?.idx}
                 onAnchorClick={(i) => handleAnchorClick(linkHoverNodeId, i)}
               />
             );
@@ -1030,7 +1023,7 @@ export function Canvas() {
                   setReanchoring({ linkId, end });
                   setMousePos(null);
                   setLinkSnapTarget(null);
-                  setLinkTargetAnchorIdx(undefined);
+                  setLinkTargetAnchor(null);
                 }}
               />,
             ];
