@@ -1,7 +1,7 @@
 'use client';
 
-import { Edges } from '@react-three/drei';
-import type { Liaison3DProps } from './shared';
+
+import { LiaisonEdges, type Liaison3DProps } from './shared';
 
 /**
  * Sphère-cylindre (linéaire annulaire) — sphère à l'intérieur d'un cylindre.
@@ -18,7 +18,7 @@ export function LineaireAnnulaire3D({ colorB, view }: Liaison3DProps) {
       <mesh rotation={rot}>
         <cylinderGeometry args={[1.2, 1.2, 4, 48, 1]} />
         <meshBasicMaterial color="white" />
-        <Edges threshold={15} color={colorB} lineWidth={1.5} />
+        <LiaisonEdges color={colorB} />
       </mesh>
       {/* Sphère A — à l'intérieur du cylindre */}
       <mesh>

@@ -4,10 +4,15 @@ import type { AngleArc, DiagramNode, DiagramState, KineSketchFile, Link, Solide 
 const CURRENT_VERSION = '1.3';
 const AUTOSAVE_KEY = 'kinesketch-autosave';
 
-export function saveKineSketch(state: Pick<DiagramState, 'dimension' | 'nodes' | 'links' | 'solides' | 'angleArcs' | 'stageX' | 'stageY' | 'stageScale'>) {
-  const file: KineSketchFile = {
+type SerializableState = Pick<
+  DiagramState,
+  'dimension' | 'nodes' | 'links' | 'solides' | 'angleArcs' | 'stageX' | 'stageY' | 'stageScale'
+>;
+
+function serialize(state: SerializableState, name: string, createdAt: string): KineSketchFile {
+  return {
     version: CURRENT_VERSION,
-    name: 'Schema cinématique',
+    name,
     dimension: state.dimension,
     nodes: Array.from(state.nodes.values()),
     links: Array.from(state.links.values()),
@@ -19,11 +24,68 @@ export function saveKineSketch(state: Pick<DiagramState, 'dimension' | 'nodes' |
       scale: state.stageScale,
     },
     metadata: {
-      createdAt: new Date().toISOString(),
+      createdAt,
       updatedAt: new Date().toISOString(),
     },
   };
+}
 
+interface DeserializedDiagram {
+  nodes: Map<string, DiagramNode>;
+  links: Map<string, Link>;
+  solides: Map<string, Solide>;
+  angleArcs: Map<string, AngleArc>;
+}
+
+function deserialize(data: KineSketchFile): DeserializedDiagram {
+  const nodes = new Map<string, DiagramNode>();
+  for (const node of data.nodes) {
+    nodes.set(node.id, {
+      ...node,
+      view: node.view ?? 1,
+      z: node.z ?? 0,
+      rotationX: node.rotationX ?? 0,
+      rotationY: node.rotationY ?? 0,
+      labelOffsetX: node.labelOffsetX ?? 20,
+      labelOffsetY: node.labelOffsetY ?? -20,
+    });
+  }
+
+  const links = new Map<string, Link>();
+  for (const link of data.links) {
+    links.set(link.id, {
+      ...link,
+      solideId: link.solideId || 's0',
+      labelOffsetX: link.labelOffsetX ?? 8,
+      labelOffsetY: link.labelOffsetY ?? -18,
+    });
+  }
+
+  const solides = new Map<string, Solide>();
+  if (data.solides) {
+    for (const solide of data.solides) solides.set(solide.id, solide);
+  }
+
+  const angleArcs = new Map<string, AngleArc>();
+  if (data.angleArcs) {
+    for (const arc of data.angleArcs) angleArcs.set(arc.id, arc);
+  }
+
+  return { nodes, links, solides, angleArcs };
+}
+
+function applyToStore(data: KineSketchFile, deserialized: DeserializedDiagram) {
+  const store = useDiagramStore.getState();
+  store.setDimension(data.dimension || '2d');
+  store.loadDiagram(deserialized);
+  if (data.canvas) {
+    store.setStagePosition(data.canvas.x, data.canvas.y);
+    store.setStageScale(data.canvas.scale);
+  }
+}
+
+export function saveKineSketch(state: SerializableState) {
+  const file = serialize(state, 'Schema cinématique', new Date().toISOString());
   const json = JSON.stringify(file, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -37,66 +99,14 @@ export function saveKineSketch(state: Pick<DiagramState, 'dimension' | 'nodes' |
 export async function loadKineSketch(file: File) {
   const text = await file.text();
   const data = JSON.parse(text) as KineSketchFile;
-
-  if (!data.version || !data.nodes) {
-    throw new Error('Fichier invalide');
-  }
-
-  const nodes = new Map<string, DiagramNode>();
-  for (const node of data.nodes) {
-    nodes.set(node.id, { ...node, view: node.view ?? 1, z: node.z ?? 0, rotationX: node.rotationX ?? 0, rotationY: node.rotationY ?? 0, labelOffsetX: node.labelOffsetX ?? 20, labelOffsetY: node.labelOffsetY ?? -20 });
-  }
-
-  const links = new Map<string, Link>();
-  for (const link of data.links) {
-    links.set(link.id, { ...link, solideId: link.solideId || 's0', labelOffsetX: link.labelOffsetX ?? 8, labelOffsetY: link.labelOffsetY ?? -18 });
-  }
-
-  const solides = new Map<string, Solide>();
-  if (data.solides) {
-    for (const solide of data.solides) {
-      solides.set(solide.id, solide);
-    }
-  }
-
-  const angleArcs = new Map<string, AngleArc>();
-  if (data.angleArcs) {
-    for (const arc of data.angleArcs) {
-      angleArcs.set(arc.id, arc);
-    }
-  }
-
-  const store = useDiagramStore.getState();
-  store.setDimension(data.dimension || '2d');
-  store.loadDiagram({ nodes, links, solides, angleArcs });
-
-  if (data.canvas) {
-    store.setStagePosition(data.canvas.x, data.canvas.y);
-    store.setStageScale(data.canvas.scale);
-  }
+  if (!data.version || !data.nodes) throw new Error('Fichier invalide');
+  applyToStore(data, deserialize(data));
 }
 
 // Auto-save to localStorage
 export function autoSave() {
   const state = useDiagramStore.getState();
-  const data: KineSketchFile = {
-    version: CURRENT_VERSION,
-    name: 'autosave',
-    dimension: state.dimension,
-    nodes: Array.from(state.nodes.values()),
-    links: Array.from(state.links.values()),
-    solides: Array.from(state.solides.values()),
-    angleArcs: Array.from(state.angleArcs.values()),
-    canvas: {
-      x: state.stageX,
-      y: state.stageY,
-      scale: state.stageScale,
-    },
-    metadata: {
-      createdAt: '',
-      updatedAt: new Date().toISOString(),
-    },
-  };
+  const data = serialize(state, 'autosave', '');
   try {
     localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data));
   } catch {
@@ -110,40 +120,7 @@ export function loadAutoSave(): boolean {
     if (!raw) return false;
     const data = JSON.parse(raw) as KineSketchFile;
     if (!data.nodes || data.nodes.length === 0) return false;
-
-    const nodes = new Map<string, DiagramNode>();
-    for (const node of data.nodes) {
-      nodes.set(node.id, { ...node, view: node.view ?? 1, z: node.z ?? 0, rotationX: node.rotationX ?? 0, rotationY: node.rotationY ?? 0, labelOffsetX: node.labelOffsetX ?? 20, labelOffsetY: node.labelOffsetY ?? -20 });
-    }
-
-    const links = new Map<string, Link>();
-    for (const link of data.links) {
-      links.set(link.id, { ...link, solideId: link.solideId || 's0', labelOffsetX: link.labelOffsetX ?? 8, labelOffsetY: link.labelOffsetY ?? -18 });
-    }
-
-    const solides = new Map<string, Solide>();
-    if (data.solides) {
-      for (const solide of data.solides) {
-        solides.set(solide.id, solide);
-      }
-    }
-
-    const angleArcs = new Map<string, AngleArc>();
-    if (data.angleArcs) {
-      for (const arc of data.angleArcs) {
-        angleArcs.set(arc.id, arc);
-      }
-    }
-
-    const store = useDiagramStore.getState();
-    store.setDimension(data.dimension || '2d');
-    store.loadDiagram({ nodes, links, solides, angleArcs });
-
-    if (data.canvas) {
-      store.setStagePosition(data.canvas.x, data.canvas.y);
-      store.setStageScale(data.canvas.scale);
-    }
-
+    applyToStore(data, deserialize(data));
     return true;
   } catch {
     return false;

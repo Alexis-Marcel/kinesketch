@@ -1,7 +1,7 @@
 'use client';
 
-import { Edges } from '@react-three/drei';
-import type { Liaison3DProps } from './shared';
+
+import { LiaisonEdges, type Liaison3DProps } from './shared';
 
 /**
  * Glissière — pavé droit allongé. Face de bout = carré.
@@ -17,7 +17,7 @@ export function Glissiere3D({ colorB, view }: Liaison3DProps) {
       <mesh>
         <boxGeometry args={args} />
         <meshBasicMaterial color="white" />
-        <Edges threshold={15} color={colorB} lineWidth={1.5} />
+        <LiaisonEdges color={colorB} />
       </mesh>
     </group>
   );

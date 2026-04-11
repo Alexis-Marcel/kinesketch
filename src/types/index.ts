@@ -20,6 +20,14 @@ export type LiaisonType =
 
 export type LiaisonView = 1 | 2 | 3;
 
+/**
+ * A frozen position on a shape anchor — captured when the user clicks a
+ * specific spot. Stored on the link so the attachment point stays put even
+ * when the other end of the link moves. Coordinates are in the node's LOCAL
+ * frame so node rotation/scale is applied automatically.
+ */
+export type AnchorOffset = { kind: 'circle'; angle: number };
+
 export type ToolType = 'select' | 'place' | 'link';
 
 export type DiagramDimension = '2d' | '3d';
@@ -69,8 +77,8 @@ export interface Link {
    * regardless of where the other end of the link moves. When undefined, the
    * attachment slides dynamically toward the other end (default).
    */
-  fromAnchorOffset?: import('../utils/anchors').AnchorOffset;
-  toAnchorOffset?: import('../utils/anchors').AnchorOffset;
+  fromAnchorOffset?: AnchorOffset;
+  toAnchorOffset?: AnchorOffset;
   midpoints?: Array<{ x: number; y: number; z?: number }>;
 }
 
@@ -130,14 +138,14 @@ export interface DiagramState extends DiagramData {
     toNodeId: string,
     fromAnchorIdx?: number,
     toAnchorIdx?: number,
-    fromAnchorOffset?: import('../utils/anchors').AnchorOffset,
-    toAnchorOffset?: import('../utils/anchors').AnchorOffset
+    fromAnchorOffset?: AnchorOffset,
+    toAnchorOffset?: AnchorOffset
   ) => void;
   deleteLink: (id: string) => void;
   updateLinkLabel: (id: string, label: string) => void;
   updateLinkLabelOffset: (id: string, ox: number, oy: number) => void;
   updateLinkSolide: (id: string, solideId: string) => void;
-  updateLinkAnchor: (id: string, end: 'from' | 'to', anchorIdx: number, offset?: import('../utils/anchors').AnchorOffset) => void;
+  updateLinkAnchor: (id: string, end: 'from' | 'to', anchorIdx: number, offset?: AnchorOffset) => void;
   updateLinkMidpoints: (id: string, midpoints: Array<{ x: number; y: number }>) => void;
 
   // Solide actions

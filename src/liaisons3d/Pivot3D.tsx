@@ -1,7 +1,7 @@
 'use client';
 
-import { Edges } from '@react-three/drei';
-import type { Liaison3DProps } from './shared';
+
+import { LiaisonEdges, type Liaison3DProps } from './shared';
 
 export function Pivot3D({ colorA, colorB, view }: Liaison3DProps) {
   // Vue 1: axis along X (cylinder lying on X)
@@ -29,7 +29,7 @@ export function Pivot3D({ colorA, colorB, view }: Liaison3DProps) {
       <mesh rotation={rot}>
         <cylinderGeometry args={[1.2, 1.2, 4, 48, 1]} />
         <meshBasicMaterial color="white" />
-        <Edges threshold={15} color={colorB} lineWidth={1.5} />
+        <LiaisonEdges color={colorB} />
       </mesh>
 
       {/* Barre (A) — couleur A pleine */}
