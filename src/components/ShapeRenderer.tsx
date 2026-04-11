@@ -1,7 +1,9 @@
 import { Text } from 'react-konva';
 import type Konva from 'konva';
-import type { DiagramNode } from '../types';
+import type { ComponentType } from 'react';
+import type { DiagramNode, LiaisonType } from '../types';
 import { CELL } from '../utils/snap';
+import type { LiaisonComponentProps } from '../liaisons/LiaisonNode';
 import { Pivot } from '../liaisons/Pivot';
 import { Glissiere } from '../liaisons/Glissiere';
 import { PivotGlissant } from '../liaisons/PivotGlissant';
@@ -21,6 +23,27 @@ import { RoueVisSansFin } from '../liaisons/RoueVisSansFin';
 import { TransmissionPoulieCourroie } from '../liaisons/TransmissionPoulieCourroie';
 import { TransmissionPignonsChaine } from '../liaisons/TransmissionPignonsChaine';
 
+const LIAISON_COMPONENTS: Record<LiaisonType, ComponentType<LiaisonComponentProps>> = {
+  pivot: Pivot,
+  glissiere: Glissiere,
+  pivot_glissant: PivotGlissant,
+  rotule: Rotule,
+  encastrement: Encastrement,
+  helicoidale: Helicoidale,
+  rotule_doigt: RotuleDoigt,
+  appui_plan: AppuiPlan,
+  lineaire_annulaire: LineaireAnnulaire,
+  lineaire_rectiligne: LineaireRectiligne,
+  ponctuelle: Ponctuelle,
+  bati: Bati,
+  engrenage_ext: EngrenageExt,
+  engrenage_int: EngrenageInt,
+  engrenage_conique: EngrenageConique,
+  roue_vis_sans_fin: RoueVisSansFin,
+  transmission_poulie_courroie: TransmissionPoulieCourroie,
+  transmission_pignons_chaine: TransmissionPignonsChaine,
+};
+
 interface ShapeRendererProps {
   node: DiagramNode;
   selected: boolean;
@@ -33,84 +56,24 @@ interface ShapeRendererProps {
 }
 
 export function ShapeRenderer({ node, selected, colors, onSelect, onDblClick, onDragMove, onDragEnd, onLabelDragEnd }: ShapeRendererProps) {
-  // Convert grid units → pixels for Konva, and callbacks pixels → grid
-  const commonProps = {
+  const Component = LIAISON_COMPONENTS[node.type];
+  const liaisonProps: LiaisonComponentProps = {
     x: node.x * CELL,
     y: node.y * CELL,
     rotation: node.rotation,
     scale: node.scale ?? 1,
-    view: node.view ?? 1 as const,
-    selected,
+    view: node.view ?? 1,
     colorA: colors[0],
     colorB: colors[1],
     onSelect,
     onDblClick,
-    onDragMove: (px: number, py: number) => onDragMove(px / CELL, py / CELL),
-    onDragEnd: (px: number, py: number) => onDragEnd(px / CELL, py / CELL),
+    onDragMove: (px, py) => onDragMove(px / CELL, py / CELL),
+    onDragEnd: (px, py) => onDragEnd(px / CELL, py / CELL),
   };
-
-  let shapeElement: React.ReactNode;
-
-  switch (node.type) {
-    case 'pivot':
-      shapeElement = <Pivot {...commonProps} />;
-      break;
-    case 'glissiere':
-      shapeElement = <Glissiere {...commonProps} />;
-      break;
-    case 'pivot_glissant':
-      shapeElement = <PivotGlissant {...commonProps} />;
-      break;
-    case 'rotule':
-      shapeElement = <Rotule {...commonProps} />;
-      break;
-    case 'encastrement':
-      shapeElement = <Encastrement {...commonProps} />;
-      break;
-    case 'helicoidale':
-      shapeElement = <Helicoidale {...commonProps} />;
-      break;
-    case 'rotule_doigt':
-      shapeElement = <RotuleDoigt {...commonProps} />;
-      break;
-    case 'appui_plan':
-      shapeElement = <AppuiPlan {...commonProps} />;
-      break;
-    case 'lineaire_annulaire':
-      shapeElement = <LineaireAnnulaire {...commonProps} />;
-      break;
-    case 'lineaire_rectiligne':
-      shapeElement = <LineaireRectiligne {...commonProps} />;
-      break;
-    case 'ponctuelle':
-      shapeElement = <Ponctuelle {...commonProps} />;
-      break;
-    case 'bati':
-      shapeElement = <Bati {...commonProps} />;
-      break;
-    case 'engrenage_ext':
-      shapeElement = <EngrenageExt {...commonProps} />;
-      break;
-    case 'engrenage_int':
-      shapeElement = <EngrenageInt {...commonProps} />;
-      break;
-    case 'engrenage_conique':
-      shapeElement = <EngrenageConique {...commonProps} />;
-      break;
-    case 'roue_vis_sans_fin':
-      shapeElement = <RoueVisSansFin {...commonProps} />;
-      break;
-    case 'transmission_poulie_courroie':
-      shapeElement = <TransmissionPoulieCourroie {...commonProps} />;
-      break;
-    case 'transmission_pignons_chaine':
-      shapeElement = <TransmissionPignonsChaine {...commonProps} />;
-      break;
-  }
 
   return (
     <>
-      {shapeElement}
+      <Component {...liaisonProps} />
       {node.label && (
         <Text
           x={node.x * CELL + (node.labelOffsetX ?? 20)}

@@ -1,52 +1,14 @@
-import { Circle, Ellipse, Group, Line, Path, Rect } from 'react-konva';
-import { snapPx } from '../utils/snap';
-import { HitRect } from './HitRect';
+import { Circle, Ellipse, Line, Path, Rect } from 'react-konva';
+import { LiaisonNode, type LiaisonComponentProps } from './LiaisonNode';
 
-interface PivotGlissantProps {
-  x: number;
-  y: number;
-  rotation: number;
-  scale?: number;
-  view?: number;
-  selected: boolean;
-  colorA?: string;
-  colorB?: string;
-  onSelect: () => void;
-  onDragMove: (x: number, y: number) => void;
-  onDragEnd: (x: number, y: number) => void;
-  onDblClick: () => void;
-}
-
-export function PivotGlissant({ x, y, rotation, scale = 1, view = 1,  colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: PivotGlissantProps) {
+export function PivotGlissant(props: LiaisonComponentProps) {
+  const { view = 1, colorA = '#1a1a1a', colorB = '#1a1a1a' } = props;
   const r = 12;
   const h = 22;
   const strokeWidth = 1.5;
 
   return (
-    <Group
-      x={x}
-      y={y}
-      rotation={rotation} scaleX={scale} scaleY={scale}
-      draggable
-      onClick={onSelect}
-      onTap={onSelect}
-      onDblClick={onDblClick}
-      onDragMove={(e) => {
-        const sx = snapPx(e.target.x());
-        const sy = snapPx(e.target.y());
-        e.target.x(sx);
-        e.target.y(sy);
-        onDragMove(sx, sy);
-      }}
-      onDragEnd={(e) => {
-        const sx = snapPx(e.target.x());
-        const sy = snapPx(e.target.y());
-        e.target.x(sx);
-        e.target.y(sy);
-        onDragEnd(sx, sy);
-      }}
-    >
-      <HitRect type="pivot_glissant" view={view} />
+    <LiaisonNode type="pivot_glissant" {...props}>
       {view === 1 && (
         <>
           {/* Vue 1: rectangle (B) + axe horizontal (A), comme pivot mais sans tourillons */}
@@ -64,15 +26,11 @@ export function PivotGlissant({ x, y, rotation, scale = 1, view = 1,  colorA = '
       {view === 3 && (
         <>
           {/* Vue 3: cylindre vertical en perspective cavalière, sans tourillons ni axes */}
-          {/* Corps du cylindre */}
           <Rect x={-12} y={-22} width={24} height={44} fill="white" />
           <Line points={[-12, -22, -12, 22]} stroke={colorB} strokeWidth={strokeWidth} />
           <Line points={[12, -22, 12, 22]} stroke={colorB} strokeWidth={strokeWidth} />
-          {/* Ellipse du haut */}
           <Ellipse x={0} y={-22} radiusX={12} radiusY={7} stroke={colorB} strokeWidth={strokeWidth} fill="white" />
-          {/* Demi-ellipse du bas — fill */}
           <Path data="M -12 22 A 12 7 0 0 0 12 22 Z" fill="white" />
-          {/* Demi-ellipse du bas — stroke */}
           <Path
             data="M -12 22 A 12 7 0 0 0 12 22"
             stroke={colorB}
@@ -81,6 +39,6 @@ export function PivotGlissant({ x, y, rotation, scale = 1, view = 1,  colorA = '
           />
         </>
       )}
-    </Group>
+    </LiaisonNode>
   );
 }

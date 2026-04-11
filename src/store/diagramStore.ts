@@ -22,6 +22,18 @@ function generateId(prefix: string): string {
 
 let nextSolideIndex = 0;
 
+/**
+ * Returns a new Map with `id`'s item patched. Returns null if `id` is missing
+ * so callers can short-circuit and skip the set() — no spurious undo entries.
+ */
+function patchInMap<T>(map: Map<string, T>, id: string, patch: Partial<T>): Map<string, T> | null {
+  const item = map.get(id);
+  if (!item) return null;
+  const next = new Map(map);
+  next.set(id, { ...item, ...patch });
+  return next;
+}
+
 function createBati(): Solide {
   return { id: 's0', name: 'S0', color: SOLIDE_COLORS[0], isBati: true };
 }
@@ -60,11 +72,8 @@ export const useDiagramStore = create<DiagramState>()(
 
       moveNode: (id: string, x: number, y: number, z?: number) => {
         set((state) => {
-          const nodes = new Map(state.nodes);
-          const node = nodes.get(id);
-          if (!node) return state;
-          nodes.set(id, { ...node, x, y, ...(z !== undefined && { z }) });
-          return { nodes };
+          const nodes = patchInMap(state.nodes, id, { x, y, ...(z !== undefined && { z }) });
+          return nodes ? { nodes } : state;
         });
       },
 
@@ -83,26 +92,19 @@ export const useDiagramStore = create<DiagramState>()(
 
       rotateNode: (id: string, rotation: number, rotationX?: number, rotationY?: number) => {
         set((state) => {
-          const nodes = new Map(state.nodes);
-          const node = nodes.get(id);
-          if (!node) return state;
-          nodes.set(id, {
-            ...node,
+          const nodes = patchInMap(state.nodes, id, {
             rotation,
             ...(rotationX !== undefined && { rotationX }),
             ...(rotationY !== undefined && { rotationY }),
           });
-          return { nodes };
+          return nodes ? { nodes } : state;
         });
       },
 
       scaleNode: (id: string, scale: number) => {
         set((state) => {
-          const nodes = new Map(state.nodes);
-          const node = nodes.get(id);
-          if (!node) return state;
-          nodes.set(id, { ...node, scale });
-          return { nodes };
+          const nodes = patchInMap(state.nodes, id, { scale });
+          return nodes ? { nodes } : state;
         });
       },
 
@@ -124,31 +126,22 @@ export const useDiagramStore = create<DiagramState>()(
 
       updateNodeLabel: (id: string, label: string) => {
         set((state) => {
-          const nodes = new Map(state.nodes);
-          const node = nodes.get(id);
-          if (!node) return state;
-          nodes.set(id, { ...node, label });
-          return { nodes };
+          const nodes = patchInMap(state.nodes, id, { label });
+          return nodes ? { nodes } : state;
         });
       },
 
       updateNodeView: (id: string, view: LiaisonView) => {
         set((state) => {
-          const nodes = new Map(state.nodes);
-          const node = nodes.get(id);
-          if (!node) return state;
-          nodes.set(id, { ...node, view });
-          return { nodes };
+          const nodes = patchInMap(state.nodes, id, { view });
+          return nodes ? { nodes } : state;
         });
       },
 
       updateNodeLabelOffset: (id: string, ox: number, oy: number) => {
         set((state) => {
-          const nodes = new Map(state.nodes);
-          const node = nodes.get(id);
-          if (!node) return state;
-          nodes.set(id, { ...node, labelOffsetX: ox, labelOffsetY: oy });
-          return { nodes };
+          const nodes = patchInMap(state.nodes, id, { labelOffsetX: ox, labelOffsetY: oy });
+          return nodes ? { nodes } : state;
         });
       },
 
@@ -200,55 +193,39 @@ export const useDiagramStore = create<DiagramState>()(
 
       updateLinkLabel: (id: string, label: string) => {
         set((state) => {
-          const links = new Map(state.links);
-          const link = links.get(id);
-          if (!link) return state;
-          links.set(id, { ...link, label });
-          return { links };
+          const links = patchInMap(state.links, id, { label });
+          return links ? { links } : state;
         });
       },
 
       updateLinkLabelOffset: (id: string, ox: number, oy: number) => {
         set((state) => {
-          const links = new Map(state.links);
-          const link = links.get(id);
-          if (!link) return state;
-          links.set(id, { ...link, labelOffsetX: ox, labelOffsetY: oy });
-          return { links };
+          const links = patchInMap(state.links, id, { labelOffsetX: ox, labelOffsetY: oy });
+          return links ? { links } : state;
         });
       },
 
       updateLinkSolide: (id: string, solideId: string) => {
         set((state) => {
-          const links = new Map(state.links);
-          const link = links.get(id);
-          if (!link) return state;
-          links.set(id, { ...link, solideId });
-          return { links };
+          const links = patchInMap(state.links, id, { solideId });
+          return links ? { links } : state;
         });
       },
 
       updateLinkAnchor: (id: string, end: 'from' | 'to', anchorIdx: number, offset?: import('../utils/anchors').AnchorOffset) => {
         set((state) => {
-          const links = new Map(state.links);
-          const link = links.get(id);
-          if (!link) return state;
-          if (end === 'from') {
-            links.set(id, { ...link, fromAnchorIdx: anchorIdx, fromAnchorOffset: offset });
-          } else {
-            links.set(id, { ...link, toAnchorIdx: anchorIdx, toAnchorOffset: offset });
-          }
-          return { links };
+          const patch: Partial<Link> = end === 'from'
+            ? { fromAnchorIdx: anchorIdx, fromAnchorOffset: offset }
+            : { toAnchorIdx: anchorIdx, toAnchorOffset: offset };
+          const links = patchInMap(state.links, id, patch);
+          return links ? { links } : state;
         });
       },
 
       updateLinkMidpoints: (id: string, midpoints: Array<{ x: number; y: number }>) => {
         set((state) => {
-          const links = new Map(state.links);
-          const link = links.get(id);
-          if (!link) return state;
-          links.set(id, { ...link, midpoints: midpoints.length > 0 ? midpoints : undefined });
-          return { links };
+          const links = patchInMap(state.links, id, { midpoints: midpoints.length > 0 ? midpoints : undefined });
+          return links ? { links } : state;
         });
       },
 
@@ -303,21 +280,15 @@ export const useDiagramStore = create<DiagramState>()(
 
       updateSolideColor: (id: string, color: string) => {
         set((state) => {
-          const solides = new Map(state.solides);
-          const solide = solides.get(id);
-          if (!solide) return state;
-          solides.set(id, { ...solide, color });
-          return { solides };
+          const solides = patchInMap(state.solides, id, { color });
+          return solides ? { solides } : state;
         });
       },
 
       updateSolideName: (id: string, name: string) => {
         set((state) => {
-          const solides = new Map(state.solides);
-          const solide = solides.get(id);
-          if (!solide) return state;
-          solides.set(id, { ...solide, name });
-          return { solides };
+          const solides = patchInMap(state.solides, id, { name });
+          return solides ? { solides } : state;
         });
       },
 
@@ -362,31 +333,22 @@ export const useDiagramStore = create<DiagramState>()(
 
       moveSolideFrame: (id: string, x: number, y: number) => {
         set((state) => {
-          const solides = new Map(state.solides);
-          const solide = solides.get(id);
-          if (!solide) return state;
-          solides.set(id, { ...solide, frameX: x, frameY: y });
-          return { solides };
+          const solides = patchInMap(state.solides, id, { frameX: x, frameY: y });
+          return solides ? { solides } : state;
         });
       },
 
       rotateSolideFrame: (id: string, rotation: number) => {
         set((state) => {
-          const solides = new Map(state.solides);
-          const solide = solides.get(id);
-          if (!solide) return state;
-          solides.set(id, { ...solide, frameRotation: rotation });
-          return { solides };
+          const solides = patchInMap(state.solides, id, { frameRotation: rotation });
+          return solides ? { solides } : state;
         });
       },
 
       updateSolideFrameLabel: (id: string, label: string) => {
         set((state) => {
-          const solides = new Map(state.solides);
-          const solide = solides.get(id);
-          if (!solide) return state;
-          solides.set(id, { ...solide, frameLabel: label });
-          return { solides };
+          const solides = patchInMap(state.solides, id, { frameLabel: label });
+          return solides ? { solides } : state;
         });
       },
 
@@ -424,31 +386,22 @@ export const useDiagramStore = create<DiagramState>()(
 
       moveAngleArc: (id: string, x: number, y: number) => {
         set((state) => {
-          const angleArcs = new Map(state.angleArcs);
-          const arc = angleArcs.get(id);
-          if (!arc) return state;
-          angleArcs.set(id, { ...arc, x, y });
-          return { angleArcs };
+          const angleArcs = patchInMap(state.angleArcs, id, { x, y });
+          return angleArcs ? { angleArcs } : state;
         });
       },
 
       updateAngleArcLabel: (id: string, label: string) => {
         set((state) => {
-          const angleArcs = new Map(state.angleArcs);
-          const arc = angleArcs.get(id);
-          if (!arc) return state;
-          angleArcs.set(id, { ...arc, label });
-          return { angleArcs };
+          const angleArcs = patchInMap(state.angleArcs, id, { label });
+          return angleArcs ? { angleArcs } : state;
         });
       },
 
       updateAngleArcLabelOffset: (id: string, ox: number, oy: number) => {
         set((state) => {
-          const angleArcs = new Map(state.angleArcs);
-          const arc = angleArcs.get(id);
-          if (!arc) return state;
-          angleArcs.set(id, { ...arc, labelOffsetX: ox, labelOffsetY: oy });
-          return { angleArcs };
+          const angleArcs = patchInMap(state.angleArcs, id, { labelOffsetX: ox, labelOffsetY: oy });
+          return angleArcs ? { angleArcs } : state;
         });
       },
 

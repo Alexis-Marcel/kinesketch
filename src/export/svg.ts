@@ -303,6 +303,66 @@ function nodeToSVG(node: DiagramNode): string {
         <line x1="-6" y1="26" x2="6" y2="14" stroke="${stroke}" stroke-width="${sw}"/>
         ${labelSVG(node)}
       </g>`;
+
+    case 'roue_vis_sans_fin':
+      if (view === 2) {
+        return `<g transform="${transform}">
+        <rect x="-35" y="-75" width="70" height="34" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="-5" y1="-63" x2="5" y2="-53" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="-5" y1="-53" x2="5" y2="-63" stroke="${stroke}" stroke-width="${sw}"/>
+        <circle cy="17" r="58" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
+        ${labelSVG(node)}
+      </g>`;
+      }
+      return `<g transform="${transform}">
+        <circle cy="-62" r="20" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
+        <path d="M 12.46 -39.19 A 26 26 0 0 0 -12.46 -39.19" fill="none" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="0" y1="-36" x2="0" y2="78" stroke="${stroke}" stroke-width="${sw}"/>
+        <path d="M -12.46 81.19 A 26 26 0 0 0 12.46 81.19" fill="none" stroke="${stroke}" stroke-width="${sw}"/>
+        ${labelSVG(node)}
+      </g>`;
+
+    case 'transmission_poulie_courroie': {
+      const beltColor = '#22c55e';
+      if (view === 2) {
+        return `<g transform="${transform}">
+        <line x1="-90" y1="-36" x2="66" y2="-60" stroke="${beltColor}" stroke-width="${sw}"/>
+        <line x1="-90" y1="36" x2="66" y2="60" stroke="${beltColor}" stroke-width="${sw}"/>
+        <circle cx="-90" cy="0" r="36" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
+        <circle cx="66" cy="0" r="60" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
+        ${labelSVG(node)}
+      </g>`;
+      }
+      return `<g transform="${transform}">
+        <polyline points="-126,9 -126,-9 -54,-9 -54,9" fill="none" stroke="${stroke}" stroke-width="${sw}"/>
+        <polyline points="6,9 6,-9 126,-9 126,9" fill="none" stroke="${stroke}" stroke-width="${sw}"/>
+        <line x1="-126" y1="-3" x2="126" y2="-3" stroke="${beltColor}" stroke-width="${sw}"/>
+        ${labelSVG(node)}
+      </g>`;
+    }
+
+    case 'transmission_pignons_chaine': {
+      const chainColor = '#22c55e';
+      if (view === 2) {
+        return `<g transform="${transform}">
+        <line x1="-90" y1="-36" x2="66" y2="-60" stroke="${chainColor}" stroke-width="${sw}" stroke-dasharray="6,4"/>
+        <line x1="-90" y1="36" x2="66" y2="60" stroke="${chainColor}" stroke-width="${sw}" stroke-dasharray="6,4"/>
+        <circle cx="-90" cy="0" r="36" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
+        <circle cx="66" cy="0" r="60" fill="white" stroke="${stroke}" stroke-width="${sw}"/>
+        ${labelSVG(node)}
+      </g>`;
+      }
+      return `<g transform="${transform}">
+        <line x1="-54" y1="0" x2="6" y2="0" stroke="${chainColor}" stroke-width="${sw}" stroke-dasharray="6,4"/>
+        <line x1="-126" y1="0" x2="-54" y2="0" stroke="${stroke}" stroke-width="${sw}"/>
+        <polygon points="-126,0 -120,-3 -120,3" fill="${stroke}"/>
+        <polygon points="-54,0 -60,-3 -60,3" fill="${stroke}"/>
+        <line x1="6" y1="0" x2="126" y2="0" stroke="${stroke}" stroke-width="${sw}"/>
+        <polygon points="6,0 12,-3 12,3" fill="${stroke}"/>
+        <polygon points="126,0 120,-3 120,3" fill="${stroke}"/>
+        ${labelSVG(node)}
+      </g>`;
+    }
   }
   return '';
 }

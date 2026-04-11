@@ -35,7 +35,9 @@ export interface AnchorPoint {
 export type AnchorOffset =
   | { kind: 'circle'; angle: number /* radians, local frame */ };
 
-const ANCHOR_TABLE: Record<string, AnchorPoint[]> = {
+type AnchorKey = `${LiaisonType}:${LiaisonView}`;
+
+const ANCHOR_TABLE: Partial<Record<AnchorKey, AnchorPoint[]>> = {
   // Pivot vue 1: tourillons (A) left/right, rectangle (B) top/bottom
   'pivot:1': [
     { x: -36, y: 0, side: 'A' },
@@ -101,10 +103,10 @@ const ANCHOR_TABLE: Record<string, AnchorPoint[]> = {
     { x: 0, y: 22, side: 'A', behind: true },
     { x: 0, y: 0, side: 'B', behind: true },
   ],
-  // Rotule: inner circle (A) right, 3/4 outer circle (B) left
+  // Rotule: center point (A), outer circle (B) — links snap anywhere on the perimeter
   'rotule:1': [
-    { x: 12, y: 0, side: 'A' },
-    { x: -15, y: 0, side: 'B' },
+    { x: 0, y: 0, side: 'A' },
+    { x: 0, y: 0, side: 'B', shape: { kind: 'circle', r: 15 } },
   ],
   // Encastrement: single line (A) center
   'encastrement:1': [
@@ -137,6 +139,11 @@ const ANCHOR_TABLE: Record<string, AnchorPoint[]> = {
   ],
   // Appui plan: two parallel lines — top line (A), bottom line (B)
   'appui_plan:1': [
+    { x: 0, y: -3, side: 'A' },
+    { x: 0, y: 3, side: 'B' },
+  ],
+  // Appui plan vue 2: visuellement identique à la vue 1 (mêmes anchors)
+  'appui_plan:2': [
     { x: 0, y: -3, side: 'A' },
     { x: 0, y: 3, side: 'B' },
   ],
@@ -181,6 +188,11 @@ const ANCHOR_TABLE: Record<string, AnchorPoint[]> = {
   ],
   // Ponctuelle: circle (A) top, line (B) bottom
   'ponctuelle:1': [
+    { x: 0, y: -12, side: 'A' },
+    { x: 0, y: 12, side: 'B' },
+  ],
+  // Ponctuelle vue 2: visuellement identique à la vue 1 (mêmes anchors)
+  'ponctuelle:2': [
     { x: 0, y: -12, side: 'A' },
     { x: 0, y: 12, side: 'B' },
   ],
@@ -265,7 +277,7 @@ const ANCHOR_TABLE: Record<string, AnchorPoint[]> = {
 };
 
 export function getAnchors(type: LiaisonType, view: LiaisonView): AnchorPoint[] {
-  return ANCHOR_TABLE[`${type}:${view}`] || [];
+  return ANCHOR_TABLE[`${type}:${view}`] ?? [];
 }
 
 export function anchorToWorld(

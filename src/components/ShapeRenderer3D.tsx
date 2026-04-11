@@ -1,12 +1,13 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, type ComponentType } from 'react';
 import { type ThreeEvent } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
-import type { DiagramNode } from '../types';
+import type { DiagramNode, LiaisonType } from '../types';
 import { useDiagramStore } from '../store/diagramStore';
 import { getAnchors3D } from '../utils/anchors3d';
+import type { Liaison3DProps } from '../liaisons3d/shared';
 import { Pivot3D } from '../liaisons3d/Pivot3D';
 import { Glissiere3D } from '../liaisons3d/Glissiere3D';
 import { Rotule3D } from '../liaisons3d/Rotule3D';
@@ -24,6 +25,24 @@ import { EngrenageInt3D } from '../liaisons3d/EngrenageInt3D';
 import { EngrenageConique3D } from '../liaisons3d/EngrenageConique3D';
 import { DefaultLiaison3D } from '../liaisons3d/DefaultLiaison3D';
 
+const LIAISON_3D_COMPONENTS: Partial<Record<LiaisonType, ComponentType<Liaison3DProps>>> = {
+  pivot: Pivot3D,
+  glissiere: Glissiere3D,
+  pivot_glissant: PivotGlissant3D,
+  rotule: Rotule3D,
+  encastrement: Encastrement3D,
+  helicoidale: Helicoidale3D,
+  rotule_doigt: RotuleDoigt3D,
+  appui_plan: AppuiPlan3D,
+  lineaire_annulaire: LineaireAnnulaire3D,
+  lineaire_rectiligne: LineaireRectiligne3D,
+  ponctuelle: Ponctuelle3D,
+  bati: Bati3D,
+  engrenage_ext: EngrenageExt3D,
+  engrenage_int: EngrenageInt3D,
+  engrenage_conique: EngrenageConique3D,
+};
+
 interface ShapeRenderer3DProps {
   node: DiagramNode;
   selected: boolean;
@@ -39,7 +58,6 @@ interface ShapeRenderer3DProps {
 
 export function ShapeRenderer3D({
   node,
-  selected,
   colorA,
   colorB,
   onClick,
@@ -53,7 +71,6 @@ export function ShapeRenderer3D({
   const linkSourceId = useDiagramStore((s) => s.linkSourceId);
   const anchors = getAnchors3D(node.type, node.view);
 
-  // Put all meshes on layer 1 (for edge detection post-processing)
   useEffect(() => {
     if (!groupRef.current) return;
     groupRef.current.traverse((child) => {
@@ -63,50 +80,8 @@ export function ShapeRenderer3D({
     });
   });
 
-  const liaisonProps = {
-    colorA,
-    colorB,
-    selected,
-    hovered: false,
-    view: node.view,
-  };
-
-  const renderLiaison = () => {
-    switch (node.type) {
-      case 'pivot':
-        return <Pivot3D {...liaisonProps} />;
-      case 'glissiere':
-        return <Glissiere3D {...liaisonProps} />;
-      case 'pivot_glissant':
-        return <PivotGlissant3D {...liaisonProps} />;
-      case 'rotule':
-        return <Rotule3D {...liaisonProps} />;
-      case 'encastrement':
-        return <Encastrement3D {...liaisonProps} />;
-      case 'helicoidale':
-        return <Helicoidale3D {...liaisonProps} />;
-      case 'rotule_doigt':
-        return <RotuleDoigt3D {...liaisonProps} />;
-      case 'appui_plan':
-        return <AppuiPlan3D {...liaisonProps} />;
-      case 'lineaire_annulaire':
-        return <LineaireAnnulaire3D {...liaisonProps} />;
-      case 'lineaire_rectiligne':
-        return <LineaireRectiligne3D {...liaisonProps} />;
-      case 'ponctuelle':
-        return <Ponctuelle3D {...liaisonProps} />;
-      case 'bati':
-        return <Bati3D {...liaisonProps} />;
-      case 'engrenage_ext':
-        return <EngrenageExt3D {...liaisonProps} />;
-      case 'engrenage_int':
-        return <EngrenageInt3D {...liaisonProps} />;
-      case 'engrenage_conique':
-        return <EngrenageConique3D {...liaisonProps} />;
-      default:
-        return <DefaultLiaison3D {...liaisonProps} type={node.type} />;
-    }
-  };
+  const Component = LIAISON_3D_COMPONENTS[node.type];
+  const liaisonProps: Liaison3DProps = { colorA, colorB, view: node.view };
 
   return (
     <group
@@ -130,7 +105,9 @@ export function ShapeRenderer3D({
         onPointerMoveNode?.(e);
       }}
     >
-      {renderLiaison()}
+      {Component
+        ? <Component {...liaisonProps} />
+        : <DefaultLiaison3D {...liaisonProps} type={node.type} />}
 
       {/* Anchor points — visible in link mode when this node is hovered/snapped */}
       {showAnchors &&

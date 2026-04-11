@@ -9,86 +9,15 @@ import { LinkRenderer } from './LinkRenderer';
 import { LocalFrameRenderer } from './LocalFrameRenderer';
 import { AngleArcRenderer } from './AngleArcRenderer';
 import { AxisWidget } from './AxisWidget';
+import { AnchorMarker } from './AnchorMarker';
 import type { LiaisonType } from '../types';
 import { snap, CELL } from '../utils/snap';
-import { getBestAnchor, getAnchors, anchorToWorld, pickNearestAnchor, type SolideMapping, type AnchorPoint } from '../utils/anchors';
+import { getBestAnchor, getAnchors, anchorToWorld, pickNearestAnchor, type SolideMapping } from '../utils/anchors';
 import { getLiaisonBounds } from '../liaisons/bounds';
-
 
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 5;
 const LINK_SNAP_RADIUS = 45; // px in world coords — snap ghost line to nearby nodes
-
-/**
- * Visual marker for an anchor on a node. Renders a small dot for point
- * anchors, or a dashed circle outline at the anchor's actual radius for
- * circle-shape anchors — so the user sees they can attach a link anywhere on
- * the perimeter.
- */
-function AnchorMarker({
-  anchor,
-  centerX,
-  centerY,
-  scale,
-  isActive,
-  dotRadius = 4,
-  onMouseDown,
-  onClick,
-}: {
-  anchor: AnchorPoint;
-  centerX: number;
-  centerY: number;
-  scale: number;
-  isActive: boolean;
-  dotRadius?: number;
-  onMouseDown?: (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void;
-  onClick?: (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void;
-}) {
-  const shape = anchor.shape ?? { kind: 'point' as const };
-  const activeStroke = '#2563eb';
-  const idleStroke = 'rgba(100, 100, 100, 0.5)';
-  const activeFill = 'rgba(37, 99, 235, 0.4)';
-  const idleFill = 'rgba(120, 120, 120, 0.2)';
-  const interactive = !!(onMouseDown || onClick);
-  if (shape.kind === 'circle') {
-    // Circle anchors render as a neutral gray "halo" around the actual shape:
-    // a faint filled disc plus a dashed outline at radius + padding so the
-    // snap zone is visually distinct from the node's own perimeter (which
-    // already has its own stroke). The active state is conveyed by a separate
-    // blue dot rendered at the snap position (see Canvas snap-point block).
-    const VISUAL_PAD = 6; // px in screen space
-    return (
-      <Circle
-        x={centerX}
-        y={centerY}
-        radius={shape.r * scale + VISUAL_PAD}
-        fill="rgba(120, 120, 120, 0.08)"
-        stroke="rgba(100, 100, 100, 0.7)"
-        strokeWidth={1.3}
-        dash={[5, 3]}
-        listening={interactive}
-        hitStrokeWidth={12}
-        onMouseDown={onMouseDown}
-        onClick={onClick}
-        onTap={onClick}
-      />
-    );
-  }
-  return (
-    <Circle
-      x={centerX}
-      y={centerY}
-      radius={dotRadius}
-      fill={isActive ? activeFill : idleFill}
-      stroke={isActive ? activeStroke : idleStroke}
-      strokeWidth={1.2}
-      listening={interactive}
-      onMouseDown={onMouseDown}
-      onClick={onClick}
-      onTap={onClick}
-    />
-  );
-}
 
 export function Canvas() {
   const stageRef = useRef<Konva.Stage>(null);
@@ -159,74 +88,40 @@ export function Canvas() {
 
   // (bâti detection removed — bâti is now a standalone node type)
 
-  // Compute per-node solide colors based on anchor side (A or B)
-  const nodeColors = useMemo(() => {
-    const map = new Map<string, [string, string]>();
+  // Per-node solide assignment + colors. Each node gets one solide per anchor
+  // side (A and B); the resolved colors and the raw solide IDs are produced in
+  // a single pass so the two derived maps stay in sync.
+  const { nodeColors, nodeSolideMapping } = useMemo(() => {
+    const colors = new Map<string, [string, string]>();
+    const mapping = new Map<string, SolideMapping>();
     for (const node of nodes.values()) {
-      let sideASolideId: string | null = null;
-      let sideBSolideId: string | null = null;
+      let sideA: string | null = null;
+      let sideB: string | null = null;
       const anchors = getAnchors(node.type, node.view);
 
       for (const link of links.values()) {
         let anchorIdx: number | undefined;
-        if (link.fromNodeId === node.id) {
-          anchorIdx = link.fromAnchorIdx;
-        } else if (link.toNodeId === node.id) {
-          anchorIdx = link.toAnchorIdx;
-        } else {
-          continue;
-        }
+        if (link.fromNodeId === node.id) anchorIdx = link.fromAnchorIdx;
+        else if (link.toNodeId === node.id) anchorIdx = link.toAnchorIdx;
+        else continue;
 
         if (anchorIdx !== undefined && anchorIdx < anchors.length) {
           const side = anchors[anchorIdx].side;
-          if (side === 'A' && !sideASolideId) sideASolideId = link.solideId;
-          else if (side === 'B' && !sideBSolideId) sideBSolideId = link.solideId;
+          if (side === 'A' && !sideA) sideA = link.solideId;
+          else if (side === 'B' && !sideB) sideB = link.solideId;
         } else {
-          // No pinned anchor — assign to first available side
-          if (!sideASolideId) sideASolideId = link.solideId;
-          else if (!sideBSolideId) sideBSolideId = link.solideId;
+          if (!sideA) sideA = link.solideId;
+          else if (!sideB) sideB = link.solideId;
         }
       }
 
-      const cA = sideASolideId ? (solides.get(sideASolideId)?.color || '#1a1a1a') : '#1a1a1a';
-      const cB = sideBSolideId ? (solides.get(sideBSolideId)?.color || '#1a1a1a') : '#1a1a1a';
-      map.set(node.id, [cA, cB]);
+      const cA = sideA ? (solides.get(sideA)?.color ?? '#1a1a1a') : '#1a1a1a';
+      const cB = sideB ? (solides.get(sideB)?.color ?? '#1a1a1a') : '#1a1a1a';
+      colors.set(node.id, [cA, cB]);
+      mapping.set(node.id, { a: sideA, b: sideB });
     }
-    return map;
+    return { nodeColors: colors, nodeSolideMapping: mapping };
   }, [nodes, links, solides]);
-
-  // Compute per-node solide ID mapping based on anchor side
-  const nodeSolideMapping = useMemo(() => {
-    const map = new Map<string, SolideMapping>();
-    for (const node of nodes.values()) {
-      let sideASolideId: string | null = null;
-      let sideBSolideId: string | null = null;
-      const anchors = getAnchors(node.type, node.view);
-
-      for (const link of links.values()) {
-        let anchorIdx: number | undefined;
-        if (link.fromNodeId === node.id) {
-          anchorIdx = link.fromAnchorIdx;
-        } else if (link.toNodeId === node.id) {
-          anchorIdx = link.toAnchorIdx;
-        } else {
-          continue;
-        }
-
-        if (anchorIdx !== undefined && anchorIdx < anchors.length) {
-          const side = anchors[anchorIdx].side;
-          if (side === 'A' && !sideASolideId) sideASolideId = link.solideId;
-          else if (side === 'B' && !sideBSolideId) sideBSolideId = link.solideId;
-        } else {
-          if (!sideASolideId) sideASolideId = link.solideId;
-          else if (!sideBSolideId) sideBSolideId = link.solideId;
-        }
-      }
-
-      map.set(node.id, { a: sideASolideId, b: sideBSolideId });
-    }
-    return map;
-  }, [nodes, links]);
 
   /**
    * Classify nodes and links into render passes based on per-anchor `behind` flags.
@@ -350,6 +245,35 @@ export function Canvas() {
     [stageScale, stageX, stageY, setStageScale, setStagePosition]
   );
 
+  // Clear all in-progress link state (source pin, ghost line, snap target).
+  const resetLinkState = useCallback(() => {
+    setLinkSource(null);
+    setMousePos(null);
+    setLinkSnapTarget(null);
+    setLinkSourceAnchorIdx(undefined);
+    setLinkTargetAnchorIdx(undefined);
+    setLinkSourceAnchorOffset(undefined);
+    setLinkTargetAnchorOffset(undefined);
+  }, [setLinkSource]);
+
+  // Start or complete a link at (nodeId, anchorIdx). Used by every click
+  // surface in link mode (stage / node / anchor marker) so the start/complete
+  // logic lives in one place.
+  const commitLinkAtAnchor = useCallback(
+    (nodeId: string, anchorIdx: number, offset: import('../utils/anchors').AnchorOffset | undefined) => {
+      if (!linkSourceId) {
+        setLinkSource(nodeId);
+        setLinkSourceAnchorIdx(anchorIdx);
+        setLinkSourceAnchorOffset(offset);
+        return;
+      }
+      if (linkSourceId === nodeId) return;
+      addLink(linkSourceId, nodeId, linkSourceAnchorIdx, anchorIdx, linkSourceAnchorOffset, offset);
+      resetLinkState();
+    },
+    [linkSourceId, linkSourceAnchorIdx, linkSourceAnchorOffset, addLink, setLinkSource, resetLinkState]
+  );
+
   // Click on empty canvas
   const handleStageClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -370,89 +294,49 @@ export function Canvas() {
 
       if (activeTool === 'place' && placingLiaison) {
         addNode(placingLiaison.type, snap(x / CELL), snap(y / CELL), placingLiaison.view);
-      } else if (activeTool === 'link') {
-        // If snapped to a target node, complete the link
-        if (linkSourceId && linkSnapTarget) {
-          addLink(linkSourceId, linkSnapTarget, linkSourceAnchorIdx, linkTargetAnchorIdx, linkSourceAnchorOffset, linkTargetAnchorOffset);
-          setLinkSource(null);
-          setMousePos(null);
-          setLinkSnapTarget(null);
-          setLinkSourceAnchorIdx(undefined);
-          setLinkTargetAnchorIdx(undefined);
-          setLinkSourceAnchorOffset(undefined);
-          setLinkTargetAnchorOffset(undefined);
-        } else {
-          setLinkSource(null);
-          setMousePos(null);
-          setLinkSnapTarget(null);
-          setLinkSourceAnchorIdx(undefined);
-          setLinkTargetAnchorIdx(undefined);
-          setLinkSourceAnchorOffset(undefined);
-          setLinkTargetAnchorOffset(undefined);
-          setTool('select');
-        }
-      } else {
-        clearSelection();
+        return;
       }
+      if (activeTool === 'link') {
+        // The snap radius extends past every node bbox, so an anchor may
+        // already be tracked even when the click hits empty stage. Treat the
+        // click as if it had landed on the snapped node; otherwise exit.
+        if (linkSnapTarget && linkTargetAnchorIdx !== undefined) {
+          commitLinkAtAnchor(linkSnapTarget, linkTargetAnchorIdx, linkTargetAnchorOffset);
+          return;
+        }
+        resetLinkState();
+        setTool('select');
+        return;
+      }
+      clearSelection();
     },
-    [activeTool, placingLiaison, reanchoring, stageX, stageY, stageScale, addNode, clearSelection, setLinkSource, setTool, linkSourceId, linkSnapTarget, linkSourceAnchorIdx, linkTargetAnchorIdx, linkSourceAnchorOffset, linkTargetAnchorOffset, addLink]
+    [activeTool, placingLiaison, stageX, stageY, stageScale, addNode, clearSelection, setTool, linkSnapTarget, linkTargetAnchorIdx, linkTargetAnchorOffset, commitLinkAtAnchor, resetLinkState]
   );
 
-  // Handle node click for link tool (no specific anchor — uses tracked target anchor)
+  // Click on a node body. In link mode, the hover handler has already aligned
+  // the tracked snap with the cursor, so we just consume it.
   const handleNodeClick = useCallback(
     (nodeId: string) => {
-      if (activeTool === 'link') {
-        if (!linkSourceId) {
-          // Start link only if snapped to an anchor on this node
-          if (linkSnapTarget === nodeId && linkTargetAnchorIdx !== undefined) {
-            setLinkSource(nodeId);
-            setLinkSourceAnchorIdx(linkTargetAnchorIdx);
-            setLinkSourceAnchorOffset(linkTargetAnchorOffset);
-          }
-        } else if (linkSourceId !== nodeId) {
-          // Complete link only if snapped to an anchor on this target node
-          if (linkSnapTarget === nodeId && linkTargetAnchorIdx !== undefined) {
-            addLink(linkSourceId, nodeId, linkSourceAnchorIdx, linkTargetAnchorIdx, linkSourceAnchorOffset, linkTargetAnchorOffset);
-            setLinkSource(null);
-            setMousePos(null);
-            setLinkSnapTarget(null);
-            setLinkSourceAnchorIdx(undefined);
-            setLinkTargetAnchorIdx(undefined);
-            setLinkSourceAnchorOffset(undefined);
-            setLinkTargetAnchorOffset(undefined);
-          }
-        }
-      } else {
+      if (activeTool !== 'link') {
         select(nodeId);
+        return;
+      }
+      if (linkSnapTarget === nodeId && linkTargetAnchorIdx !== undefined) {
+        commitLinkAtAnchor(nodeId, linkTargetAnchorIdx, linkTargetAnchorOffset);
       }
     },
-    [activeTool, reanchoring, linkSourceId, linkSnapTarget, linkSourceAnchorIdx, linkTargetAnchorIdx, linkSourceAnchorOffset, linkTargetAnchorOffset, setLinkSource, addLink, select]
+    [activeTool, linkSnapTarget, linkTargetAnchorIdx, linkTargetAnchorOffset, commitLinkAtAnchor, select]
   );
 
-  // Handle anchor click for link tool (specific anchor — pinned mode)
+  // Click directly on an anchor marker. Use the explicit index but reuse the
+  // hover-captured offset when it matches (so circle anchors keep their angle).
   const handleAnchorClick = useCallback(
     (nodeId: string, anchorIdx: number) => {
       if (activeTool !== 'link') return;
-      // Use the offset captured during hover for this same anchor (if any).
-      // The hover handler keeps linkTargetAnchor* in sync with the cursor, so
-      // by the time the click fires we already know the spot to pin.
       const offset = linkTargetAnchorIdx === anchorIdx ? linkTargetAnchorOffset : undefined;
-      if (!linkSourceId) {
-        setLinkSource(nodeId);
-        setLinkSourceAnchorIdx(anchorIdx);
-        setLinkSourceAnchorOffset(offset);
-      } else if (linkSourceId !== nodeId) {
-        addLink(linkSourceId, nodeId, linkSourceAnchorIdx, anchorIdx, linkSourceAnchorOffset, offset);
-        setLinkSource(null);
-        setMousePos(null);
-        setLinkSnapTarget(null);
-        setLinkSourceAnchorIdx(undefined);
-        setLinkTargetAnchorIdx(undefined);
-        setLinkSourceAnchorOffset(undefined);
-        setLinkTargetAnchorOffset(undefined);
-      }
+      commitLinkAtAnchor(nodeId, anchorIdx, offset);
     },
-    [activeTool, linkSourceId, linkSourceAnchorIdx, linkSourceAnchorOffset, linkTargetAnchorIdx, linkTargetAnchorOffset, setLinkSource, addLink]
+    [activeTool, linkTargetAnchorIdx, linkTargetAnchorOffset, commitLinkAtAnchor]
   );
 
   // Double-click to edit label

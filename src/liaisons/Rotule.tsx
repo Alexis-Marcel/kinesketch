@@ -1,51 +1,13 @@
-import { Circle, Group, Line } from 'react-konva';
-import { snapPx } from '../utils/snap';
-import { HitRect } from './HitRect';
+import { Circle, Line } from 'react-konva';
+import { LiaisonNode, type LiaisonComponentProps } from './LiaisonNode';
 
-interface RotuleProps {
-  x: number;
-  y: number;
-  rotation: number;
-  scale?: number;
-  view?: number;
-  selected: boolean;
-  colorA?: string;
-  colorB?: string;
-  onSelect: () => void;
-  onDragMove: (x: number, y: number) => void;
-  onDragEnd: (x: number, y: number) => void;
-  onDblClick: () => void;
-}
-
-export function Rotule({ x, y, rotation, scale = 1, view = 1, colorA = '#1a1a1a', colorB = '#1a1a1a', onSelect, onDragMove, onDragEnd, onDblClick }: RotuleProps) {
+export function Rotule(props: LiaisonComponentProps) {
+  const { colorA = '#1a1a1a', colorB = '#1a1a1a' } = props;
   const r = 12;
   const strokeWidth = 1.5;
 
   return (
-    <Group
-      x={x}
-      y={y}
-      rotation={rotation} scaleX={scale} scaleY={scale}
-      draggable
-      onClick={onSelect}
-      onTap={onSelect}
-      onDblClick={onDblClick}
-      onDragMove={(e) => {
-        const sx = snapPx(e.target.x());
-        const sy = snapPx(e.target.y());
-        e.target.x(sx);
-        e.target.y(sy);
-        onDragMove(sx, sy);
-      }}
-      onDragEnd={(e) => {
-        const sx = snapPx(e.target.x());
-        const sy = snapPx(e.target.y());
-        e.target.x(sx);
-        e.target.y(sy);
-        onDragEnd(sx, sy);
-      }}
-    >
-      <HitRect type="rotule" view={view} />
+    <LiaisonNode type="rotule" {...props}>
       {/* Inner circle (A) + 3/4 outer circle opening right (B) */}
       <Circle radius={r} stroke={colorA} strokeWidth={strokeWidth} fill="white" />
       <Line
@@ -56,6 +18,6 @@ export function Rotule({ x, y, rotation, scale = 1, view = 1, colorA = '#1a1a1a'
         stroke={colorB}
         strokeWidth={strokeWidth}
       />
-    </Group>
+    </LiaisonNode>
   );
 }
