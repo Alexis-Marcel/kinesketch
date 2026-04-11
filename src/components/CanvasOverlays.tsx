@@ -7,8 +7,8 @@ import {
   getBestAnchor,
   type SolideMapping,
 } from '../utils/anchors';
-import { getLiaisonBounds } from '../liaisons/bounds';
 import { CELL } from '../utils/snap';
+import { getLiaisonBounds } from '../liaisons/bounds';
 import { AnchorMarker } from './AnchorMarker';
 
 // ---------------------------------------------------------------------------
@@ -84,10 +84,11 @@ export function ReanchorGhostLine({
   if (!fixedNode) return null;
   const fixedMapping = nodeSolideMapping.get(fixedNodeId) || { a: null, b: null };
   const fixedPos = getBestAnchor(fixedNode, mousePos, link.solideId, fixedMapping, fixedAnchorIdx, fixedAnchorOffset);
-  const mps = link.midpoints || [];
+  // Midpoints are stored in grid units; the line lives in pixel space.
+  const mpsPx = (link.midpoints || []).flatMap((p) => [p.x * CELL, p.y * CELL]);
   const points: number[] = end === 'from'
-    ? [mousePos.x, mousePos.y, ...mps.flatMap((p) => [p.x, p.y]), fixedPos.x, fixedPos.y]
-    : [fixedPos.x, fixedPos.y, ...mps.flatMap((p) => [p.x, p.y]), mousePos.x, mousePos.y];
+    ? [mousePos.x, mousePos.y, ...mpsPx, fixedPos.x, fixedPos.y]
+    : [fixedPos.x, fixedPos.y, ...mpsPx, mousePos.x, mousePos.y];
   return (
     <Group listening={false}>
       <Line points={points} stroke={linkColor} strokeWidth={1.5} />

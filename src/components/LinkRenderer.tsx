@@ -35,11 +35,12 @@ export function LinkRenderer({ link, fromNode, toNode, fromSolideMapping, toSoli
   const creatingRef = React.useRef<{ segIdx: number } | null>(null);
 
   // Resolve anchor points (pinned if explicit index, otherwise auto-select).
-  // For polylines with midpoints, the relevant target for the from-side is the
-  // first midpoint (the segment leaving the from-node), and symmetrically for
-  // the to-side. Without midpoints, the target is the other node center.
-  const midpoints = link.midpoints || [];
-  const midpointsPx = midpoints.map((mp) => ({ x: mp.x * CELL, y: mp.y * CELL }));
+  // For polylines with midpoints, the relevant target for the from-side is
+  // the first midpoint (segment leaving the from-node), and symmetrically
+  // for the to-side. Without midpoints the target is the other node's center.
+  // Midpoints are stored in grid units; convert once into pixels here so the
+  // line / handles / projection all share the same coordinate space.
+  const midpointsPx = (link.midpoints || []).map((mp) => ({ x: mp.x * CELL, y: mp.y * CELL }));
 
   const fromTargetInit = midpointsPx[0] ?? { x: toNode.x * CELL, y: toNode.y * CELL };
   const toTargetInit = midpointsPx[midpointsPx.length - 1] ?? { x: fromNode.x * CELL, y: fromNode.y * CELL };
@@ -87,9 +88,13 @@ export function LinkRenderer({ link, fromNode, toNode, fromSolideMapping, toSoli
     }
   }
 
-  // Helper: get fresh midpoints from the store
-  const getFreshMidpoints = () =>
-    useDiagramStore.getState().links.get(link.id)?.midpoints || [];
+  // Helper: get fresh midpoints from the store, converted to pixels so they
+  // line up with the Konva Line points coordinate space (which is also where
+  // the dragged handle sits while the user is moving it).
+  const getFreshMidpointsPx = () => {
+    const stored = useDiagramStore.getState().links.get(link.id)?.midpoints || [];
+    return stored.map((p) => ({ x: p.x * CELL, y: p.y * CELL }));
+  };
 
   // Helper: update Line node points directly (no React re-render)
   const updateLinePoints = (pts: Array<{ x: number; y: number }>) => {
@@ -110,12 +115,12 @@ export function LinkRenderer({ link, fromNode, toNode, fromSolideMapping, toSoli
     const newX = snapPx(e.target.x());
     const newY = snapPx(e.target.y());
     const phantom = { x: newX, y: newY };
-    const cur = getFreshMidpoints();
+    const curPx = getFreshMidpointsPx();
     const pts = [
       fromRef.current,
-      ...cur.slice(0, creatingRef.current.segIdx),
+      ...curPx.slice(0, creatingRef.current.segIdx),
       phantom,
-      ...cur.slice(creatingRef.current.segIdx),
+      ...curPx.slice(creatingRef.current.segIdx),
       toRef.current,
     ];
     updateLinePoints(pts);
@@ -127,7 +132,8 @@ export function LinkRenderer({ link, fromNode, toNode, fromSolideMapping, toSoli
     const segIdx = creatingRef.current.segIdx;
     const newX = snapPx(e.target.x());
     const newY = snapPx(e.target.y());
-    const newMidpoints = [...getFreshMidpoints()];
+    const stored = useDiagramStore.getState().links.get(link.id)?.midpoints || [];
+    const newMidpoints = [...stored];
     newMidpoints.splice(segIdx, 0, { x: newX / CELL, y: newY / CELL });
     updateLinkMidpoints(link.id, newMidpoints);
     creatingRef.current = null;
@@ -138,22 +144,24 @@ export function LinkRenderer({ link, fromNode, toNode, fromSolideMapping, toSoli
     e.cancelBubble = true;
     const newX = snapPx(e.target.x());
     const newY = snapPx(e.target.y());
-    const cur = [...getFreshMidpoints()];
-    cur[midIdx] = { x: newX, y: newY };
-    updateLinePoints([fromRef.current, ...cur, toRef.current]);
+    const curPx = getFreshMidpointsPx();
+    curPx[midIdx] = { x: newX, y: newY };
+    updateLinePoints([fromRef.current, ...curPx, toRef.current]);
   };
 
   const handleExistingMidpointDragEnd = (midIdx: number, e: Konva.KonvaEventObject<DragEvent>) => {
     e.cancelBubble = true;
     const newX = snapPx(e.target.x());
     const newY = snapPx(e.target.y());
-    const newMidpoints = [...getFreshMidpoints()];
+    const stored = useDiagramStore.getState().links.get(link.id)?.midpoints || [];
+    const newMidpoints = [...stored];
     newMidpoints[midIdx] = { x: newX / CELL, y: newY / CELL };
     updateLinkMidpoints(link.id, newMidpoints);
   };
 
   const handleMidpointDblClick = (midIdx: number) => {
-    const newMidpoints = [...getFreshMidpoints()];
+    const stored = useDiagramStore.getState().links.get(link.id)?.midpoints || [];
+    const newMidpoints = [...stored];
     newMidpoints.splice(midIdx, 1);
     updateLinkMidpoints(link.id, newMidpoints);
   };
@@ -184,7 +192,7 @@ export function LinkRenderer({ link, fromNode, toNode, fromSolideMapping, toSoli
         />
       )}
       {/* Existing midpoint handles — click to select, drag to move, double-click to delete */}
-      {selected && midpoints.map((mp, i) => {
+      {selected && midpointsPx.map((mp, i) => {
         const isMpSelected = selectedMidpoint?.linkId === link.id && selectedMidpoint?.index === i;
         return (
           <Circle
