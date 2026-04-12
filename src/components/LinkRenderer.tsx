@@ -325,7 +325,7 @@ export function LinkRenderer({
   };
 
   return (
-    <Group onClick={onSelect} onTap={onSelect} onDblClick={onDblClick}>
+    <Group onClick={onSelect} onTap={onSelect} onDblClick={onDblClick} listening={interactive}>
       {/* Main polyline — uses arcTo for rounded corners on ortho routes */}
       {isAutoRouted && renderedPoints.length > 2 ? (
         <Shape
