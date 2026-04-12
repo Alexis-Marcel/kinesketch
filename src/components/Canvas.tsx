@@ -23,8 +23,8 @@ import {
 import type { AnchorOffset, LiaisonType } from '../types';
 import { snap, CELL } from '../utils/snap';
 import { pointerToWorld } from '../utils/stage';
-import { projectOntoPolyline } from '../utils/linkPath';
-import { anchorToWorld, findNearestNode, getAnchors, pickNearestAnchor, type SolideMapping } from '../utils/anchors';
+import { buildLinkPath, projectOntoPolyline } from '../utils/linkPath';
+import { findNearestNode, getAnchors, pickNearestAnchor, type SolideMapping } from '../utils/anchors';
 import { getLiaisonBounds } from '../liaisons/bounds';
 
 const MIN_SCALE = 0.1;
@@ -370,16 +370,10 @@ export function Canvas() {
   const handleLinkLineClick = useCallback(
     (clickedLinkId: string, worldPos: { x: number; y: number }) => {
       if (activeTool === 'link' && linkSourceId) {
-        // Compute t by projecting the click position onto the link's path
-        const clickedLink = useDiagramStore.getState().links.get(clickedLinkId);
+        const storeState = useDiagramStore.getState();
+        const clickedLink = storeState.links.get(clickedLinkId);
         if (clickedLink) {
-          const fromN = useDiagramStore.getState().nodes.get(clickedLink.fromNodeId);
-          const toN = useDiagramStore.getState().nodes.get(clickedLink.toNodeId);
-          const path = [
-            fromN ? { x: fromN.x * CELL, y: fromN.y * CELL } : null,
-            ...(clickedLink.midpoints || []).map((mp) => ({ x: mp.x * CELL, y: mp.y * CELL })),
-            toN ? { x: toN.x * CELL, y: toN.y * CELL } : null,
-          ].filter((p): p is { x: number; y: number } => p !== null);
+          const path = buildLinkPath(clickedLink, storeState.nodes);
           if (path.length >= 2) {
             const proj = projectOntoPolyline(path, worldPos);
             commitTJunction(clickedLinkId, proj.t);
@@ -659,28 +653,8 @@ export function Canvas() {
         let bestLinkSnap: { linkId: string; t: number; pos: { x: number; y: number }; dist: number } | null = null;
         if (linkSourceId && !reanchoring) {
           for (const lk of storeState.links.values()) {
-            const fromN = storeState.nodes.get(lk.fromNodeId);
-            const toN = storeState.nodes.get(lk.toNodeId);
-            if (!fromN && !toN) continue;
-
-            // Resolve anchor world positions (use pinned anchor if set,
-            // otherwise fall back to node center)
-            const resolveEnd = (node: typeof fromN, anchorIdx: number | undefined) => {
-              if (!node) return { x: 0, y: 0 };
-              if (anchorIdx !== undefined) {
-                const anchors = getAnchors(node.type, node.view);
-                if (anchors[anchorIdx]) {
-                  return anchorToWorld(anchors[anchorIdx], node.x * CELL, node.y * CELL, node.rotation, node.scale ?? 1);
-                }
-              }
-              return { x: node.x * CELL, y: node.y * CELL };
-            };
-
-            const path = [
-              resolveEnd(fromN, lk.fromAnchorIdx),
-              ...(lk.midpoints || []).map((mp) => ({ x: mp.x * CELL, y: mp.y * CELL })),
-              resolveEnd(toN, lk.toAnchorIdx),
-            ];
+            const path = buildLinkPath(lk, storeState.nodes);
+            if (path.length < 2) continue;
             const proj = projectOntoPolyline(path, { x: worldX, y: worldY });
             if (proj.dist < LINK_LINE_SNAP_DIST && (!bestLinkSnap || proj.dist < bestLinkSnap.dist)) {
               bestLinkSnap = { linkId: lk.id, t: proj.t, pos: proj.pos, dist: proj.dist };

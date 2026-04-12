@@ -8,7 +8,7 @@ import type { DiagramNode, Link } from '../types';
 import { getBestAnchor, type SolideMapping } from '../utils/anchors';
 import { snapPx, CELL } from '../utils/snap';
 import { computeOrthoRoute } from '../utils/orthoRouter';
-import { pointOnPolyline } from '../utils/linkPath';
+import { buildLinkPath, pointOnPolyline } from '../utils/linkPath';
 
 /**
  * Return one half of a polyline split at its length-based midpoint.
@@ -115,14 +115,8 @@ export function LinkRenderer({
 
   const resolveTJunction = (host: Link | undefined, t: number): { x: number; y: number } | null => {
     if (!host) return null;
-    const hFrom = nodes.get(host.fromNodeId);
-    const hTo = nodes.get(host.toNodeId);
-    if (!hFrom && !hTo) return null;
-    const hostPath = [
-      hFrom ? { x: hFrom.x * CELL, y: hFrom.y * CELL } : { x: 0, y: 0 },
-      ...(host.midpoints || []).map((mp) => ({ x: mp.x * CELL, y: mp.y * CELL })),
-      hTo ? { x: hTo.x * CELL, y: hTo.y * CELL } : { x: 0, y: 0 },
-    ];
+    const hostPath = buildLinkPath(host, nodes);
+    if (hostPath.length < 2) return null;
     return pointOnPolyline(hostPath, t);
   };
 
