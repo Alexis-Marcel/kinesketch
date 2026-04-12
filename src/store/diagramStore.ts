@@ -294,6 +294,16 @@ export const useDiagramStore = create<DiagramState>()(
         });
       },
 
+      reanchorLinkToLink: (id: string, end: 'from' | 'to', targetLinkId: string, t: number) => {
+        set((state) => {
+          const patch: Partial<Link> = end === 'from'
+            ? { fromNodeId: '', fromAnchorIdx: undefined, fromAnchorOffset: undefined, fromLinkId: targetLinkId, fromLinkT: t }
+            : { toNodeId: '', toAnchorIdx: undefined, toAnchorOffset: undefined, toLinkId: targetLinkId, toLinkT: t };
+          const links = patchInMap(state.links, id, patch);
+          return links ? { links } : state;
+        });
+      },
+
       reanchorLink: (id: string, end: 'from' | 'to', newNodeId: string, anchorIdx: number, offset?: AnchorOffset) => {
         set((state) => {
           const patch: Partial<Link> = end === 'from'
