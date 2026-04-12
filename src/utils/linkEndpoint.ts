@@ -53,10 +53,20 @@ export function resolveEndpointStatic(
   nodes: Map<string, DiagramNode>,
   links: Map<string, Link>,
 ): Point {
+  return resolveEndpointStaticImpl(link, end, nodes, links, 0);
+}
+
+function resolveEndpointStaticImpl(
+  link: Link,
+  end: 'from' | 'to',
+  nodes: Map<string, DiagramNode>,
+  links: Map<string, Link>,
+  depth: number,
+): Point {
   const hostLinkId = end === 'from' ? link.fromLinkId : link.toLinkId;
   const hostT = end === 'from' ? link.fromLinkT : link.toLinkT;
   if (hostLinkId && hostT !== undefined) {
-    return resolveTJunctionPos(hostLinkId, hostT, nodes, links);
+    return resolveTJunctionPos(hostLinkId, hostT, nodes, links, depth);
   }
 
   const nodeId = end === 'from' ? link.fromNodeId : link.toNodeId;
@@ -99,18 +109,20 @@ export function hasValidEndpoint(
 
 import { pointOnPolyline } from './linkPath';
 
+const MAX_TJ_DEPTH = 3;
+
 function resolveTJunctionPos(
   hostLinkId: string,
   t: number,
   nodes: Map<string, DiagramNode>,
   links: Map<string, Link>,
+  depth: number = 0,
 ): Point {
+  if (depth >= MAX_TJ_DEPTH) return { x: 0, y: 0 };
   const host = links.get(hostLinkId);
   if (!host) return { x: 0, y: 0 };
-  // Build host path using static resolution (avoids infinite recursion for
-  // chained T-junctions by only going one level deep).
-  const hostFrom = resolveEndpointStatic(host, 'from', nodes, links);
-  const hostTo = resolveEndpointStatic(host, 'to', nodes, links);
+  const hostFrom = resolveEndpointStaticImpl(host, 'from', nodes, links, depth + 1);
+  const hostTo = resolveEndpointStaticImpl(host, 'to', nodes, links, depth + 1);
   const hostPath = [
     hostFrom,
     ...(host.midpoints || []).map((mp) => ({ x: mp.x * CELL, y: mp.y * CELL })),
