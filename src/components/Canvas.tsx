@@ -24,7 +24,7 @@ import type { AnchorOffset, LiaisonType } from '../types';
 import { snap, CELL } from '../utils/snap';
 import { pointerToWorld } from '../utils/stage';
 import { projectOntoPolyline } from '../utils/linkPath';
-import { findNearestNode, getAnchors, pickNearestAnchor, type SolideMapping } from '../utils/anchors';
+import { anchorToWorld, findNearestNode, getAnchors, pickNearestAnchor, type SolideMapping } from '../utils/anchors';
 import { getLiaisonBounds } from '../liaisons/bounds';
 
 const MIN_SCALE = 0.1;
@@ -653,6 +653,8 @@ export function Canvas() {
         // Also check proximity to link lines (for T-junction). Runs
         // alongside node detection — the link line wins if the cursor is
         // very close to it (< LINK_LINE_SNAP_DIST).
+        // Check proximity to link lines using RESOLVED anchor positions
+        // (not node centers) so the snap zone matches the visible link.
         const LINK_LINE_SNAP_DIST = 15;
         let bestLinkSnap: { linkId: string; t: number; pos: { x: number; y: number }; dist: number } | null = null;
         if (linkSourceId && !reanchoring) {
@@ -660,10 +662,24 @@ export function Canvas() {
             const fromN = storeState.nodes.get(lk.fromNodeId);
             const toN = storeState.nodes.get(lk.toNodeId);
             if (!fromN && !toN) continue;
+
+            // Resolve anchor world positions (use pinned anchor if set,
+            // otherwise fall back to node center)
+            const resolveEnd = (node: typeof fromN, anchorIdx: number | undefined) => {
+              if (!node) return { x: 0, y: 0 };
+              if (anchorIdx !== undefined) {
+                const anchors = getAnchors(node.type, node.view);
+                if (anchors[anchorIdx]) {
+                  return anchorToWorld(anchors[anchorIdx], node.x * CELL, node.y * CELL, node.rotation, node.scale ?? 1);
+                }
+              }
+              return { x: node.x * CELL, y: node.y * CELL };
+            };
+
             const path = [
-              fromN ? { x: fromN.x * CELL, y: fromN.y * CELL } : { x: 0, y: 0 },
+              resolveEnd(fromN, lk.fromAnchorIdx),
               ...(lk.midpoints || []).map((mp) => ({ x: mp.x * CELL, y: mp.y * CELL })),
-              toN ? { x: toN.x * CELL, y: toN.y * CELL } : { x: 0, y: 0 },
+              resolveEnd(toN, lk.toAnchorIdx),
             ];
             const proj = projectOntoPolyline(path, { x: worldX, y: worldY });
             if (proj.dist < LINK_LINE_SNAP_DIST && (!bestLinkSnap || proj.dist < bestLinkSnap.dist)) {
