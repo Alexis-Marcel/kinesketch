@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useDiagramStore } from '../store/diagramStore';
 import { LIAISON_DEFS } from '../liaisons';
-import type { AngleArc, DiagramNode, LiaisonView, Link, Solide } from '../types';
+import type { AngleArc, DiagramNode, LiaisonView, Link, LinkRoutingMode, Solide } from '../types';
 
 export function PropertiesPanel() {
   const selectedIds = useDiagramStore((s) => s.selectedIds);
@@ -283,6 +283,7 @@ function LinkProperties({ link }: { link: Link }) {
   const solides = useDiagramStore((s) => s.solides);
   const updateLinkLabel = useDiagramStore((s) => s.updateLinkLabel);
   const updateLinkSolide = useDiagramStore((s) => s.updateLinkSolide);
+  const updateLinkRouting = useDiagramStore((s) => s.updateLinkRouting);
 
   const fromNode = nodes.get(link.fromNodeId);
   const toNode = nodes.get(link.toNodeId);
@@ -335,6 +336,19 @@ function LinkProperties({ link }: { link: Link }) {
             style={{ background: currentSolide.color, marginLeft: 6 }}
           />
         )}
+      </div>
+
+      <div className="prop-group">
+        <label className="prop-label">Tracé</label>
+        <select
+          className="prop-select"
+          value={link.routingMode ?? 'direct'}
+          onChange={(e) => updateLinkRouting(link.id, e.target.value as LinkRoutingMode)}
+        >
+          <option value="direct">Direct</option>
+          <option value="ortho">Orthogonal</option>
+          <option value="ortho-persp">Ortho perspective</option>
+        </select>
       </div>
     </div>
   );

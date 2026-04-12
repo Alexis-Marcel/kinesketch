@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { temporal } from 'zundo';
-import type { AnchorOffset, AngleArc, DiagramDimension, DiagramNode, DiagramState, LiaisonType, LiaisonView, Link, Solide, ToolType } from '../types';
+import type { AnchorOffset, AngleArc, DiagramDimension, DiagramNode, DiagramState, LiaisonType, LiaisonView, Link, LinkRoutingMode, Solide, ToolType } from '../types';
 
 export const SOLIDE_COLORS = [
   '#6b7280', // S0 bâti — gris
@@ -221,6 +221,15 @@ export const useDiagramStore = create<DiagramState>()(
       updateLinkSolide: (id: string, solideId: string) => {
         set((state) => {
           const links = patchInMap(state.links, id, { solideId });
+          return links ? { links } : state;
+        });
+      },
+
+      updateLinkRouting: (id: string, mode: LinkRoutingMode) => {
+        set((state) => {
+          const links = patchInMap(state.links, id, {
+            routingMode: mode === 'direct' ? undefined : mode,
+          });
           return links ? { links } : state;
         });
       },

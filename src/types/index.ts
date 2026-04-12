@@ -28,6 +28,8 @@ export type LiaisonView = 1 | 2 | 3;
  */
 export type AnchorOffset = { kind: 'circle'; angle: number };
 
+export type LinkRoutingMode = 'direct' | 'ortho' | 'ortho-persp';
+
 export type ToolType = 'select' | 'place' | 'link';
 
 export type DiagramDimension = '2d' | '3d';
@@ -80,6 +82,7 @@ export interface Link {
   fromAnchorOffset?: AnchorOffset;
   toAnchorOffset?: AnchorOffset;
   midpoints?: Array<{ x: number; y: number; z?: number }>;
+  routingMode?: LinkRoutingMode;
 }
 
 export interface AngleArc {
@@ -145,6 +148,7 @@ export interface DiagramState extends DiagramData {
   updateLinkLabel: (id: string, label: string) => void;
   updateLinkLabelOffset: (id: string, ox: number, oy: number) => void;
   updateLinkSolide: (id: string, solideId: string) => void;
+  updateLinkRouting: (id: string, mode: LinkRoutingMode) => void;
   updateLinkAnchor: (id: string, end: 'from' | 'to', anchorIdx: number, offset?: AnchorOffset) => void;
   reanchorLink: (id: string, end: 'from' | 'to', newNodeId: string, anchorIdx: number, offset?: AnchorOffset) => void;
   updateLinkMidpoints: (id: string, midpoints: Array<{ x: number; y: number }>) => void;
