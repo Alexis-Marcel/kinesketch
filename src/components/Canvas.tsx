@@ -650,7 +650,40 @@ export function Canvas() {
           getLiaisonBounds
         );
 
-        if (nearest) {
+        // Also check proximity to link lines (for T-junction). Runs
+        // alongside node detection — the link line wins if the cursor is
+        // very close to it (< LINK_LINE_SNAP_DIST).
+        const LINK_LINE_SNAP_DIST = 15;
+        let bestLinkSnap: { linkId: string; t: number; pos: { x: number; y: number }; dist: number } | null = null;
+        if (linkSourceId && !reanchoring) {
+          for (const lk of storeState.links.values()) {
+            const fromN = storeState.nodes.get(lk.fromNodeId);
+            const toN = storeState.nodes.get(lk.toNodeId);
+            if (!fromN && !toN) continue;
+            const path = [
+              fromN ? { x: fromN.x * CELL, y: fromN.y * CELL } : { x: 0, y: 0 },
+              ...(lk.midpoints || []).map((mp) => ({ x: mp.x * CELL, y: mp.y * CELL })),
+              toN ? { x: toN.x * CELL, y: toN.y * CELL } : { x: 0, y: 0 },
+            ];
+            const proj = projectOntoPolyline(path, { x: worldX, y: worldY });
+            if (proj.dist < LINK_LINE_SNAP_DIST && (!bestLinkSnap || proj.dist < bestLinkSnap.dist)) {
+              bestLinkSnap = { linkId: lk.id, t: proj.t, pos: proj.pos, dist: proj.dist };
+            }
+          }
+        }
+
+        // Decide: link line snap wins if very close, otherwise node snap wins
+        const useLinkSnap = bestLinkSnap && (!nearest || bestLinkSnap.dist < 10);
+
+        if (useLinkSnap && bestLinkSnap) {
+          // Snap to link line (T-junction preview)
+          if (linkSourceId) setMousePos(bestLinkSnap.pos);
+          setSnapPointPos(bestLinkSnap.pos);
+          setLinkLineSnap({ linkId: bestLinkSnap.linkId, t: bestLinkSnap.t, pos: bestLinkSnap.pos });
+          setLinkSnapTarget(null);
+          setLinkTargetAnchor(null);
+          setLinkHoverNodeId(null);
+        } else if (nearest) {
           const picked = pickNearestAnchor(nearest.node, { x: worldX, y: worldY });
           const followCursor = linkSourceId || reanchoring;
           if (picked) {
@@ -666,42 +699,12 @@ export function Canvas() {
           setLinkHoverNodeId(nearest.node.id);
           setLinkLineSnap(null);
         } else {
-          // No nearby node — check if cursor is near an existing link line
-          // (for T-junction creation). Only when a source is already set.
-          let foundLinkSnap = false;
-          if (linkSourceId) {
-            const LINK_LINE_SNAP_DIST = 12;
-            let bestSnap: { linkId: string; t: number; pos: { x: number; y: number }; dist: number } | null = null;
-            for (const lk of storeState.links.values()) {
-              if (lk.id === linkSourceId) continue; // can't snap to the source link
-              const fromN = storeState.nodes.get(lk.fromNodeId);
-              const toN = storeState.nodes.get(lk.toNodeId);
-              if (!fromN && !toN) continue;
-              const path = [
-                fromN ? { x: fromN.x * CELL, y: fromN.y * CELL } : { x: 0, y: 0 },
-                ...(lk.midpoints || []).map((mp) => ({ x: mp.x * CELL, y: mp.y * CELL })),
-                toN ? { x: toN.x * CELL, y: toN.y * CELL } : { x: 0, y: 0 },
-              ];
-              const proj = projectOntoPolyline(path, { x: worldX, y: worldY });
-              if (proj.dist < LINK_LINE_SNAP_DIST && (!bestSnap || proj.dist < bestSnap.dist)) {
-                bestSnap = { linkId: lk.id, t: proj.t, pos: proj.pos, dist: proj.dist };
-              }
-            }
-            if (bestSnap) {
-              setMousePos(bestSnap.pos);
-              setSnapPointPos(bestSnap.pos);
-              setLinkLineSnap({ linkId: bestSnap.linkId, t: bestSnap.t, pos: bestSnap.pos });
-              foundLinkSnap = true;
-            }
-          }
-          if (!foundLinkSnap) {
-            if (linkSourceId || reanchoring) setMousePos({ x: worldX, y: worldY });
-            setLinkLineSnap(null);
-            setSnapPointPos(null);
-          }
+          if (linkSourceId || reanchoring) setMousePos({ x: worldX, y: worldY });
           setLinkSnapTarget(null);
           setLinkTargetAnchor(null);
+          setSnapPointPos(null);
           setLinkHoverNodeId(null);
+          setLinkLineSnap(null);
         }
       } else {
         setLinkHoverNodeId(null);
@@ -1119,6 +1122,9 @@ export function Canvas() {
             if (!targetAnchor?.shape || targetAnchor.shape.kind === 'point') return null;
             return <SnapPointDot pos={snapPointPos} />;
           })()}
+
+          {/* Snap point on link line (T-junction preview) */}
+          {activeTool === 'link' && linkLineSnap && <SnapPointDot pos={linkLineSnap.pos} />}
 
           {/* Anchor point indicators in link mode — rendered AFTER nodes so they're on top */}
           {activeTool === 'link' && linkHoverNodeId && (() => {
