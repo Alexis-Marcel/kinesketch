@@ -97,12 +97,14 @@ export function LinkRenderer({
 
   // T-junction resolution: if an endpoint is attached to another link
   // instead of a node, compute its position from the host link's path.
-  const allLinks = useDiagramStore((s) => s.links);
+  // Only subscribe to the specific host link (not the entire links map)
+  // to avoid re-rendering every LinkRenderer on any link change.
   const isTJunctionTo = !!(link.toLinkId && link.toLinkT !== undefined);
   const isTJunctionFrom = !!(link.fromLinkId && link.fromLinkT !== undefined);
+  const toHostLink = useDiagramStore((s) => isTJunctionTo ? s.links.get(link.toLinkId!) : undefined);
+  const fromHostLink = useDiagramStore((s) => isTJunctionFrom ? s.links.get(link.fromLinkId!) : undefined);
 
-  const resolveTJunction = (hostLinkId: string, t: number): { x: number; y: number } | null => {
-    const host = allLinks.get(hostLinkId);
+  const resolveTJunction = (host: Link | undefined, t: number): { x: number; y: number } | null => {
     if (!host) return null;
     const hFrom = nodes.get(host.fromNodeId);
     const hTo = nodes.get(host.toNodeId);
@@ -115,8 +117,8 @@ export function LinkRenderer({
     return pointOnPolyline(hostPath, t);
   };
 
-  const tjTo = isTJunctionTo ? resolveTJunction(link.toLinkId!, link.toLinkT!) : null;
-  const tjFrom = isTJunctionFrom ? resolveTJunction(link.fromLinkId!, link.fromLinkT!) : null;
+  const tjTo = isTJunctionTo ? resolveTJunction(toHostLink, link.toLinkT!) : null;
+  const tjFrom = isTJunctionFrom ? resolveTJunction(fromHostLink, link.fromLinkT!) : null;
 
   // Midpoints are stored in grid units; convert once into pixels here so the
   // line / handles / projection all share the same coordinate space.
