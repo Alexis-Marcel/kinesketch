@@ -103,10 +103,11 @@ export function LinkRenderer({
   const lineRef = React.useRef<Konva.Line>(null);
   const creatingRef = React.useRef<{ segIdx: number } | null>(null);
 
+  // Nodes map — needed for anchor resolution AND T-junction host path computation.
+  const nodes = useDiagramStore((s) => s.nodes);
+
   // T-junction resolution: if an endpoint is attached to another link
   // instead of a node, compute its position from the host link's path.
-  // Only subscribe to the specific host link (not the entire links map)
-  // to avoid re-rendering every LinkRenderer on any link change.
   const isTJunctionTo = !!(link.toLinkId && link.toLinkT !== undefined);
   const isTJunctionFrom = !!(link.fromLinkId && link.fromLinkT !== undefined);
   const toHostLink = useDiagramStore((s) => isTJunctionTo ? s.links.get(link.toLinkId!) : undefined);
@@ -163,7 +164,6 @@ export function LinkRenderer({
   toRef.current = toFinal;
 
   // For ortho/ortho-persp routing, compute auto-routed corners via A*.
-  const nodes = useDiagramStore((s) => s.nodes);
   const routingMode = link.routingMode ?? 'direct';
   const autoCorners = React.useMemo(() => {
     if (routingMode === 'direct') return null;
