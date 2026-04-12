@@ -168,6 +168,7 @@ export interface DiagramState extends DiagramData {
     fromAnchorIdx?: number,
     fromAnchorOffset?: AnchorOffset
   ) => void;
+  reanchorLinkToLink: (id: string, end: 'from' | 'to', targetLinkId: string, t: number) => void;
   updateLinkAnchor: (id: string, end: 'from' | 'to', anchorIdx: number, offset?: AnchorOffset) => void;
   reanchorLink: (id: string, end: 'from' | 'to', newNodeId: string, anchorIdx: number, offset?: AnchorOffset) => void;
   updateLinkMidpoints: (id: string, midpoints: Array<{ x: number; y: number }>) => void;
