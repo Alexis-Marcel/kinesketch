@@ -329,7 +329,6 @@ export function LinkRenderer({
       {/* Main polyline — uses arcTo for rounded corners on ortho routes */}
       {isAutoRouted && renderedPoints.length > 2 ? (
         <Shape
-          ref={lineRef as React.RefObject<Konva.Shape>}
           sceneFunc={(ctx, shape) => {
             const pts = renderedPoints;
             const r = 6;
@@ -341,10 +340,19 @@ export function LinkRenderer({
             ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
             ctx.strokeShape(shape);
           }}
+          hitFunc={(ctx, shape) => {
+            const pts = renderedPoints;
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y);
+            for (let i = 1; i < pts.length; i++) {
+              ctx.lineTo(pts[i].x, pts[i].y);
+            }
+            ctx.fillStrokeShape(shape);
+          }}
           stroke={strokeColor}
           strokeWidth={strokeWidth}
-          hitStrokeWidth={12}
-          dash={dashPattern}
+          hitStrokeWidth={14}
+          {...(dashPattern ? { dash: dashPattern } : {})}
         />
       ) : (
         <Line
@@ -353,7 +361,7 @@ export function LinkRenderer({
           stroke={strokeColor}
           strokeWidth={strokeWidth}
           hitStrokeWidth={12}
-          dash={dashPattern}
+          {...(dashPattern ? { dash: dashPattern } : {})}
         />
       )}
       {/* Arrowheads */}
