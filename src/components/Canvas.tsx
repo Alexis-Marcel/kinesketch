@@ -1114,6 +1114,7 @@ export function Canvas() {
                 end={reanchoring.end}
                 mousePos={mousePos}
                 nodes={nodes}
+                links={links}
                 solides={solides}
                 nodeSolideMapping={nodeSolideMapping}
               />
