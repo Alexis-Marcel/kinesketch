@@ -23,6 +23,7 @@ import {
 import type { AnchorOffset, LiaisonType } from '../types';
 import { snap, CELL } from '../utils/snap';
 import { pointerToWorld } from '../utils/stage';
+import { projectOntoPolyline } from '../utils/linkPath';
 import { findNearestNode, getAnchors, pickNearestAnchor, type SolideMapping } from '../utils/anchors';
 import { getLiaisonBounds } from '../liaisons/bounds';
 
@@ -50,6 +51,8 @@ export function Canvas() {
   /** World position of the live snap point on a shape anchor (where a click would attach). */
   const [snapPointPos, setSnapPointPos] = useState<{ x: number; y: number } | null>(null);
   const [reanchoring, setReanchoring] = useState<{ linkId: string; end: 'from' | 'to' } | null>(null);
+  /** When snapping to a link line (for T-junction creation), tracks which link and t parameter. */
+  const [linkLineSnap, setLinkLineSnap] = useState<{ linkId: string; t: number; pos: { x: number; y: number } } | null>(null);
   const isSelecting = useRef(false);
   const isPanning = useRef(false);
   const panStart = useRef({ x: 0, y: 0 });
@@ -85,6 +88,7 @@ export function Canvas() {
   const setStagePosition = useDiagramStore((s) => s.setStagePosition);
   const setStageScale = useDiagramStore((s) => s.setStageScale);
   const addLink = useDiagramStore((s) => s.addLink);
+  const addLinkToLink = useDiagramStore((s) => s.addLinkToLink);
   const reanchorLink = useDiagramStore((s) => s.reanchorLink);
   const setLinkSource = useDiagramStore((s) => s.setLinkSource);
   const setTool = useDiagramStore((s) => s.setTool);
@@ -320,13 +324,20 @@ export function Canvas() {
           commitLinkAtAnchor(linkSnapTarget, linkTargetAnchor.idx, linkTargetAnchor.offset);
           return;
         }
+        // T-junction: if snapped to a link line, create a link-to-link connection
+        if (linkSourceId && linkLineSnap) {
+          addLinkToLink(linkSourceId, linkLineSnap.linkId, linkLineSnap.t, linkSourceAnchor?.idx, linkSourceAnchor?.offset);
+          resetLinkState();
+          setLinkLineSnap(null);
+          return;
+        }
         resetLinkState();
         setTool('select');
         return;
       }
       clearSelection();
     },
-    [activeTool, placingLiaison, stageX, stageY, stageScale, addNode, clearSelection, setTool, linkSnapTarget, linkTargetAnchor, commitLinkAtAnchor, resetLinkState]
+    [activeTool, placingLiaison, stageX, stageY, stageScale, addNode, clearSelection, setTool, linkSnapTarget, linkTargetAnchor, commitLinkAtAnchor, resetLinkState, linkSourceId, linkLineSnap, linkSourceAnchor, addLinkToLink]
   );
 
   // Click on a node body. In link mode, the hover handler has already aligned
@@ -614,11 +625,43 @@ export function Canvas() {
           }
           setLinkSnapTarget(nearest.node.id);
           setLinkHoverNodeId(nearest.node.id);
+          setLinkLineSnap(null);
         } else {
-          if (linkSourceId || reanchoring) setMousePos({ x: worldX, y: worldY });
+          // No nearby node — check if cursor is near an existing link line
+          // (for T-junction creation). Only when a source is already set.
+          let foundLinkSnap = false;
+          if (linkSourceId) {
+            const LINK_LINE_SNAP_DIST = 12;
+            let bestSnap: { linkId: string; t: number; pos: { x: number; y: number }; dist: number } | null = null;
+            for (const lk of storeState.links.values()) {
+              if (lk.id === linkSourceId) continue; // can't snap to the source link
+              const fromN = storeState.nodes.get(lk.fromNodeId);
+              const toN = storeState.nodes.get(lk.toNodeId);
+              if (!fromN && !toN) continue;
+              const path = [
+                fromN ? { x: fromN.x * CELL, y: fromN.y * CELL } : { x: 0, y: 0 },
+                ...(lk.midpoints || []).map((mp) => ({ x: mp.x * CELL, y: mp.y * CELL })),
+                toN ? { x: toN.x * CELL, y: toN.y * CELL } : { x: 0, y: 0 },
+              ];
+              const proj = projectOntoPolyline(path, { x: worldX, y: worldY });
+              if (proj.dist < LINK_LINE_SNAP_DIST && (!bestSnap || proj.dist < bestSnap.dist)) {
+                bestSnap = { linkId: lk.id, t: proj.t, pos: proj.pos, dist: proj.dist };
+              }
+            }
+            if (bestSnap) {
+              setMousePos(bestSnap.pos);
+              setSnapPointPos(bestSnap.pos);
+              setLinkLineSnap({ linkId: bestSnap.linkId, t: bestSnap.t, pos: bestSnap.pos });
+              foundLinkSnap = true;
+            }
+          }
+          if (!foundLinkSnap) {
+            if (linkSourceId || reanchoring) setMousePos({ x: worldX, y: worldY });
+            setLinkLineSnap(null);
+            setSnapPointPos(null);
+          }
           setLinkSnapTarget(null);
           setLinkTargetAnchor(null);
-          setSnapPointPos(null);
           setLinkHoverNodeId(null);
         }
       } else {
@@ -890,7 +933,9 @@ export function Canvas() {
             if (reanchoring && reanchoring.linkId === link.id) return null;
             const fromNode = nodes.get(link.fromNodeId);
             const toNode = nodes.get(link.toNodeId);
-            if (!fromNode || !toNode) return null;
+            // T-junction links may not have a toNode — that's OK
+            if (!fromNode && !link.fromLinkId) return null;
+            if (!toNode && !link.toLinkId) return null;
             return (
               <LinkRenderer
                 key={link.id}
@@ -929,7 +974,8 @@ export function Canvas() {
             if (reanchoring && reanchoring.linkId === link.id) return null;
             const fromNode = nodes.get(link.fromNodeId);
             const toNode = nodes.get(link.toNodeId);
-            if (!fromNode || !toNode) return null;
+            if (!fromNode && !link.fromLinkId) return null;
+            if (!toNode && !link.toLinkId) return null;
             return (
               <LinkRenderer
                 key={link.id}

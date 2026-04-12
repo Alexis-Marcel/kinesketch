@@ -8,6 +8,7 @@ import type { DiagramNode, Link } from '../types';
 import { getBestAnchor, type SolideMapping } from '../utils/anchors';
 import { snapPx, CELL } from '../utils/snap';
 import { computeOrthoRoute } from '../utils/orthoRouter';
+import { pointOnPolyline } from '../utils/linkPath';
 
 /**
  * Return one half of a polyline split at its length-based midpoint.
@@ -46,8 +47,8 @@ function sliceHalfPolyline(
 
 interface LinkRendererProps {
   link: Link;
-  fromNode: DiagramNode;
-  toNode: DiagramNode;
+  fromNode?: DiagramNode;
+  toNode?: DiagramNode;
   fromSolideMapping: SolideMapping;
   toSolideMapping: SolideMapping;
   selected: boolean;
@@ -94,27 +95,56 @@ export function LinkRenderer({
   const lineRef = React.useRef<Konva.Line>(null);
   const creatingRef = React.useRef<{ segIdx: number } | null>(null);
 
-  // Resolve anchor points (pinned if explicit index, otherwise auto-select).
-  // For polylines with midpoints, the relevant target for the from-side is
-  // the first midpoint (segment leaving the from-node), and symmetrically
-  // for the to-side. Without midpoints the target is the other node's center.
+  // T-junction resolution: if an endpoint is attached to another link
+  // instead of a node, compute its position from the host link's path.
+  const allLinks = useDiagramStore((s) => s.links);
+  const isTJunctionTo = !!(link.toLinkId && link.toLinkT !== undefined);
+  const isTJunctionFrom = !!(link.fromLinkId && link.fromLinkT !== undefined);
+
+  const resolveTJunction = (hostLinkId: string, t: number): { x: number; y: number } | null => {
+    const host = allLinks.get(hostLinkId);
+    if (!host) return null;
+    const hFrom = nodes.get(host.fromNodeId);
+    const hTo = nodes.get(host.toNodeId);
+    if (!hFrom && !hTo) return null;
+    const hostPath = [
+      hFrom ? { x: hFrom.x * CELL, y: hFrom.y * CELL } : { x: 0, y: 0 },
+      ...(host.midpoints || []).map((mp) => ({ x: mp.x * CELL, y: mp.y * CELL })),
+      hTo ? { x: hTo.x * CELL, y: hTo.y * CELL } : { x: 0, y: 0 },
+    ];
+    return pointOnPolyline(hostPath, t);
+  };
+
+  const tjTo = isTJunctionTo ? resolveTJunction(link.toLinkId!, link.toLinkT!) : null;
+  const tjFrom = isTJunctionFrom ? resolveTJunction(link.fromLinkId!, link.fromLinkT!) : null;
+
   // Midpoints are stored in grid units; convert once into pixels here so the
   // line / handles / projection all share the same coordinate space.
   const midpointsPx = (link.midpoints || []).map((mp) => ({ x: mp.x * CELL, y: mp.y * CELL }));
 
-  const fromTargetInit = midpointsPx[0] ?? { x: toNode.x * CELL, y: toNode.y * CELL };
-  const toTargetInit = midpointsPx[midpointsPx.length - 1] ?? { x: fromNode.x * CELL, y: fromNode.y * CELL };
+  // Resolve anchor points — for T-junction endpoints, use the resolved pos
+  // instead of the node-based anchor. For node endpoints, use getBestAnchor.
+  const toCenter = tjTo ?? (toNode ? { x: toNode.x * CELL, y: toNode.y * CELL } : { x: 0, y: 0 });
+  const fromCenter = tjFrom ?? (fromNode ? { x: fromNode.x * CELL, y: fromNode.y * CELL } : { x: 0, y: 0 });
 
-  const fromAnchor = getBestAnchor(fromNode, fromTargetInit, link.solideId, fromSolideMapping, link.fromAnchorIdx, link.fromAnchorOffset);
-  const toAnchor = getBestAnchor(toNode, toTargetInit, link.solideId, toSolideMapping, link.toAnchorIdx, link.toAnchorOffset);
-  // Second pass: refine using resolved positions on each side. With shape
-  // anchors (e.g. circles) this lets the projection settle on the actual
-  // tangent point between the two endpoints. Skipped when an offset pins
-  // the anchor: the position is fully determined by the stored offset.
+  const fromTargetInit = midpointsPx[0] ?? toCenter;
+  const toTargetInit = midpointsPx[midpointsPx.length - 1] ?? fromCenter;
+
+  const fromAnchor = tjFrom ?? (fromNode
+    ? getBestAnchor(fromNode, fromTargetInit, link.solideId, fromSolideMapping, link.fromAnchorIdx, link.fromAnchorOffset)
+    : fromCenter);
+  const toAnchor = tjTo ?? (toNode
+    ? getBestAnchor(toNode, toTargetInit, link.solideId, toSolideMapping, link.toAnchorIdx, link.toAnchorOffset)
+    : toCenter);
+
   const fromTargetFinal = midpointsPx[0] ?? toAnchor;
   const toTargetFinal = midpointsPx[midpointsPx.length - 1] ?? fromAnchor;
-  const fromFinal = getBestAnchor(fromNode, fromTargetFinal, link.solideId, fromSolideMapping, link.fromAnchorIdx, link.fromAnchorOffset);
-  const toFinal = getBestAnchor(toNode, toTargetFinal, link.solideId, toSolideMapping, link.toAnchorIdx, link.toAnchorOffset);
+  const fromFinal = tjFrom ?? (fromNode
+    ? getBestAnchor(fromNode, fromTargetFinal, link.solideId, fromSolideMapping, link.fromAnchorIdx, link.fromAnchorOffset)
+    : fromCenter);
+  const toFinal = tjTo ?? (toNode
+    ? getBestAnchor(toNode, toTargetFinal, link.solideId, toSolideMapping, link.toAnchorIdx, link.toAnchorOffset)
+    : toCenter);
 
   // Keep latest anchor refs for use in imperative handlers
   const fromRef = React.useRef(fromFinal);

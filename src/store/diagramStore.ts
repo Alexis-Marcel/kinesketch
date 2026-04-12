@@ -198,6 +198,12 @@ export const useDiagramStore = create<DiagramState>()(
         set((state) => {
           const links = new Map(state.links);
           links.delete(id);
+          // Cascade: delete T-junction links whose host was just deleted
+          for (const [childId, child] of links) {
+            if (child.fromLinkId === id || child.toLinkId === id) {
+              links.delete(childId);
+            }
+          }
           const selectedIds = new Set(state.selectedIds);
           selectedIds.delete(id);
           return { links, selectedIds };
@@ -240,6 +246,31 @@ export const useDiagramStore = create<DiagramState>()(
             lineStyle: style === 'solid' ? undefined : style,
           });
           return links ? { links } : state;
+        });
+      },
+
+      addLinkToLink: (fromNodeId: string, toLinkId: string, toLinkT: number, fromAnchorIdx?: number, fromAnchorOffset?: AnchorOffset) => {
+        const state = get();
+        const fromNode = state.nodes.get(fromNodeId);
+        const solideId = fromNode?.type === 'bati' ? 's0' : (state.activeSolideId || 's0');
+        const id = generateId('l');
+        const link: Link = {
+          id,
+          fromNodeId,
+          toNodeId: '',
+          toLinkId,
+          toLinkT,
+          solideId,
+          label: '',
+          labelOffsetX: 8,
+          labelOffsetY: -18,
+          fromAnchorIdx,
+          fromAnchorOffset,
+        };
+        set((s) => {
+          const links = new Map(s.links);
+          links.set(id, link);
+          return { links };
         });
       },
 
