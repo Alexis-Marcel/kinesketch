@@ -8,6 +8,41 @@ import type { DiagramNode, Link } from '../types';
 import { getBestAnchor, type SolideMapping } from '../utils/anchors';
 import { snapPx, CELL } from '../utils/snap';
 
+/**
+ * Return one half of a polyline split at its length-based midpoint.
+ * `'from'` keeps the start..midpoint slice, `'to'` keeps midpoint..end.
+ */
+function sliceHalfPolyline(
+  points: Array<{ x: number; y: number }>,
+  side: 'from' | 'to'
+): Array<{ x: number; y: number }> {
+  if (points.length < 2) return points;
+  const segLens: number[] = [];
+  let total = 0;
+  for (let i = 0; i < points.length - 1; i++) {
+    const len = Math.hypot(points[i + 1].x - points[i].x, points[i + 1].y - points[i].y);
+    segLens.push(len);
+    total += len;
+  }
+  if (total === 0) return points;
+  const target = total / 2;
+  let acc = 0;
+  for (let i = 0; i < segLens.length; i++) {
+    if (acc + segLens[i] >= target) {
+      const t = (target - acc) / segLens[i];
+      const mid = {
+        x: points[i].x + (points[i + 1].x - points[i].x) * t,
+        y: points[i].y + (points[i + 1].y - points[i].y) * t,
+      };
+      return side === 'from'
+        ? [...points.slice(0, i + 1), mid]
+        : [mid, ...points.slice(i + 1)];
+    }
+    acc += segLens[i];
+  }
+  return points;
+}
+
 interface LinkRendererProps {
   link: Link;
   fromNode: DiagramNode;
@@ -18,9 +53,33 @@ interface LinkRendererProps {
   onSelect: () => void;
   onDblClick: () => void;
   onLabelDragEnd: (ox: number, oy: number) => void;
+  /**
+   * Render only one half of the polyline. 'from' = from-anchor → midpoint of
+   * the path, 'to' = midpoint → to-anchor. Used to overlay the front half of
+   * a mixed-front/behind link in Pass 4 (so the front end shows over the
+   * node), while the full line lives in Pass 2 to be masked at the behind end.
+   */
+  halfMode?: 'from' | 'to';
+  /**
+   * If false, suppress the label and midpoint handles. Set on the half-line
+   * overlay instance to avoid drawing labels/handles twice.
+   */
+  interactive?: boolean;
 }
 
-export function LinkRenderer({ link, fromNode, toNode, fromSolideMapping, toSolideMapping, selected, onSelect, onDblClick, onLabelDragEnd }: LinkRendererProps) {
+export function LinkRenderer({
+  link,
+  fromNode,
+  toNode,
+  fromSolideMapping,
+  toSolideMapping,
+  selected,
+  onSelect,
+  onDblClick,
+  onLabelDragEnd,
+  halfMode,
+  interactive = true,
+}: LinkRendererProps) {
   const solides = useDiagramStore((s) => s.solides);
   const updateLinkMidpoints = useDiagramStore((s) => s.updateLinkMidpoints);
   const selectedMidpoint = useDiagramStore((s) => s.selectedMidpoint);
@@ -69,8 +128,12 @@ export function LinkRenderer({ link, fromNode, toNode, fromSolideMapping, toSoli
     toFinal,
   ];
 
-  // Flatten to Konva points array
-  const flatPoints = allPoints.flatMap((p) => [p.x, p.y]);
+  // For mixed-classification links, render only one half of the polyline so
+  // the half whose end is in front draws ON TOP of the masking node in Pass
+  // 4, while the full line in Pass 2 still gets masked correctly at the
+  // behind end. Split at the geometric midpoint along the polyline length.
+  const renderedPoints = halfMode ? sliceHalfPolyline(allPoints, halfMode) : allPoints;
+  const flatPoints = renderedPoints.flatMap((p) => [p.x, p.y]);
 
   // Midpoint of the full path (use geometric center of all points for label)
   const midX = (fromFinal.x + toFinal.x) / 2;
@@ -175,7 +238,7 @@ export function LinkRenderer({ link, fromNode, toNode, fromSolideMapping, toSoli
         strokeWidth={strokeWidth}
         hitStrokeWidth={12}
       />
-      {link.label && (
+      {interactive && link.label && (
         <Text
           x={midX + (link.labelOffsetX ?? 8)}
           y={midY + (link.labelOffsetY ?? -18)}
@@ -192,7 +255,7 @@ export function LinkRenderer({ link, fromNode, toNode, fromSolideMapping, toSoli
         />
       )}
       {/* Existing midpoint handles — click to select, drag to move, double-click to delete */}
-      {selected && midpointsPx.map((mp, i) => {
+      {interactive && selected && midpointsPx.map((mp, i) => {
         const isMpSelected = selectedMidpoint?.linkId === link.id && selectedMidpoint?.index === i;
         return (
           <Circle
@@ -213,7 +276,7 @@ export function LinkRenderer({ link, fromNode, toNode, fromSolideMapping, toSoli
         );
       })}
       {/* Segment midpoint handles — drag to create a new bend */}
-      {selected && segmentMids.map((sm) => (
+      {interactive && selected && segmentMids.map((sm) => (
         <Circle
           key={`seg-${sm.segIdx}`}
           x={sm.x}

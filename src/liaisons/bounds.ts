@@ -23,6 +23,18 @@ const DEFAULT: Record<LiaisonView, LiaisonBounds> = {
 // Single source of truth for both the click `<Rect>` inside each liaison
 // renderer AND the dashed selection rectangle drawn in Canvas.tsx.
 const REGISTRY: Partial<Record<LiaisonType, Partial<Record<LiaisonView, LiaisonBounds>>>> = {
+  pivot: {
+    1: { halfW: 44, halfH: 16 },
+    3: { halfW: 16, halfH: 44 },
+  },
+  pivot_glissant: {
+    1: { halfW: 44, halfH: 16 },
+    3: { halfW: 16, halfH: 44 },
+  },
+  glissiere: {
+    1: { halfW: 44, halfH: 16 },
+    3: { halfW: 22, halfH: 42 },
+  },
   rotule: { 1: { halfW: 26, halfH: 26 } },
   rotule_doigt: { 1: { halfW: 26, halfH: 26 } },
   encastrement: { 1: { halfW: 36, halfH: 26 } },
