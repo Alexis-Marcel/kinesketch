@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useCallback, useEffect, useState, useMemo } from 'react';
-import { Stage, Layer } from 'react-konva';
+import { Stage, Layer, Circle } from 'react-konva';
 import type Konva from 'konva';
 import { useDiagramStore, pauseHistory, resumeHistory } from '../store/diagramStore';
 import { ShapeRenderer } from './ShapeRenderer';
@@ -14,7 +14,6 @@ import {
   HoverAnchorMarkers,
   LinkGhostLine,
   ReanchorGhostLine,
-  SelectedLinkAnchors,
   SelectionOutline,
   SelectionRect,
   SnapPointDot,
@@ -23,7 +22,7 @@ import {
 import type { AnchorOffset, LiaisonType } from '../types';
 import { snap, CELL } from '../utils/snap';
 import { pointerToWorld } from '../utils/stage';
-import { buildLinkPath, projectOntoPolyline } from '../utils/linkPath';
+import { buildLinkPath, pointOnPolyline, projectOntoPolyline } from '../utils/linkPath';
 import { findNearestNode, getAnchors, pickNearestAnchor, type SolideMapping } from '../utils/anchors';
 import { getLiaisonBounds } from '../liaisons/bounds';
 
@@ -1130,27 +1129,61 @@ export function Canvas() {
             );
           })()}
 
-          {/* Anchor indicators for selected links — let the user grab any anchor to reanchor that end */}
+          {/* Endpoint dots for selected links — show the actual attachment
+              position for each end (handles T-junctions + shape anchor offsets).
+              Drag to start reanchoring. */}
           {!reanchoring && Array.from(selectedIds).flatMap((id) => {
             const link = links.get(id);
             if (!link) return [];
-            const fromNode = nodes.get(link.fromNodeId);
-            const toNode = nodes.get(link.toNodeId);
-            if (!fromNode || !toNode) return [];
-            return [
-              <SelectedLinkAnchors
-                key={`sel-${id}`}
-                link={link}
-                fromNode={fromNode}
-                toNode={toNode}
-                onStartReanchor={(linkId, end) => {
-                  setReanchoring({ linkId, end });
-                  setMousePos(null);
-                  setLinkSnapTarget(null);
-                  setLinkTargetAnchor(null);
-                }}
-              />,
-            ];
+            const elements: React.ReactNode[] = [];
+            const startReanchor = (linkId: string, end: 'from' | 'to') => {
+              setReanchoring({ linkId, end });
+              setMousePos(null);
+              setLinkSnapTarget(null);
+              setLinkTargetAnchor(null);
+            };
+
+            // Resolve the actual world position of each end
+            const path = buildLinkPath(link, nodes);
+            const fromPos = path[0];
+            const toPos = link.toLinkId && link.toLinkT !== undefined
+              ? (() => {
+                  const hostLink = links.get(link.toLinkId);
+                  if (!hostLink) return path[path.length - 1];
+                  const hostPath = buildLinkPath(hostLink, nodes);
+                  return pointOnPolyline(hostPath, link.toLinkT);
+                })()
+              : path[path.length - 1];
+
+            if (fromPos) {
+              elements.push(
+                <Circle
+                  key={`sel-ep-from-${id}`}
+                  x={fromPos.x}
+                  y={fromPos.y}
+                  radius={5}
+                  fill="rgba(37, 99, 235, 0.5)"
+                  stroke="#2563eb"
+                  strokeWidth={1.5}
+                  onMouseDown={(e) => { e.cancelBubble = true; startReanchor(id, 'from'); }}
+                />
+              );
+            }
+            if (toPos) {
+              elements.push(
+                <Circle
+                  key={`sel-ep-to-${id}`}
+                  x={toPos.x}
+                  y={toPos.y}
+                  radius={5}
+                  fill="rgba(37, 99, 235, 0.5)"
+                  stroke="#2563eb"
+                  strokeWidth={1.5}
+                  onMouseDown={(e) => { e.cancelBubble = true; startReanchor(id, 'to'); }}
+                />
+              );
+            }
+            return elements;
           })}
 
           {/* Selection indicators — dashed rect around each selected node */}
