@@ -281,6 +281,17 @@ export function Canvas() {
   // Start or complete a link at (nodeId, anchorIdx). Used by every click
   // surface in link mode (stage / node / anchor marker) so the start/complete
   // logic lives in one place.
+  // Create a T-junction: link from source node to a point on an existing link.
+  const commitTJunction = useCallback(
+    (toLinkId: string, toLinkT: number) => {
+      if (!linkSourceId) return;
+      addLinkToLink(linkSourceId, toLinkId, toLinkT, linkSourceAnchor?.idx, linkSourceAnchor?.offset);
+      resetLinkState();
+      setLinkLineSnap(null);
+    },
+    [linkSourceId, linkSourceAnchor, addLinkToLink, resetLinkState]
+  );
+
   const commitLinkAtAnchor = useCallback(
     (nodeId: string, anchorIdx: number, offset: AnchorOffset | undefined) => {
       if (!linkSourceId) {
@@ -353,6 +364,25 @@ export function Canvas() {
       }
     },
     [activeTool, linkSnapTarget, linkTargetAnchor, commitLinkAtAnchor, select]
+  );
+
+  // Click on a link line. In link mode with a source, create a T-junction.
+  // Otherwise, select the link.
+  const handleLinkSelect = useCallback(
+    (clickedLinkId: string) => {
+      if (activeTool === 'link' && linkSourceId) {
+        // T-junction: use linkLineSnap if it targets this link, otherwise
+        // compute t=0.5 as a fallback (midpoint of the link).
+        if (linkLineSnap && linkLineSnap.linkId === clickedLinkId) {
+          commitTJunction(linkLineSnap.linkId, linkLineSnap.t);
+        } else {
+          commitTJunction(clickedLinkId, 0.5);
+        }
+        return;
+      }
+      select(clickedLinkId);
+    },
+    [activeTool, linkSourceId, linkLineSnap, commitTJunction, select]
   );
 
   // Click directly on an anchor marker. Use the explicit index but reuse the
@@ -945,7 +975,7 @@ export function Canvas() {
                 fromSolideMapping={nodeSolideMapping.get(link.fromNodeId) || { a: null, b: null }}
                 toSolideMapping={nodeSolideMapping.get(link.toNodeId) || { a: null, b: null }}
                 selected={selectedIds.has(link.id)}
-                onSelect={() => select(link.id)}
+                onSelect={() => handleLinkSelect(link.id)}
                 onDblClick={() => handleLinkDblClick(link.id)}
                 onLabelDragEnd={(ox, oy) => updateLinkLabelOffset(link.id, ox, oy)}
               />
@@ -985,7 +1015,7 @@ export function Canvas() {
                 fromSolideMapping={nodeSolideMapping.get(link.fromNodeId) || { a: null, b: null }}
                 toSolideMapping={nodeSolideMapping.get(link.toNodeId) || { a: null, b: null }}
                 selected={selectedIds.has(link.id)}
-                onSelect={() => select(link.id)}
+                onSelect={() => handleLinkSelect(link.id)}
                 onDblClick={() => handleLinkDblClick(link.id)}
                 onLabelDragEnd={(ox, oy) => updateLinkLabelOffset(link.id, ox, oy)}
               />
