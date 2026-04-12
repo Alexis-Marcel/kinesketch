@@ -297,8 +297,8 @@ export const useDiagramStore = create<DiagramState>()(
       reanchorLink: (id: string, end: 'from' | 'to', newNodeId: string, anchorIdx: number, offset?: AnchorOffset) => {
         set((state) => {
           const patch: Partial<Link> = end === 'from'
-            ? { fromNodeId: newNodeId, fromAnchorIdx: anchorIdx, fromAnchorOffset: offset }
-            : { toNodeId: newNodeId, toAnchorIdx: anchorIdx, toAnchorOffset: offset };
+            ? { fromNodeId: newNodeId, fromAnchorIdx: anchorIdx, fromAnchorOffset: offset, fromLinkId: undefined, fromLinkT: undefined }
+            : { toNodeId: newNodeId, toAnchorIdx: anchorIdx, toAnchorOffset: offset, toLinkId: undefined, toLinkT: undefined };
           const links = patchInMap(state.links, id, patch);
           return links ? { links } : state;
         });
