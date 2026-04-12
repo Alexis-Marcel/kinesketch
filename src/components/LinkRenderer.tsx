@@ -6,12 +6,7 @@ import type Konva from 'konva';
 import { useDiagramStore } from '../store/diagramStore';
 import type { DiagramNode, Link } from '../types';
 import { type SolideMapping } from '../utils/anchors';
-import { resolveEndpoint } from '../utils/linkEndpoint';
 import { snapPx, CELL } from '../utils/snap';
-import { computeOrthoRoute } from '../utils/orthoRouter';
-import type { Link as LinkType } from '../types';
-
-const EMPTY_LINKS = new Map<string, LinkType>();
 
 /**
  * Return one half of a polyline split at its length-based midpoint.
@@ -50,10 +45,10 @@ function sliceHalfPolyline(
 
 interface LinkRendererProps {
   link: Link;
-  fromNode?: DiagramNode;
-  toNode?: DiagramNode;
-  fromSolideMapping: SolideMapping;
-  toSolideMapping: SolideMapping;
+  fromNode?: DiagramNode;       // kept for midpoint drag handlers (node center)
+  toNode?: DiagramNode;         // kept for midpoint drag handlers
+  fromSolideMapping?: SolideMapping;
+  toSolideMapping?: SolideMapping;
   selected: boolean;
   onSelect: () => void;
   onDblClick: () => void;
@@ -77,14 +72,19 @@ interface LinkRendererProps {
    * INSTEAD of onSelect.
    */
   onLinkLineClick?: (worldPos: { x: number; y: number }) => void;
+  /**
+   * Pre-computed polyline from the centralized resolver. When provided,
+   * LinkRenderer skips internal endpoint resolution and uses this directly.
+   */
+  resolvedPath?: Array<{ x: number; y: number }>;
 }
 
 export function LinkRenderer({
   link,
-  fromNode,
-  toNode,
-  fromSolideMapping,
-  toSolideMapping,
+  fromNode: _fn,
+  toNode: _tn,
+  fromSolideMapping: _fm,
+  toSolideMapping: _tm,
   selected,
   onSelect,
   onDblClick,
@@ -92,6 +92,7 @@ export function LinkRenderer({
   halfMode,
   interactive = true,
   onLinkLineClick,
+  resolvedPath,
 }: LinkRendererProps) {
   const solides = useDiagramStore((s) => s.solides);
   const updateLinkMidpoints = useDiagramStore((s) => s.updateLinkMidpoints);
@@ -106,27 +107,11 @@ export function LinkRenderer({
   const lineRef = React.useRef<Konva.Line>(null);
   const creatingRef = React.useRef<{ segIdx: number } | null>(null);
 
-  // Nodes + links maps for endpoint resolution.
-  const nodes = useDiagramStore((s) => s.nodes);
-  const allLinks = useDiagramStore((s) => {
-    // Only subscribe when this link has T-junction endpoints
-    if (link.toLinkId || link.fromLinkId) return s.links;
-    return EMPTY_LINKS;
-  });
-
-  // Midpoints in pixels for Konva.
-  const midpointsPx = (link.midpoints || []).map((mp) => ({ x: mp.x * CELL, y: mp.y * CELL }));
-
-  // Two-pass anchor resolution via the centralized resolveEndpoint helper.
-  // Pass 1: initial targets (opposite node center or first/last midpoint).
-  // Pass 2: refined targets (opposite resolved anchor) for shape anchors.
-  const resolve = (end: 'from' | 'to', target: { x: number; y: number }) =>
-    resolveEndpoint(link, end, target, nodes, allLinks, end === 'from' ? fromSolideMapping : toSolideMapping);
-
-  const fromInit = resolve('from', midpointsPx[0] ?? (toNode ? { x: toNode.x * CELL, y: toNode.y * CELL } : { x: 0, y: 0 }));
-  const toInit = resolve('to', midpointsPx[midpointsPx.length - 1] ?? (fromNode ? { x: fromNode.x * CELL, y: fromNode.y * CELL } : { x: 0, y: 0 }));
-  const fromFinal = resolve('from', midpointsPx[0] ?? toInit);
-  const toFinal = resolve('to', midpointsPx[midpointsPx.length - 1] ?? fromInit);
+  // Use the pre-computed path from the centralized resolver when available.
+  // This eliminates all inline T-junction resolution and avoids per-renderer
+  // store subscriptions for nodes/links.
+  const fromFinal = resolvedPath?.[0] ?? { x: 0, y: 0 };
+  const toFinal = resolvedPath?.[resolvedPath.length - 1] ?? { x: 0, y: 0 };
 
   // Keep latest anchor refs for use in imperative handlers
   const fromRef = React.useRef(fromFinal);
@@ -134,21 +119,13 @@ export function LinkRenderer({
   fromRef.current = fromFinal;
   toRef.current = toFinal;
 
-  // For ortho/ortho-persp routing, compute auto-routed corners via A*.
-  const routingMode = link.routingMode ?? 'direct';
-  const autoCorners = React.useMemo(() => {
-    if (routingMode === 'direct') return null;
-    const excludeIds = new Set([link.fromNodeId, link.toNodeId]);
-    return computeOrthoRoute(fromFinal, toFinal, routingMode, nodes, excludeIds);
-  }, [routingMode, fromFinal.x, fromFinal.y, toFinal.x, toFinal.y, nodes, link.fromNodeId, link.toNodeId]);
+  // Midpoints in pixels — still needed for the drag handle rendering.
+  const midpointsPx = (link.midpoints || []).map((mp) => ({ x: mp.x * CELL, y: mp.y * CELL }));
 
-  // Build full point sequence: from → midpoints → to (all in pixels for Konva)
-  const activeMidpoints = autoCorners ?? midpointsPx;
-  const allPoints: Array<{ x: number; y: number }> = [
-    fromFinal,
-    ...activeMidpoints,
-    toFinal,
-  ];
+  // The resolver already includes ortho routing and midpoints in the path.
+  const allPoints: Array<{ x: number; y: number }> = resolvedPath ?? [fromFinal, toFinal];
+
+  const routingMode = link.routingMode ?? 'direct';
 
   // For mixed-classification links, render only one half of the polyline so
   // the half whose end is in front draws ON TOP of the masking node in Pass
