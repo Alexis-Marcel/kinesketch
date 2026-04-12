@@ -3,7 +3,39 @@
  * links to resolve where a link end attaches to another link's path.
  */
 
+import type { DiagramNode, Link } from '../types';
+import { anchorToWorld, getAnchors } from './anchors';
+import { CELL } from './snap';
+
 interface Point { x: number; y: number }
+
+/**
+ * Build the approximate world-space polyline for a link using resolved
+ * anchor positions (not node centers). Used for T-junction snap detection
+ * AND for rendering T-junction attachment points, so both use the same path.
+ */
+export function buildLinkPath(
+  link: Link,
+  nodes: Map<string, DiagramNode>
+): Point[] {
+  const resolveEnd = (nodeId: string, anchorIdx: number | undefined): Point => {
+    const node = nodes.get(nodeId);
+    if (!node) return { x: 0, y: 0 };
+    if (anchorIdx !== undefined) {
+      const anchors = getAnchors(node.type, node.view);
+      if (anchors[anchorIdx]) {
+        return anchorToWorld(anchors[anchorIdx], node.x * CELL, node.y * CELL, node.rotation, node.scale ?? 1);
+      }
+    }
+    return { x: node.x * CELL, y: node.y * CELL };
+  };
+
+  return [
+    resolveEnd(link.fromNodeId, link.fromAnchorIdx),
+    ...(link.midpoints || []).map((mp) => ({ x: mp.x * CELL, y: mp.y * CELL })),
+    resolveEnd(link.toNodeId, link.toAnchorIdx),
+  ];
+}
 
 /**
  * Compute the total arc-length of a polyline and the cumulative length
