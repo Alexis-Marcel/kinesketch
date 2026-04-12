@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Group, Line, Circle, Text } from 'react-konva';
+import { Group, Line, Shape, Circle, Text } from 'react-konva';
 import type Konva from 'konva';
 import { useDiagramStore } from '../store/diagramStore';
 import type { DiagramNode, Link } from '../types';
@@ -242,15 +242,91 @@ export function LinkRenderer({
     updateLinkMidpoints(link.id, newMidpoints);
   };
 
+  // Line dash pattern from lineStyle
+  const dashPattern = (() => {
+    switch (link.lineStyle) {
+      case 'dashed': return [10, 5];
+      case 'dotted': return [2, 4];
+      default: return undefined;
+    }
+  })();
+
+  // Arrow rendering helper
+  const renderArrow = (type: string | undefined, tip: { x: number; y: number }, prev: { x: number; y: number }) => {
+    if (!type || type === 'none') return null;
+    const dx = tip.x - prev.x;
+    const dy = tip.y - prev.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1) return null;
+    const ux = dx / len, uy = dy / len;
+    const px = -uy, py = ux;
+    const sz = 7;
+    if (type === 'triangle') {
+      return (
+        <Line
+          points={[
+            tip.x - ux * sz + px * sz * 0.5, tip.y - uy * sz + py * sz * 0.5,
+            tip.x, tip.y,
+            tip.x - ux * sz - px * sz * 0.5, tip.y - uy * sz - py * sz * 0.5,
+          ]}
+          closed
+          fill={strokeColor}
+          stroke={strokeColor}
+          strokeWidth={1}
+          listening={false}
+        />
+      );
+    }
+    // chevron
+    return (
+      <Line
+        points={[
+          tip.x - ux * sz + px * sz * 0.5, tip.y - uy * sz + py * sz * 0.5,
+          tip.x, tip.y,
+          tip.x - ux * sz - px * sz * 0.5, tip.y - uy * sz - py * sz * 0.5,
+        ]}
+        stroke={strokeColor}
+        strokeWidth={1.5}
+        listening={false}
+      />
+    );
+  };
+
   return (
     <Group onClick={onSelect} onTap={onSelect} onDblClick={onDblClick}>
-      <Line
-        ref={lineRef}
-        points={flatPoints}
-        stroke={strokeColor}
-        strokeWidth={strokeWidth}
-        hitStrokeWidth={12}
-      />
+      {/* Main polyline — uses arcTo for rounded corners on ortho routes */}
+      {isAutoRouted && renderedPoints.length > 2 ? (
+        <Shape
+          ref={lineRef as React.RefObject<Konva.Shape>}
+          sceneFunc={(ctx, shape) => {
+            const pts = renderedPoints;
+            const r = 6;
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y);
+            for (let i = 1; i < pts.length - 1; i++) {
+              ctx.arcTo(pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y, r);
+            }
+            ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
+            ctx.strokeShape(shape);
+          }}
+          stroke={strokeColor}
+          strokeWidth={strokeWidth}
+          hitStrokeWidth={12}
+          dash={dashPattern}
+        />
+      ) : (
+        <Line
+          ref={lineRef}
+          points={flatPoints}
+          stroke={strokeColor}
+          strokeWidth={strokeWidth}
+          hitStrokeWidth={12}
+          dash={dashPattern}
+        />
+      )}
+      {/* Arrowheads */}
+      {renderedPoints.length >= 2 && renderArrow(link.arrowStart, renderedPoints[0], renderedPoints[1])}
+      {renderedPoints.length >= 2 && renderArrow(link.arrowEnd, renderedPoints[renderedPoints.length - 1], renderedPoints[renderedPoints.length - 2])}
       {interactive && link.label && (
         <Text
           x={midX + (link.labelOffsetX ?? 8)}

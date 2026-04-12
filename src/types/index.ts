@@ -29,6 +29,8 @@ export type LiaisonView = 1 | 2 | 3;
 export type AnchorOffset = { kind: 'circle'; angle: number };
 
 export type LinkRoutingMode = 'direct' | 'ortho' | 'ortho-persp';
+export type LinkLineStyle = 'solid' | 'dashed' | 'dotted';
+export type ArrowMarker = 'none' | 'triangle' | 'chevron';
 
 export type ToolType = 'select' | 'place' | 'link';
 
@@ -83,6 +85,14 @@ export interface Link {
   toAnchorOffset?: AnchorOffset;
   midpoints?: Array<{ x: number; y: number; z?: number }>;
   routingMode?: LinkRoutingMode;
+  lineStyle?: LinkLineStyle;
+  arrowStart?: ArrowMarker;
+  arrowEnd?: ArrowMarker;
+  /** T-junction: this end attaches to a point on another link instead of a node. */
+  fromLinkId?: string;
+  fromLinkT?: number;
+  toLinkId?: string;
+  toLinkT?: number;
 }
 
 export interface AngleArc {
@@ -149,6 +159,8 @@ export interface DiagramState extends DiagramData {
   updateLinkLabelOffset: (id: string, ox: number, oy: number) => void;
   updateLinkSolide: (id: string, solideId: string) => void;
   updateLinkRouting: (id: string, mode: LinkRoutingMode) => void;
+  updateLinkLineStyle: (id: string, style: LinkLineStyle) => void;
+  updateLinkArrows: (id: string, arrowStart: ArrowMarker, arrowEnd: ArrowMarker) => void;
   updateLinkAnchor: (id: string, end: 'from' | 'to', anchorIdx: number, offset?: AnchorOffset) => void;
   reanchorLink: (id: string, end: 'from' | 'to', newNodeId: string, anchorIdx: number, offset?: AnchorOffset) => void;
   updateLinkMidpoints: (id: string, midpoints: Array<{ x: number; y: number }>) => void;

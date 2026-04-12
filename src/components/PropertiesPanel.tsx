@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useDiagramStore } from '../store/diagramStore';
 import { LIAISON_DEFS } from '../liaisons';
-import type { AngleArc, DiagramNode, LiaisonView, Link, LinkRoutingMode, Solide } from '../types';
+import type { AngleArc, ArrowMarker, DiagramNode, LiaisonView, Link, LinkLineStyle, LinkRoutingMode, Solide } from '../types';
 
 export function PropertiesPanel() {
   const selectedIds = useDiagramStore((s) => s.selectedIds);
@@ -284,6 +284,8 @@ function LinkProperties({ link }: { link: Link }) {
   const updateLinkLabel = useDiagramStore((s) => s.updateLinkLabel);
   const updateLinkSolide = useDiagramStore((s) => s.updateLinkSolide);
   const updateLinkRouting = useDiagramStore((s) => s.updateLinkRouting);
+  const updateLinkLineStyle = useDiagramStore((s) => s.updateLinkLineStyle);
+  const updateLinkArrows = useDiagramStore((s) => s.updateLinkArrows);
 
   const fromNode = nodes.get(link.fromNodeId);
   const toNode = nodes.get(link.toNodeId);
@@ -349,6 +351,43 @@ function LinkProperties({ link }: { link: Link }) {
           <option value="ortho">Orthogonal</option>
           <option value="ortho-persp">Ortho perspective</option>
         </select>
+      </div>
+
+      <div className="prop-group">
+        <label className="prop-label">Style</label>
+        <select
+          className="prop-select"
+          value={link.lineStyle ?? 'solid'}
+          onChange={(e) => updateLinkLineStyle(link.id, e.target.value as LinkLineStyle)}
+        >
+          <option value="solid">Continu</option>
+          <option value="dashed">Tirets</option>
+          <option value="dotted">Pointillé</option>
+        </select>
+      </div>
+
+      <div className="prop-group">
+        <label className="prop-label">Flèches</label>
+        <div className="prop-row">
+          <select
+            className="prop-select"
+            value={link.arrowStart ?? 'none'}
+            onChange={(e) => updateLinkArrows(link.id, e.target.value as ArrowMarker, link.arrowEnd ?? 'none')}
+          >
+            <option value="none">—</option>
+            <option value="triangle">▶ Début</option>
+            <option value="chevron">❯ Début</option>
+          </select>
+          <select
+            className="prop-select"
+            value={link.arrowEnd ?? 'none'}
+            onChange={(e) => updateLinkArrows(link.id, link.arrowStart ?? 'none', e.target.value as ArrowMarker)}
+          >
+            <option value="none">—</option>
+            <option value="triangle">▶ Fin</option>
+            <option value="chevron">❯ Fin</option>
+          </select>
+        </div>
       </div>
     </div>
   );
