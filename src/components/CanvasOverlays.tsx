@@ -1,128 +1,60 @@
 import { Circle, Group, Line, Rect } from 'react-konva';
 import type Konva from 'konva';
-import type { AnchorOffset, DiagramNode, Link, Solide } from '../types';
-import {
-  anchorToWorld,
-  getAnchors,
-  getBestAnchor,
-  type SolideMapping,
-} from '../utils/anchors';
+import type { DiagramNode, Link } from '../types';
+import { anchorToWorld, getAnchors } from '../utils/anchors';
 import { CELL } from '../utils/snap';
 import { getLiaisonBounds } from '../liaisons/bounds';
-import { buildLinkPath, pointOnPolyline } from '../utils/linkPath';
 import { AnchorMarker } from './AnchorMarker';
 
 // ---------------------------------------------------------------------------
-// Ghost link line — dashed blue line that follows the cursor while the user
-// is actively creating a new link.
+// Ghost line — unified component for BOTH link creation (dashed blue line
+// following the cursor) AND reanchoring (solid line in the link's actual
+// color with midpoints). Uses resolveEndpoint for the fixed end so
+// T-junction endpoints work correctly.
 // ---------------------------------------------------------------------------
 
-interface LinkGhostLineProps {
-  sourceNode: DiagramNode;
+interface GhostLineProps {
+  /** Position of the moving end (cursor). */
   mousePos: { x: number; y: number };
-  activeSolideId: string | null;
-  sourceMapping: SolideMapping;
-  sourceAnchorIdx: number | undefined;
-  sourceAnchorOffset: AnchorOffset | undefined;
+  /** The fixed end — either computed from a link's existing endpoint or from a source node. */
+  fixedPos: { x: number; y: number };
+  /** Midpoints between fixed and moving ends (in pixels). */
+  midpointsPx?: number[];
+  /** Which side is the mouse on? Determines point order. */
+  mouseSide: 'from' | 'to';
+  /** Line color. */
+  color: string;
+  /** Line width. */
+  strokeWidth?: number;
+  /** Whether to dash the line (creation mode). */
+  dashed?: boolean;
+  /** Opacity. */
+  opacity?: number;
 }
 
-export function LinkGhostLine({
-  sourceNode,
+export function GhostLine({
   mousePos,
-  activeSolideId,
-  sourceMapping,
-  sourceAnchorIdx,
-  sourceAnchorOffset,
-}: LinkGhostLineProps) {
-  const fromAnchor = getBestAnchor(
-    sourceNode,
-    mousePos,
-    activeSolideId,
-    sourceMapping,
-    sourceAnchorIdx,
-    sourceAnchorOffset
-  );
+  fixedPos,
+  midpointsPx,
+  mouseSide,
+  color,
+  strokeWidth: sw = 1.5,
+  dashed,
+  opacity,
+}: GhostLineProps) {
+  const mps = midpointsPx ?? [];
+  const points: number[] = mouseSide === 'from'
+    ? [mousePos.x, mousePos.y, ...mps, fixedPos.x, fixedPos.y]
+    : [fixedPos.x, fixedPos.y, ...mps, mousePos.x, mousePos.y];
   return (
     <Group listening={false}>
       <Line
-        points={[fromAnchor.x, fromAnchor.y, mousePos.x, mousePos.y]}
-        stroke="#2563eb"
-        strokeWidth={2}
-        dash={[8, 4]}
-        opacity={0.6}
+        points={points}
+        stroke={color}
+        strokeWidth={sw}
+        {...(dashed ? { dash: [8, 4] } : {})}
+        {...(opacity !== undefined ? { opacity } : {})}
       />
-    </Group>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Reanchor ghost line — solid line in the link's actual color that follows
-// the cursor as the user drags one end of an existing link to a new anchor.
-// ---------------------------------------------------------------------------
-
-interface ReanchorGhostLineProps {
-  link: Link;
-  end: 'from' | 'to';
-  mousePos: { x: number; y: number };
-  nodes: Map<string, DiagramNode>;
-  links: Map<string, Link>;
-  solides: Map<string, Solide>;
-  nodeSolideMapping: Map<string, SolideMapping>;
-}
-
-export function ReanchorGhostLine({
-  link,
-  end,
-  mousePos,
-  nodes,
-  links,
-  solides,
-  nodeSolideMapping,
-}: ReanchorGhostLineProps) {
-  const linkColor = solides.get(link.solideId)?.color || '#4b5563';
-
-  // Resolve the FIXED end position (the end that's NOT being reanchored).
-  // For node endpoints: use getBestAnchor. For T-junction: resolve from host link path.
-  let fixedPos: { x: number; y: number } | null = null;
-  if (end === 'from') {
-    // Fixed end = to
-    if (link.toLinkId && link.toLinkT !== undefined) {
-      const hostLink = links.get(link.toLinkId);
-      if (hostLink) {
-        fixedPos = pointOnPolyline(buildLinkPath(hostLink, nodes), link.toLinkT);
-      }
-    } else {
-      const fixedNode = nodes.get(link.toNodeId);
-      if (fixedNode) {
-        const fixedMapping = nodeSolideMapping.get(link.toNodeId) || { a: null, b: null };
-        fixedPos = getBestAnchor(fixedNode, mousePos, link.solideId, fixedMapping, link.toAnchorIdx, link.toAnchorOffset);
-      }
-    }
-  } else {
-    // Fixed end = from
-    if (link.fromLinkId && link.fromLinkT !== undefined) {
-      const hostLink = links.get(link.fromLinkId);
-      if (hostLink) {
-        fixedPos = pointOnPolyline(buildLinkPath(hostLink, nodes), link.fromLinkT);
-      }
-    } else {
-      const fixedNode = nodes.get(link.fromNodeId);
-      if (fixedNode) {
-        const fixedMapping = nodeSolideMapping.get(link.fromNodeId) || { a: null, b: null };
-        fixedPos = getBestAnchor(fixedNode, mousePos, link.solideId, fixedMapping, link.fromAnchorIdx, link.fromAnchorOffset);
-      }
-    }
-  }
-
-  if (!fixedPos) return null;
-
-  const mpsPx = (link.midpoints || []).flatMap((p) => [p.x * CELL, p.y * CELL]);
-  const points: number[] = end === 'from'
-    ? [mousePos.x, mousePos.y, ...mpsPx, fixedPos.x, fixedPos.y]
-    : [fixedPos.x, fixedPos.y, ...mpsPx, mousePos.x, mousePos.y];
-  return (
-    <Group listening={false}>
-      <Line points={points} stroke={linkColor} strokeWidth={1.5} />
     </Group>
   );
 }

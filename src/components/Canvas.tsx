@@ -11,18 +11,19 @@ import { AngleArcRenderer } from './AngleArcRenderer';
 import { AxisWidget } from './AxisWidget';
 import { GridLayer } from './GridLayer';
 import {
+  GhostLine,
   HoverAnchorMarkers,
-  LinkGhostLine,
-  ReanchorGhostLine,
   SelectionOutline,
   SelectionRect,
   SnapPointDot,
   TransformHandles,
 } from './CanvasOverlays';
-import type { AnchorOffset, LiaisonType } from '../types';
+import { resolveEndpoint } from '../utils/linkEndpoint';
+import type { AnchorOffset, LiaisonType, Link } from '../types';
 import { snap, CELL } from '../utils/snap';
 import { pointerToWorld } from '../utils/stage';
 import { buildLinkPath, pointOnPolyline, projectOntoPolyline } from '../utils/linkPath';
+import { hasValidEndpoint } from '../utils/linkEndpoint';
 import { findNearestNode, getAnchors, pickNearestAnchor, type SolideMapping } from '../utils/anchors';
 import { getLiaisonBounds } from '../liaisons/bounds';
 
@@ -882,6 +883,34 @@ export function Canvas() {
     ? nodes.get(Array.from(selectedIds)[0])
     : undefined;
 
+  // Shared helper to render a set of links as LinkRenderer elements.
+  // Used by both Pass 2 (behind links) and Pass 4 (front links).
+  const defaultMapping = { a: null, b: null } as const;
+  const linkLineClickEnabled = activeTool === 'link' && linkSourceId;
+  const renderLinkPass = (filter: (l: Link) => boolean) =>
+    Array.from(links.values()).filter(filter).map((link) => {
+      if (reanchoring && reanchoring.linkId === link.id) return null;
+      if (!hasValidEndpoint(link, 'from', nodes)) return null;
+      if (!hasValidEndpoint(link, 'to', nodes)) return null;
+      return (
+        <LinkRenderer
+          key={link.id}
+          link={link}
+          fromNode={nodes.get(link.fromNodeId)}
+          toNode={nodes.get(link.toNodeId)}
+          fromSolideMapping={nodeSolideMapping.get(link.fromNodeId) || defaultMapping}
+          toSolideMapping={nodeSolideMapping.get(link.toNodeId) || defaultMapping}
+          selected={selectedIds.has(link.id)}
+          onSelect={() => select(link.id)}
+          onDblClick={() => handleLinkDblClick(link.id)}
+          onLabelDragEnd={(ox, oy) => updateLinkLabelOffset(link.id, ox, oy)}
+          onLinkLineClick={linkLineClickEnabled
+            ? (worldPos) => handleLinkLineClick(link.id, worldPos)
+            : undefined}
+        />
+      );
+    });
+
   return (
     <div
       ref={containerRef}
@@ -980,32 +1009,8 @@ export function Canvas() {
             />
           ))}
 
-          {/* Pass 2: Behind links — links touching at least one "behind" anchor */}
-          {Array.from(links.values()).filter((l) => renderPasses.behindLinkIds.has(l.id)).map((link) => {
-            if (reanchoring && reanchoring.linkId === link.id) return null;
-            const fromNode = nodes.get(link.fromNodeId);
-            const toNode = nodes.get(link.toNodeId);
-            // T-junction links may not have a toNode — that's OK
-            if (!fromNode && !link.fromLinkId) return null;
-            if (!toNode && !link.toLinkId) return null;
-            return (
-              <LinkRenderer
-                key={link.id}
-                link={link}
-                fromNode={fromNode}
-                toNode={toNode}
-                fromSolideMapping={nodeSolideMapping.get(link.fromNodeId) || { a: null, b: null }}
-                toSolideMapping={nodeSolideMapping.get(link.toNodeId) || { a: null, b: null }}
-                selected={selectedIds.has(link.id)}
-                onSelect={() => select(link.id)}
-                onDblClick={() => handleLinkDblClick(link.id)}
-                onLabelDragEnd={(ox, oy) => updateLinkLabelOffset(link.id, ox, oy)}
-                onLinkLineClick={activeTool === 'link' && linkSourceId
-                  ? (worldPos) => handleLinkLineClick(link.id, worldPos)
-                  : undefined}
-              />
-            );
-          })}
+          {/* Pass 2: Behind links */}
+          {renderLinkPass((l) => renderPasses.behindLinkIds.has(l.id))}
 
           {/* Pass 3: Behind-target nodes — rendered on top of behind links so they mask them */}
           {Array.from(nodes.values()).filter((n) => renderPasses.behindNodeIds.has(n.id)).map((node) => (
@@ -1022,48 +1027,23 @@ export function Canvas() {
             />
           ))}
 
-          {/* Pass 4: Front links — regular links rendered on top of all
-              nodes, plus front-half overlays for mixed links so their front
-              end shows on top of the Pass 3 masking node. */}
-          {Array.from(links.values()).filter((l) => !renderPasses.behindLinkIds.has(l.id)).map((link) => {
-            if (reanchoring && reanchoring.linkId === link.id) return null;
-            const fromNode = nodes.get(link.fromNodeId);
-            const toNode = nodes.get(link.toNodeId);
-            if (!fromNode && !link.fromLinkId) return null;
-            if (!toNode && !link.toLinkId) return null;
-            return (
-              <LinkRenderer
-                key={link.id}
-                link={link}
-                fromNode={fromNode}
-                toNode={toNode}
-                fromSolideMapping={nodeSolideMapping.get(link.fromNodeId) || { a: null, b: null }}
-                toSolideMapping={nodeSolideMapping.get(link.toNodeId) || { a: null, b: null }}
-                selected={selectedIds.has(link.id)}
-                onSelect={() => select(link.id)}
-                onDblClick={() => handleLinkDblClick(link.id)}
-                onLabelDragEnd={(ox, oy) => updateLinkLabelOffset(link.id, ox, oy)}
-                onLinkLineClick={activeTool === 'link' && linkSourceId
-                  ? (worldPos) => handleLinkLineClick(link.id, worldPos)
-                  : undefined}
-              />
-            );
-          })}
+          {/* Pass 4: Front links */}
+          {renderLinkPass((l) => !renderPasses.behindLinkIds.has(l.id))}
+          {/* Front-half overlays for mixed behind/front links */}
           {Array.from(renderPasses.frontHalfOverlays.entries()).map(([linkId, side]) => {
             if (reanchoring && reanchoring.linkId === linkId) return null;
             const link = links.get(linkId);
             if (!link) return null;
-            const fromNode = nodes.get(link.fromNodeId);
-            const toNode = nodes.get(link.toNodeId);
-            if (!fromNode || !toNode) return null;
+            if (!hasValidEndpoint(link, 'from', nodes)) return null;
+            if (!hasValidEndpoint(link, 'to', nodes)) return null;
             return (
               <LinkRenderer
                 key={`overlay-${linkId}`}
                 link={link}
-                fromNode={fromNode}
-                toNode={toNode}
-                fromSolideMapping={nodeSolideMapping.get(link.fromNodeId) || { a: null, b: null }}
-                toSolideMapping={nodeSolideMapping.get(link.toNodeId) || { a: null, b: null }}
+                fromNode={nodes.get(link.fromNodeId)}
+                toNode={nodes.get(link.toNodeId)}
+                fromSolideMapping={nodeSolideMapping.get(link.fromNodeId) || defaultMapping}
+                toSolideMapping={nodeSolideMapping.get(link.toNodeId) || defaultMapping}
                 selected={false}
                 onSelect={() => undefined}
                 onDblClick={() => undefined}
@@ -1074,37 +1054,26 @@ export function Canvas() {
             );
           })}
 
-          {/* Ghost link line (follows mouse when linking) */}
-          {linkSourceId && mousePos && (() => {
+          {/* Ghost line — shared for creation (dashed blue) and reanchor (solid, link color) */}
+          {linkSourceId && mousePos && !reanchoring && (() => {
             const sourceNode = nodes.get(linkSourceId);
             if (!sourceNode) return null;
-            return (
-              <LinkGhostLine
-                sourceNode={sourceNode}
-                mousePos={mousePos}
-                activeSolideId={useDiagramStore.getState().activeSolideId}
-                sourceMapping={nodeSolideMapping.get(linkSourceId) || { a: null, b: null }}
-                sourceAnchorIdx={linkSourceAnchor?.idx}
-                sourceAnchorOffset={linkSourceAnchor?.offset}
-              />
+            const mapping = nodeSolideMapping.get(linkSourceId) || defaultMapping;
+            const fixedPos = resolveEndpoint(
+              { fromNodeId: linkSourceId, toNodeId: '', solideId: '', id: '', label: '', labelOffsetX: 0, labelOffsetY: 0, fromAnchorIdx: linkSourceAnchor?.idx, fromAnchorOffset: linkSourceAnchor?.offset } as Link,
+              'from', mousePos, nodes, links, mapping
             );
+            return <GhostLine mousePos={mousePos} fixedPos={fixedPos} mouseSide="to" color="#2563eb" strokeWidth={2} dashed opacity={0.6} />;
           })()}
-
-          {/* Ghost line for re-anchoring — uses link's actual color, solid */}
           {reanchoring && mousePos && (() => {
             const link = links.get(reanchoring.linkId);
             if (!link) return null;
-            return (
-              <ReanchorGhostLine
-                link={link}
-                end={reanchoring.end}
-                mousePos={mousePos}
-                nodes={nodes}
-                links={links}
-                solides={solides}
-                nodeSolideMapping={nodeSolideMapping}
-              />
-            );
+            const linkColor = solides.get(link.solideId)?.color || '#4b5563';
+            const fixedEnd = reanchoring.end === 'from' ? 'to' : 'from';
+            const fixedMapping = nodeSolideMapping.get(fixedEnd === 'from' ? link.fromNodeId : link.toNodeId) || defaultMapping;
+            const fixedPos = resolveEndpoint(link, fixedEnd, mousePos, nodes, links, fixedMapping);
+            const mpsPx = (link.midpoints || []).flatMap((p) => [p.x * CELL, p.y * CELL]);
+            return <GhostLine mousePos={mousePos} fixedPos={fixedPos} midpointsPx={mpsPx} mouseSide={reanchoring.end} color={linkColor} />;
           })()}
 
           {/* Anchor indicators during re-anchoring — show anchors on hovered node */}
