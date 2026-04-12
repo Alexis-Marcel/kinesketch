@@ -650,7 +650,7 @@ export function Canvas() {
         // (not node centers) so the snap zone matches the visible link.
         const LINK_LINE_SNAP_DIST = 15;
         let bestLinkSnap: { linkId: string; t: number; pos: { x: number; y: number }; dist: number } | null = null;
-        if (linkSourceId && !reanchoring) {
+        if (linkSourceId || reanchoring) {
           for (const lk of storeState.links.values()) {
             const path = buildLinkPath(lk, storeState.nodes);
             if (path.length < 2) continue;
@@ -762,12 +762,26 @@ export function Canvas() {
       // End re-anchoring (drag release)
       if (reanchoring) {
         if (linkSnapTarget && linkTargetAnchor) {
+          // Reanchor to a node anchor
           reanchorLink(reanchoring.linkId, reanchoring.end, linkSnapTarget, linkTargetAnchor.idx, linkTargetAnchor.offset);
+        } else if (linkLineSnap) {
+          // Reanchor to a point on another link (T-junction)
+          const end = reanchoring.end;
+          const patch: Partial<import('../types').Link> = end === 'from'
+            ? { fromNodeId: '', fromAnchorIdx: undefined, fromAnchorOffset: undefined, fromLinkId: linkLineSnap.linkId, fromLinkT: linkLineSnap.t }
+            : { toNodeId: '', toAnchorIdx: undefined, toAnchorOffset: undefined, toLinkId: linkLineSnap.linkId, toLinkT: linkLineSnap.t };
+          const links = new Map(useDiagramStore.getState().links);
+          const existing = links.get(reanchoring.linkId);
+          if (existing) {
+            links.set(reanchoring.linkId, { ...existing, ...patch });
+            useDiagramStore.setState({ links });
+          }
         }
         setReanchoring(null);
         setMousePos(null);
         setLinkSnapTarget(null);
         setLinkTargetAnchor(null);
+        setLinkLineSnap(null);
         return;
       }
 
