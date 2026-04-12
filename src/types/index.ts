@@ -161,6 +161,13 @@ export interface DiagramState extends DiagramData {
   updateLinkRouting: (id: string, mode: LinkRoutingMode) => void;
   updateLinkLineStyle: (id: string, style: LinkLineStyle) => void;
   updateLinkArrows: (id: string, arrowStart: ArrowMarker, arrowEnd: ArrowMarker) => void;
+  addLinkToLink: (
+    fromNodeId: string,
+    toLinkId: string,
+    toLinkT: number,
+    fromAnchorIdx?: number,
+    fromAnchorOffset?: AnchorOffset
+  ) => void;
   updateLinkAnchor: (id: string, end: 'from' | 'to', anchorIdx: number, offset?: AnchorOffset) => void;
   reanchorLink: (id: string, end: 'from' | 'to', newNodeId: string, anchorIdx: number, offset?: AnchorOffset) => void;
   updateLinkMidpoints: (id: string, midpoints: Array<{ x: number; y: number }>) => void;
