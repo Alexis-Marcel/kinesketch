@@ -43,7 +43,28 @@ export function findNearestNode(
  */
 export type AnchorShape =
   | { kind: 'point' }
-  | { kind: 'circle'; r: number };
+  | { kind: 'circle'; r: number }
+  /**
+   * Arc — same as a circle anchor but the snap zone is restricted to the
+   * angular interval [startAngle, endAngle] (radians, local frame, screen
+   * convention: 0 = +x, π/2 = +y / down). Used for partial circles like the
+   * rotule's 3/4 outer arc so the snap doesn't fall in the visual gap.
+   */
+  | { kind: 'arc'; r: number; startAngle: number; endAngle: number };
+
+const TWO_PI = Math.PI * 2;
+
+/**
+ * Clamp an angle to the angular interval [startAngle, endAngle] of an arc.
+ * If the angle falls inside the interval, returns it canonicalized; if it's
+ * in the gap, returns whichever endpoint is angularly closer.
+ */
+function clampAngleToArc(angle: number, startAngle: number, endAngle: number): number {
+  const span = ((endAngle - startAngle) % TWO_PI + TWO_PI) % TWO_PI;
+  const rel = ((angle - startAngle) % TWO_PI + TWO_PI) % TWO_PI;
+  if (rel <= span) return startAngle + rel;
+  return TWO_PI - rel < rel - span ? startAngle : startAngle + span;
+}
 
 export interface AnchorPoint {
   /** Local x of the anchor center (point) or shape center. */
@@ -61,9 +82,10 @@ type AnchorKey = `${LiaisonType}:${LiaisonView}`;
 
 const ANCHOR_TABLE: Partial<Record<AnchorKey, AnchorPoint[]>> = {
   // Pivot vue 1: tourillons (A) left/right, rectangle (B) top/bottom
+  // Pivot vue 1: axe horizontal (A) dépassant les tourillons
   'pivot:1': [
-    { x: -36, y: 0, side: 'A' },
-    { x: 36, y: 0, side: 'A' },
+    { x: -42, y: 0, side: 'A' },
+    { x: 42, y: 0, side: 'A' },
     { x: 0, y: -11, side: 'B' },
     { x: 0, y: 11, side: 'B' },
   ],
@@ -74,18 +96,18 @@ const ANCHOR_TABLE: Partial<Record<AnchorKey, AnchorPoint[]>> = {
     { x: -12, y: 0, side: 'A' },
     { x: 12, y: 0, side: 'A' },
   ],
-  // Pivot vue 3: cylindre vertical en perspective cavalière
+  // Pivot vue 3: cylindre vertical cavalier — axe (A) au bout dépassant les tourillons
   'pivot:3': [
-    { x: 0, y: -35, side: 'A' },
-    { x: 0, y: 35, side: 'A' },
+    { x: 0, y: -42, side: 'A' },
+    { x: 0, y: 42, side: 'A' },
     { x: 0, y: 0, side: 'B', behind: true },
   ],
-  // Glissière vue 1: simple rectangle — top/bottom (A), sides (B)
+  // Glissière vue 1: rectangle (A) + axe (B) qui dépasse à gauche/droite
   'glissiere:1': [
     { x: 0, y: -11, side: 'A' },
     { x: 0, y: 11, side: 'A' },
-    { x: -32, y: 0, side: 'B' },
-    { x: 32, y: 0, side: 'B' },
+    { x: -42, y: 0, side: 'B' },
+    { x: 42, y: 0, side: 'B' },
   ],
   // Glissière vue 2: square (A) edges, cross (B) center
   'glissiere:2': [
@@ -95,40 +117,43 @@ const ANCHOR_TABLE: Partial<Record<AnchorKey, AnchorPoint[]>> = {
     { x: 10, y: 0, side: 'A' },
     { x: 0, y: 0, side: 'B' },
   ],
-  // Glissière vue 3: pavé droit vertical en perspective cavalière
-  // Centre du carré du dessus (haut) et du dessous (bas) — perspective cavalière
+  // Glissière vue 3: pavé droit en perspective propre. Même structure que
+  // pivot vue 3 : 2 anchors aux bouts de l'axe + 1 au centre (behind, masqué
+  // par la silhouette).
   'glissiere:3': [
-    { x: 3, y: -24, side: 'A' },
-    { x: 3, y: 20, side: 'A', behind: true },
-    { x: -10, y: 0, side: 'B' },
-    { x: 10, y: 0, side: 'B' },
+    { x: 0, y: 0, side: 'A', behind: true },
+    { x: 0, y: -40, side: 'B' },
+    { x: 0, y: 40, side: 'B' },
   ],
-  // Pivot glissant vue 1: shaft (A) left/right, rectangle (B) top/bottom
+  // Pivot glissant vue 1: axe horizontal (A) étendu comme le pivot, sans tourillons
   'pivot_glissant:1': [
-    { x: -32, y: 0, side: 'A' },
-    { x: 32, y: 0, side: 'A' },
+    { x: -42, y: 0, side: 'A' },
+    { x: 42, y: 0, side: 'A' },
     { x: 0, y: -11, side: 'B' },
     { x: 0, y: 11, side: 'B' },
   ],
   // Pivot glissant vue 2: circle (A) + dot (B) — anchors on circle edge
+  // Pivot glissant vue 2: cercle vu de bout — A sur tout le périmètre,
+  // B au centre (rendu derrière pour que le cercle masque le lien entrant).
   'pivot_glissant:2': [
-    { x: 0, y: -12, side: 'A' },
-    { x: 0, y: 12, side: 'A' },
-    { x: -12, y: 0, side: 'B' },
-    { x: 12, y: 0, side: 'B' },
-  ],
-  // Pivot glissant vue 3: cylindre vertical en perspective cavalière
-  // A = centre des cercles (haut et bas du cylindre)
-  // Le bottom anchor passe derrière le cylindre, le top reste devant
-  'pivot_glissant:3': [
-    { x: 0, y: -22, side: 'A' },
-    { x: 0, y: 22, side: 'A', behind: true },
+    { x: 0, y: 0, side: 'A', shape: { kind: 'circle', r: 12 } },
     { x: 0, y: 0, side: 'B', behind: true },
   ],
-  // Rotule: center point (A), outer circle (B) — links snap anywhere on the perimeter
+  // Pivot glissant vue 3: cylindre vertical cavalier + axe (A) qui dépasse
+  // - top: bout de l'axe au-dessus du cylindre
+  // - bottom: bout de l'axe en dessous, behind (le cylindre masque la fin du lien)
+  // - center: B au centre, behind
+  'pivot_glissant:3': [
+    { x: 0, y: -42, side: 'A' },
+    { x: 0, y: 42, side: 'A', behind: true },
+    { x: 0, y: 0, side: 'B', behind: true },
+  ],
+  // Rotule: center point (A), 3/4 outer arc (B) — link snaps along the arc only
+  // (the gap on the right side is excluded). Angles match the arc drawn in
+  // Rotule.tsx: π/4 → 7π/4 (270° span, opening to the right).
   'rotule:1': [
     { x: 0, y: 0, side: 'A' },
-    { x: 0, y: 0, side: 'B', shape: { kind: 'circle', r: 15 } },
+    { x: 0, y: 0, side: 'B', shape: { kind: 'arc', r: 15, startAngle: Math.PI / 4, endAngle: 7 * Math.PI / 4 } },
   ],
   // Encastrement: single line (A) center
   'encastrement:1': [
@@ -154,10 +179,10 @@ const ANCHOR_TABLE: Partial<Record<AnchorKey, AnchorPoint[]>> = {
     { x: 0, y: 22, side: 'A', behind: true },
     { x: 0, y: 0, side: 'B', behind: true },
   ],
-  // Rotule à doigt: inner circle+doigt (A) right, 3/4 outer circle (B) left
+  // Rotule à doigt: same as rotule but with a small radial pin — same anchors.
   'rotule_doigt:1': [
-    { x: 12, y: 0, side: 'A' },
-    { x: -15, y: 0, side: 'B' },
+    { x: 0, y: 0, side: 'A' },
+    { x: 0, y: 0, side: 'B', shape: { kind: 'arc', r: 15, startAngle: Math.PI / 4, endAngle: 7 * Math.PI / 4 } },
   ],
   // Appui plan: two parallel lines — top line (A), bottom line (B)
   'appui_plan:1': [
@@ -351,7 +376,7 @@ export function computeAnchorOffsetFromWorld(
   worldPos: { x: number; y: number }
 ): AnchorOffset | undefined {
   const shape = anchor.shape ?? { kind: 'point' as const };
-  if (shape.kind !== 'circle') return undefined;
+  if (shape.kind === 'point') return undefined;
   const local = worldToLocal(
     worldPos.x,
     worldPos.y,
@@ -360,7 +385,10 @@ export function computeAnchorOffsetFromWorld(
     node.rotation,
     node.scale ?? 1
   );
-  const angle = Math.atan2(local.y - anchor.y, local.x - anchor.x);
+  let angle = Math.atan2(local.y - anchor.y, local.x - anchor.x);
+  if (shape.kind === 'arc') {
+    angle = clampAngleToArc(angle, shape.startAngle, shape.endAngle);
+  }
   return { kind: 'circle', angle };
 }
 
@@ -375,11 +403,14 @@ export function applyAnchorOffset(
   offset: AnchorOffset
 ): { x: number; y: number } | null {
   const shape = anchor.shape ?? { kind: 'point' as const };
-  if (shape.kind !== 'circle' || offset.kind !== 'circle') return null;
+  if (shape.kind === 'point' || offset.kind !== 'circle') return null;
   const scale = node.scale ?? 1;
+  const angle = shape.kind === 'arc'
+    ? clampAngleToArc(offset.angle, shape.startAngle, shape.endAngle)
+    : offset.angle;
   // Local point on the perimeter
-  const lx = anchor.x + shape.r * Math.cos(offset.angle);
-  const ly = anchor.y + shape.r * Math.sin(offset.angle);
+  const lx = anchor.x + shape.r * Math.cos(angle);
+  const ly = anchor.y + shape.r * Math.sin(angle);
   // Local → world (reuses anchorToWorld math by passing a synthetic anchor)
   return anchorToWorld({ x: lx, y: ly, side: anchor.side }, node.x * CELL, node.y * CELL, node.rotation, scale);
 }
@@ -400,15 +431,24 @@ export function projectAnchorToTarget(
 ): { x: number; y: number } {
   const center = anchorToWorld(anchor, nodeX, nodeY, rotationDeg, scale);
   const shape = anchor.shape ?? { kind: 'point' };
+  if (shape.kind === 'point') return center;
+
+  const r = shape.r * scale;
+  const dx = target.x - center.x;
+  const dy = target.y - center.y;
+  const d = Math.hypot(dx, dy);
+  if (d < 1e-6) return center;
+
   if (shape.kind === 'circle') {
-    const r = shape.r * scale;
-    const dx = target.x - center.x;
-    const dy = target.y - center.y;
-    const d = Math.hypot(dx, dy);
-    if (d < 1e-6) return center;
     return { x: center.x + (dx / d) * r, y: center.y + (dy / d) * r };
   }
-  return center;
+  // Arc — clamp the projection's angle in the local frame so it stays on the
+  // visible portion of the perimeter even when the cursor is in the gap.
+  const rotRad = (rotationDeg * Math.PI) / 180;
+  const worldAngle = Math.atan2(dy, dx);
+  const localAngle = clampAngleToArc(worldAngle - rotRad, shape.startAngle, shape.endAngle);
+  const finalAngle = localAngle + rotRad;
+  return { x: center.x + Math.cos(finalAngle) * r, y: center.y + Math.sin(finalAngle) * r };
 }
 
 /**
@@ -425,15 +465,16 @@ function distanceToAnchorShape(
   scale: number,
   target: { x: number; y: number }
 ): number {
-  const center = anchorToWorld(anchor, nodeX, nodeY, rotationDeg, scale);
-  const dx = target.x - center.x;
-  const dy = target.y - center.y;
-  const d = Math.hypot(dx, dy);
   const shape = anchor.shape ?? { kind: 'point' };
-  if (shape.kind === 'circle') {
-    return Math.abs(d - shape.r * scale);
+  if (shape.kind === 'point') {
+    const center = anchorToWorld(anchor, nodeX, nodeY, rotationDeg, scale);
+    return Math.hypot(target.x - center.x, target.y - center.y);
   }
-  return d;
+  // For circle / arc, the closest point on the visible portion is what
+  // projectAnchorToTarget returns — so distance to the *shape* is just the
+  // euclidean distance from target to that projected point.
+  const projected = projectAnchorToTarget(anchor, nodeX, nodeY, rotationDeg, scale, target);
+  return Math.hypot(target.x - projected.x, target.y - projected.y);
 }
 
 /** Within this distance (px, world coords), a point anchor wins over any shape anchor. */

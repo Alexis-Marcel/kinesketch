@@ -148,6 +148,13 @@ export function Canvas() {
   const renderPasses = useMemo(() => {
     const behindNodeIds = new Set<string>();
     const behindLinkIds = new Set<string>();
+    /**
+     * Links that are mixed front/behind: full line is drawn in Pass 2 to be
+     * masked at the behind end, then the OTHER half is drawn again in Pass 4
+     * so the front end shows on top of its node. Maps linkId → which half
+     * needs the front overlay ('from' if the FROM end is the front one).
+     */
+    const frontHalfOverlays = new Map<string, 'from' | 'to'>();
 
     for (const link of links.values()) {
       const fromNode = nodes.get(link.fromNodeId);
@@ -169,9 +176,13 @@ export function Canvas() {
       if (fromBehind) behindNodeIds.add(link.fromNodeId);
       if (toBehind) behindNodeIds.add(link.toNodeId);
       if (fromBehind || toBehind) behindLinkIds.add(link.id);
+      // Mixed: one end is front, the other behind. The front end needs an
+      // overlay so it draws on top of the masking node from Pass 3.
+      if (fromBehind && !toBehind) frontHalfOverlays.set(link.id, 'to');
+      else if (!fromBehind && toBehind) frontHalfOverlays.set(link.id, 'from');
     }
 
-    return { behindNodeIds, behindLinkIds };
+    return { behindNodeIds, behindLinkIds, frontHalfOverlays };
   }, [nodes, links]);
 
   // Track Space key for panning
@@ -911,7 +922,9 @@ export function Canvas() {
             />
           ))}
 
-          {/* Pass 4: Front links — regular links rendered on top of all nodes */}
+          {/* Pass 4: Front links — regular links rendered on top of all
+              nodes, plus front-half overlays for mixed links so their front
+              end shows on top of the Pass 3 masking node. */}
           {Array.from(links.values()).filter((l) => !renderPasses.behindLinkIds.has(l.id)).map((link) => {
             if (reanchoring && reanchoring.linkId === link.id) return null;
             const fromNode = nodes.get(link.fromNodeId);
@@ -929,6 +942,30 @@ export function Canvas() {
                 onSelect={() => select(link.id)}
                 onDblClick={() => handleLinkDblClick(link.id)}
                 onLabelDragEnd={(ox, oy) => updateLinkLabelOffset(link.id, ox, oy)}
+              />
+            );
+          })}
+          {Array.from(renderPasses.frontHalfOverlays.entries()).map(([linkId, side]) => {
+            if (reanchoring && reanchoring.linkId === linkId) return null;
+            const link = links.get(linkId);
+            if (!link) return null;
+            const fromNode = nodes.get(link.fromNodeId);
+            const toNode = nodes.get(link.toNodeId);
+            if (!fromNode || !toNode) return null;
+            return (
+              <LinkRenderer
+                key={`overlay-${linkId}`}
+                link={link}
+                fromNode={fromNode}
+                toNode={toNode}
+                fromSolideMapping={nodeSolideMapping.get(link.fromNodeId) || { a: null, b: null }}
+                toSolideMapping={nodeSolideMapping.get(link.toNodeId) || { a: null, b: null }}
+                selected={false}
+                onSelect={() => undefined}
+                onDblClick={() => undefined}
+                onLabelDragEnd={() => undefined}
+                halfMode={side}
+                interactive={false}
               />
             );
           })}

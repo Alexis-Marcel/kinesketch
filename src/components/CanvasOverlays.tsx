@@ -128,6 +128,7 @@ export function HoverAnchorMarkers({
             centerX={world.x}
             centerY={world.y}
             scale={nodeScale}
+            nodeRotation={hoverNode.rotation}
             isActive={isTarget && targetAnchorIdx === i}
             dotRadius={onAnchorClick ? 3 : 4}
             onClick={onAnchorClick
@@ -175,6 +176,7 @@ export function SelectedLinkAnchors({
           centerX={world.x}
           centerY={world.y}
           scale={scale}
+          nodeRotation={node.rotation}
           isActive={activeIdx === i}
           onMouseDown={(e) => {
             e.cancelBubble = true;

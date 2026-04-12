@@ -41,12 +41,15 @@ const verticalCylinder = (extras?: ReactNode) => (
   </>
 );
 
-// Vue-3 prism for glissiere (vertical pavé in cavalier perspective)
+// Vue-3 prism for glissiere (pavé droit en perspective propre — face avant
+// est un parallélogramme avec une croix dedans, le coin bas-droite étant le
+// point le plus bas de toute la figure)
 const glissiereVue3 = (() => {
-  const halfW = 7, halfH = 22, dx = 6, dy = 3.5;
+  const halfW = 10, halfH = 24, dx = 10, dy = 5, tilt = 4;
+  const axisHalf = 40;
   const p = (sx: number, sy: number, sz: number) => ({
     x: sx * halfW + sz * dx,
-    y: sy * halfH - sz * dy,
+    y: sy * halfH + sx * tilt - sz * dy,
   });
   const fbl = p(-1, +1, -1), fbr = p(+1, +1, -1), bbr = p(+1, +1, +1);
   const btr = p(+1, -1, +1), btl = p(-1, -1, +1), ftl = p(-1, -1, -1);
@@ -54,12 +57,13 @@ const glissiereVue3 = (() => {
   return (
     <>
       <polygon
-        points={`${fbl.x},${fbl.y} ${fbr.x},${fbr.y} ${bbr.x},${bbr.y} ${btr.x},${btr.y} ${btl.x},${btl.y} ${ftl.x},${ftl.y}`}
+        points={`${fbr.x},${fbr.y} ${fbl.x},${fbl.y} ${ftl.x},${ftl.y} ${btl.x},${btl.y} ${btr.x},${btr.y} ${bbr.x},${bbr.y}`}
         fill="white"
       />
       <line x1={yj.x} y1={yj.y} x2={ftl.x} y2={ftl.y} />
-      <line x1={yj.x} y1={yj.y} x2={fbr.x} y2={fbr.y} />
       <line x1={yj.x} y1={yj.y} x2={btr.x} y2={btr.y} />
+      <line x1={ftl.x} y1={ftl.y} x2={btr.x} y2={btr.y} />
+      <line x1={0} y1={-axisHalf} x2={0} y2={axisHalf} />
     </>
   );
 })();
@@ -71,29 +75,35 @@ const rotuleOuterArc = (
 
 export const LIAISON_ICONS: Record<LiaisonType, Partial<Record<LiaisonView, ReactNode>>> = {
   pivot: {
-    1: icon('-42 -16 84 32',
+    1: icon('-46 -16 92 32',
       <>
         <rect x={-32} y={-11} width={64} height={22} fill="white" />
-        <line x1={-36} y1={0} x2={36} y2={0} />
+        <line x1={-42} y1={0} x2={42} y2={0} />
         <line x1={-36} y1={-11} x2={-36} y2={11} />
         <line x1={36} y1={-11} x2={36} y2={11} />
       </>
     ),
     2: icon('-14 -14 28 28', <circle r={12} fill="white" />),
-    3: icon('-16 -40 32 80',
+    3: icon('-16 -46 32 92',
       <>
-        <line x1={0} y1={-35} x2={0} y2={-29} />
+        <line x1={0} y1={-42} x2={0} y2={-29} />
         <line x1={-10} y1={-37} x2={10} y2={-33} />
         {verticalCylinder()}
         <line x1={0} y1={-29} x2={0} y2={-22} />
-        <line x1={0} y1={29} x2={0} y2={35} />
+        <line x1={0} y1={29} x2={0} y2={42} />
         <line x1={-10} y1={33} x2={10} y2={37} />
       </>
     ),
   },
 
   glissiere: {
-    1: icon('-34 -14 68 28', <rect x={-32} y={-11} width={64} height={22} fill="white" />),
+    1: icon('-46 -16 92 32',
+      <>
+        <line x1={-42} y1={0} x2={-32} y2={0} />
+        <line x1={32} y1={0} x2={42} y2={0} />
+        <rect x={-32} y={-11} width={64} height={22} fill="white" />
+      </>
+    ),
     2: icon('-14 -14 28 28',
       <>
         <rect x={-11} y={-11} width={22} height={22} fill="white" />
@@ -101,14 +111,14 @@ export const LIAISON_ICONS: Record<LiaisonType, Partial<Record<LiaisonView, Reac
         <line x1={11} y1={-11} x2={-11} y2={11} />
       </>
     ),
-    3: icon('-16 -28 32 56', glissiereVue3),
+    3: icon('-24 -44 48 88', glissiereVue3),
   },
 
   pivot_glissant: {
-    1: icon('-34 -14 68 28',
+    1: icon('-46 -16 92 32',
       <>
         <rect x={-32} y={-11} width={64} height={22} fill="white" />
-        <line x1={-32} y1={0} x2={32} y2={0} />
+        <line x1={-42} y1={0} x2={42} y2={0} />
       </>
     ),
     2: icon('-14 -14 28 28',
@@ -117,7 +127,14 @@ export const LIAISON_ICONS: Record<LiaisonType, Partial<Record<LiaisonView, Reac
         <circle r={2.2} fill="currentColor" stroke="none" />
       </>
     ),
-    3: icon('-16 -34 32 68', verticalCylinder()),
+    3: icon('-16 -46 32 92',
+      <>
+        <line x1={0} y1={-42} x2={0} y2={-29} />
+        {verticalCylinder()}
+        <line x1={0} y1={-29} x2={0} y2={-22} />
+        <line x1={0} y1={29} x2={0} y2={42} />
+      </>
+    ),
   },
 
   rotule: {
