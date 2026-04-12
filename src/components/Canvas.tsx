@@ -18,12 +18,13 @@ import {
   SnapPointDot,
   TransformHandles,
 } from './CanvasOverlays';
-import { resolveEndpoint } from '../utils/linkEndpoint';
 import type { AnchorOffset, LiaisonType, Link } from '../types';
 import { snap, CELL } from '../utils/snap';
 import { pointerToWorld } from '../utils/stage';
-import { buildLinkPath, pointOnPolyline, projectOntoPolyline } from '../utils/linkPath';
+import { projectOntoPolyline } from '../utils/linkPath';
 import { hasValidEndpoint } from '../utils/linkEndpoint';
+import { resolveAllLinkPaths } from '../utils/linkPathResolver';
+import { getBestAnchor } from '../utils/anchors';
 import { findNearestNode, getAnchors, pickNearestAnchor, type SolideMapping } from '../utils/anchors';
 import { getLiaisonBounds } from '../liaisons/bounds';
 
@@ -137,6 +138,14 @@ export function Canvas() {
     }
     return { nodeColors: colors, nodeSolideMapping: mapping };
   }, [nodes, links, solides]);
+
+  // Resolve ALL link paths in one pass (topological sort for T-junctions,
+  // two-pass anchor resolution, ortho routing). Every consumer reads from
+  // this cache instead of computing positions inline.
+  const resolvedPaths = useMemo(
+    () => resolveAllLinkPaths(links, nodes, nodeSolideMapping),
+    [links, nodes, nodeSolideMapping]
+  );
 
   /**
    * Classify nodes and links into render passes based on per-anchor `behind` flags.
@@ -382,17 +391,13 @@ export function Canvas() {
   const handleLinkLineClick = useCallback(
     (clickedLinkId: string, worldPos: { x: number; y: number }) => {
       if (activeTool === 'link' && (linkSourceId || reanchoring)) {
-        const storeState = useDiagramStore.getState();
-        const clickedLink = storeState.links.get(clickedLinkId);
-        if (clickedLink) {
-          const path = buildLinkPath(clickedLink, storeState.nodes);
-          if (path.length >= 2) {
-            const proj = projectOntoPolyline(path, worldPos);
-            commitToTarget({ kind: 'link', linkId: clickedLinkId, t: proj.t });
-            return;
-          }
+        const path = resolvedPaths.get(clickedLinkId);
+        if (path && path.length >= 2) {
+          const proj = projectOntoPolyline(path, worldPos);
+          commitToTarget({ kind: 'link', linkId: clickedLinkId, t: proj.t });
+        } else {
+          commitToTarget({ kind: 'link', linkId: clickedLinkId, t: 0.5 });
         }
-        commitToTarget({ kind: 'link', linkId: clickedLinkId, t: 0.5 });
         return;
       }
       select(clickedLinkId);
@@ -668,8 +673,8 @@ export function Canvas() {
         let bestLinkSnap: { linkId: string; t: number; pos: { x: number; y: number }; dist: number } | null = null;
         if (linkSourceId || reanchoring) {
           for (const lk of storeState.links.values()) {
-            const path = buildLinkPath(lk, storeState.nodes);
-            if (path.length < 2) continue;
+            const path = resolvedPaths.get(lk.id);
+            if (!path || path.length < 2) continue;
             const proj = projectOntoPolyline(path, { x: worldX, y: worldY });
             if (proj.dist < LINK_LINE_SNAP_DIST && (!bestLinkSnap || proj.dist < bestLinkSnap.dist)) {
               bestLinkSnap = { linkId: lk.id, t: proj.t, pos: proj.pos, dist: proj.dist };
@@ -907,6 +912,7 @@ export function Canvas() {
           onLinkLineClick={linkLineClickEnabled
             ? (worldPos) => handleLinkLineClick(link.id, worldPos)
             : undefined}
+          resolvedPath={resolvedPaths.get(link.id)}
         />
       );
     });
@@ -1050,6 +1056,7 @@ export function Canvas() {
                 onLabelDragEnd={() => undefined}
                 halfMode={side}
                 interactive={false}
+                resolvedPath={resolvedPaths.get(linkId)}
               />
             );
           })}
@@ -1058,20 +1065,19 @@ export function Canvas() {
           {linkSourceId && mousePos && !reanchoring && (() => {
             const sourceNode = nodes.get(linkSourceId);
             if (!sourceNode) return null;
-            const mapping = nodeSolideMapping.get(linkSourceId) || defaultMapping;
-            const fixedPos = resolveEndpoint(
-              { fromNodeId: linkSourceId, toNodeId: '', solideId: '', id: '', label: '', labelOffsetX: 0, labelOffsetY: 0, fromAnchorIdx: linkSourceAnchor?.idx, fromAnchorOffset: linkSourceAnchor?.offset } as Link,
-              'from', mousePos, nodes, links, mapping
-            );
+            const fixedPos = getBestAnchor(sourceNode, mousePos, useDiagramStore.getState().activeSolideId,
+              nodeSolideMapping.get(linkSourceId) || defaultMapping, linkSourceAnchor?.idx, linkSourceAnchor?.offset);
             return <GhostLine mousePos={mousePos} fixedPos={fixedPos} mouseSide="to" color="#2563eb" strokeWidth={2} dashed opacity={0.6} />;
           })()}
           {reanchoring && mousePos && (() => {
             const link = links.get(reanchoring.linkId);
             if (!link) return null;
             const linkColor = solides.get(link.solideId)?.color || '#4b5563';
-            const fixedEnd = reanchoring.end === 'from' ? 'to' : 'from';
-            const fixedMapping = nodeSolideMapping.get(fixedEnd === 'from' ? link.fromNodeId : link.toNodeId) || defaultMapping;
-            const fixedPos = resolveEndpoint(link, fixedEnd, mousePos, nodes, links, fixedMapping);
+            // Use the resolved path to get the fixed end position (no recursion)
+            const path = resolvedPaths.get(link.id);
+            const fixedPos = reanchoring.end === 'from'
+              ? (path?.[path.length - 1] ?? { x: 0, y: 0 })
+              : (path?.[0] ?? { x: 0, y: 0 });
             const mpsPx = (link.midpoints || []).flatMap((p) => [p.x * CELL, p.y * CELL]);
             return <GhostLine mousePos={mousePos} fixedPos={fixedPos} midpointsPx={mpsPx} mouseSide={reanchoring.end} color={linkColor} />;
           })()}
@@ -1134,17 +1140,10 @@ export function Canvas() {
               setLinkTargetAnchor(null);
             };
 
-            // Resolve the actual world position of each end
-            const path = buildLinkPath(link, nodes);
-            const fromPos = path[0];
-            const toPos = link.toLinkId && link.toLinkT !== undefined
-              ? (() => {
-                  const hostLink = links.get(link.toLinkId);
-                  if (!hostLink) return path[path.length - 1];
-                  const hostPath = buildLinkPath(hostLink, nodes);
-                  return pointOnPolyline(hostPath, link.toLinkT);
-                })()
-              : path[path.length - 1];
+            // Use the pre-computed resolved path for endpoint positions
+            const path = resolvedPaths.get(id);
+            const fromPos = path?.[0];
+            const toPos = path?.[path.length - 1];
 
             if (fromPos) {
               elements.push(
