@@ -7,6 +7,7 @@ import { useDiagramStore } from '../store/diagramStore';
 import type { DiagramNode, Link } from '../types';
 import { getBestAnchor, type SolideMapping } from '../utils/anchors';
 import { snapPx, CELL } from '../utils/snap';
+import { computeOrthoRoute } from '../utils/orthoRouter';
 
 /**
  * Return one half of a polyline split at its length-based midpoint.
@@ -121,10 +122,20 @@ export function LinkRenderer({
   fromRef.current = fromFinal;
   toRef.current = toFinal;
 
+  // For ortho/ortho-persp routing, compute auto-routed corners via A*.
+  const nodes = useDiagramStore((s) => s.nodes);
+  const routingMode = link.routingMode ?? 'direct';
+  const autoCorners = React.useMemo(() => {
+    if (routingMode === 'direct') return null;
+    const excludeIds = new Set([link.fromNodeId, link.toNodeId]);
+    return computeOrthoRoute(fromFinal, toFinal, routingMode, nodes, excludeIds);
+  }, [routingMode, fromFinal.x, fromFinal.y, toFinal.x, toFinal.y, nodes, link.fromNodeId, link.toNodeId]);
+
   // Build full point sequence: from → midpoints → to (all in pixels for Konva)
+  const activeMidpoints = autoCorners ?? midpointsPx;
   const allPoints: Array<{ x: number; y: number }> = [
     fromFinal,
-    ...midpointsPx,
+    ...activeMidpoints,
     toFinal,
   ];
 
@@ -139,9 +150,11 @@ export function LinkRenderer({
   const midX = (fromFinal.x + toFinal.x) / 2;
   const midY = (fromFinal.y + toFinal.y) / 2;
 
-  // Compute segment midpoints for drag handles (only shown when selected)
+  // Compute segment midpoints for drag handles (only shown when selected
+  // AND in direct routing mode — auto-routed links don't have manual midpoints)
+  const isAutoRouted = routingMode !== 'direct';
   const segmentMids: Array<{ x: number; y: number; segIdx: number }> = [];
-  if (selected) {
+  if (selected && !isAutoRouted) {
     for (let i = 0; i < allPoints.length - 1; i++) {
       segmentMids.push({
         x: (allPoints[i].x + allPoints[i + 1].x) / 2,
@@ -254,8 +267,9 @@ export function LinkRenderer({
           }}
         />
       )}
-      {/* Existing midpoint handles — click to select, drag to move, double-click to delete */}
-      {interactive && selected && midpointsPx.map((mp, i) => {
+      {/* Existing midpoint handles — click to select, drag to move, double-click to delete
+          (only in direct routing mode — auto-routed links compute corners automatically) */}
+      {interactive && selected && !isAutoRouted && midpointsPx.map((mp, i) => {
         const isMpSelected = selectedMidpoint?.linkId === link.id && selectedMidpoint?.index === i;
         return (
           <Circle
