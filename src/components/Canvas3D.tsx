@@ -293,7 +293,7 @@ function Scene() {
             state.setLinkSource(linkSnapTarget);
             setSourceAnchorIdx(linkTargetAnchorIdx);
           } else if (state.linkSourceId !== linkSnapTarget) {
-            state.addLink(state.linkSourceId, linkSnapTarget, sourceAnchorIdx, linkTargetAnchorIdx);
+            state.addLink({ kind: 'node', nodeId: state.linkSourceId, anchorIdx: sourceAnchorIdx }, { kind: 'node', nodeId: linkSnapTarget, anchorIdx: linkTargetAnchorIdx });
             state.setLinkSource(null);
             setSourceAnchorIdx(undefined);
             setLinkSnapTarget(null);
@@ -321,7 +321,7 @@ function Scene() {
         state.setLinkSource(nodeId);
         setSourceAnchorIdx(anchorIdx);
       } else if (state.linkSourceId !== nodeId) {
-        state.addLink(state.linkSourceId, nodeId, sourceAnchorIdx, anchorIdx);
+        state.addLink({ kind: 'node', nodeId: state.linkSourceId, anchorIdx: sourceAnchorIdx }, { kind: 'node', nodeId: nodeId, anchorIdx: anchorIdx });
         state.setLinkSource(null);
         setSourceAnchorIdx(undefined);
         setMousePos3D(null);

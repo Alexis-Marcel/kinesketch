@@ -29,6 +29,11 @@ export type LiaisonView = 1 | 2 | 3;
 export type AnchorOffset = { kind: 'circle'; angle: number };
 
 export type LinkRoutingMode = 'direct' | 'ortho' | 'ortho-persp';
+
+/** Target for creating or reanchoring a link endpoint. */
+export type LinkTarget =
+  | { kind: 'node'; nodeId: string; anchorIdx?: number; anchorOffset?: AnchorOffset }
+  | { kind: 'link'; linkId: string; t: number };
 export type LinkLineStyle = 'solid' | 'dashed' | 'dotted';
 export type ArrowMarker = 'none' | 'triangle' | 'chevron';
 
@@ -145,32 +150,18 @@ export interface DiagramState extends DiagramData {
   updateNodeView: (id: string, view: LiaisonView) => void;
   updateNodeLabelOffset: (id: string, ox: number, oy: number) => void;
 
-  // Link actions
-  addLink: (
-    fromNodeId: string,
-    toNodeId: string,
-    fromAnchorIdx?: number,
-    toAnchorIdx?: number,
-    fromAnchorOffset?: AnchorOffset,
-    toAnchorOffset?: AnchorOffset
-  ) => void;
+  // Link actions — addLink and reanchorLink both accept LinkTarget
+  // (node or T-junction) for each endpoint, unifying the 4 old actions.
+  addLink: (from: LinkTarget, to: LinkTarget) => void;
   deleteLink: (id: string) => void;
+  reanchorLink: (id: string, end: 'from' | 'to', target: LinkTarget) => void;
   updateLinkLabel: (id: string, label: string) => void;
   updateLinkLabelOffset: (id: string, ox: number, oy: number) => void;
   updateLinkSolide: (id: string, solideId: string) => void;
   updateLinkRouting: (id: string, mode: LinkRoutingMode) => void;
   updateLinkLineStyle: (id: string, style: LinkLineStyle) => void;
   updateLinkArrows: (id: string, arrowStart: ArrowMarker, arrowEnd: ArrowMarker) => void;
-  addLinkToLink: (
-    fromNodeId: string,
-    toLinkId: string,
-    toLinkT: number,
-    fromAnchorIdx?: number,
-    fromAnchorOffset?: AnchorOffset
-  ) => void;
-  reanchorLinkToLink: (id: string, end: 'from' | 'to', targetLinkId: string, t: number) => void;
   updateLinkAnchor: (id: string, end: 'from' | 'to', anchorIdx: number, offset?: AnchorOffset) => void;
-  reanchorLink: (id: string, end: 'from' | 'to', newNodeId: string, anchorIdx: number, offset?: AnchorOffset) => void;
   updateLinkMidpoints: (id: string, midpoints: Array<{ x: number; y: number }>) => void;
 
   // Solide actions

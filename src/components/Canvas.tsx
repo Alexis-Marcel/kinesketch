@@ -87,7 +87,6 @@ export function Canvas() {
   const setStagePosition = useDiagramStore((s) => s.setStagePosition);
   const setStageScale = useDiagramStore((s) => s.setStageScale);
   const addLink = useDiagramStore((s) => s.addLink);
-  const addLinkToLink = useDiagramStore((s) => s.addLinkToLink);
   const reanchorLink = useDiagramStore((s) => s.reanchorLink);
   const setLinkSource = useDiagramStore((s) => s.setLinkSource);
   const setTool = useDiagramStore((s) => s.setTool);
@@ -277,20 +276,11 @@ export function Canvas() {
     setLinkTargetAnchor(null);
   }, [setLinkSource]);
 
-  const reanchorLinkToLink = useDiagramStore((s) => s.reanchorLinkToLink);
-
   /**
    * Commit the current snap target — works for BOTH link creation AND
    * reanchoring, and for BOTH node targets and link-line targets (T-junction).
-   *
-   * In creation mode (linkSourceId set, no reanchoring):
-   *   - Node target: creates a node-to-node link
-   *   - Link target: creates a node-to-link T-junction
-   *   - No target: starts a new link from the clicked node
-   *
-   * In reanchor mode (reanchoring set):
-   *   - Node target: moves the endpoint to the new node anchor
-   *   - Link target: moves the endpoint to the link (T-junction)
+   * All 4 cases (create×node, create×link, reanchor×node, reanchor×link)
+   * go through the unified addLink / reanchorLink store actions.
    */
   const commitToTarget = useCallback(
     (target: { kind: 'node'; nodeId: string; anchorIdx: number; offset?: AnchorOffset }
@@ -303,13 +293,13 @@ export function Canvas() {
         return;
       }
 
+      // Build LinkTarget from the commit target
+      const linkTarget = target.kind === 'node'
+        ? { kind: 'node' as const, nodeId: target.nodeId, anchorIdx: target.anchorIdx, anchorOffset: target.offset }
+        : { kind: 'link' as const, linkId: target.linkId, t: target.t };
+
       if (reanchoring) {
-        // Reanchor mode: update the existing link's endpoint
-        if (target.kind === 'node') {
-          reanchorLink(reanchoring.linkId, reanchoring.end, target.nodeId, target.anchorIdx, target.offset);
-        } else {
-          reanchorLinkToLink(reanchoring.linkId, reanchoring.end, target.linkId, target.t);
-        }
+        reanchorLink(reanchoring.linkId, reanchoring.end, linkTarget);
         setReanchoring(null);
         setMousePos(null);
         setLinkSnapTarget(null);
@@ -319,18 +309,14 @@ export function Canvas() {
       }
 
       if (!linkSourceId) return;
+      if (target.kind === 'node' && linkSourceId === target.nodeId) return;
 
-      // Creation mode: create a new link
-      if (target.kind === 'node') {
-        if (linkSourceId === target.nodeId) return;
-        addLink(linkSourceId, target.nodeId, linkSourceAnchor?.idx, target.anchorIdx, linkSourceAnchor?.offset, target.offset);
-      } else {
-        addLinkToLink(linkSourceId, target.linkId, target.t, linkSourceAnchor?.idx, linkSourceAnchor?.offset);
-      }
+      const fromTarget = { kind: 'node' as const, nodeId: linkSourceId, anchorIdx: linkSourceAnchor?.idx, anchorOffset: linkSourceAnchor?.offset };
+      addLink(fromTarget, linkTarget);
       resetLinkState();
       setLinkLineSnap(null);
     },
-    [reanchoring, linkSourceId, linkSourceAnchor, addLink, addLinkToLink, reanchorLink, reanchorLinkToLink, setLinkSource, resetLinkState]
+    [reanchoring, linkSourceId, linkSourceAnchor, addLink, reanchorLink, setLinkSource, resetLinkState]
   );
 
   // Click on empty canvas
