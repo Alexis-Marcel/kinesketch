@@ -4,36 +4,28 @@
  */
 
 import type { DiagramNode, Link } from '../types';
-import { anchorToWorld, getAnchors } from './anchors';
 import { CELL } from './snap';
+import { resolveEndpointStatic } from './linkEndpoint';
 
 interface Point { x: number; y: number }
 
 /**
  * Build the approximate world-space polyline for a link using resolved
- * anchor positions (not node centers). Used for T-junction snap detection
- * AND for rendering T-junction attachment points, so both use the same path.
+ * anchor positions (not node centers). Handles both node endpoints and
+ * T-junction endpoints via resolveEndpointStatic. Used for T-junction
+ * snap detection AND for rendering T-junction attachment points.
  */
 export function buildLinkPath(
   link: Link,
-  nodes: Map<string, DiagramNode>
+  nodes: Map<string, DiagramNode>,
+  links?: Map<string, Link>
 ): Point[] {
-  const resolveEnd = (nodeId: string, anchorIdx: number | undefined): Point => {
-    const node = nodes.get(nodeId);
-    if (!node) return { x: 0, y: 0 };
-    if (anchorIdx !== undefined) {
-      const anchors = getAnchors(node.type, node.view);
-      if (anchors[anchorIdx]) {
-        return anchorToWorld(anchors[anchorIdx], node.x * CELL, node.y * CELL, node.rotation, node.scale ?? 1);
-      }
-    }
-    return { x: node.x * CELL, y: node.y * CELL };
-  };
-
+  const emptyLinks = new Map<string, Link>();
+  const lks = links ?? emptyLinks;
   return [
-    resolveEnd(link.fromNodeId, link.fromAnchorIdx),
+    resolveEndpointStatic(link, 'from', nodes, lks),
     ...(link.midpoints || []).map((mp) => ({ x: mp.x * CELL, y: mp.y * CELL })),
-    resolveEnd(link.toNodeId, link.toAnchorIdx),
+    resolveEndpointStatic(link, 'to', nodes, lks),
   ];
 }
 

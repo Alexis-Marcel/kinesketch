@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { temporal } from 'zundo';
-import type { AnchorOffset, AngleArc, ArrowMarker, DiagramDimension, DiagramNode, DiagramState, LiaisonType, LiaisonView, Link, LinkLineStyle, LinkRoutingMode, Solide, ToolType } from '../types';
+import type { AnchorOffset, AngleArc, ArrowMarker, DiagramDimension, DiagramNode, DiagramState, LiaisonType, LiaisonView, Link, LinkLineStyle, LinkRoutingMode, LinkTarget, Solide, ToolType } from '../types';
 
 export const SOLIDE_COLORS = [
   '#6b7280', // S0 bâti — gris
@@ -158,23 +158,21 @@ export const useDiagramStore = create<DiagramState>()(
         });
       },
 
-      addLink: (fromNodeId: string, toNodeId: string, fromAnchorIdx?: number, toAnchorIdx?: number, fromAnchorOffset?: AnchorOffset, toAnchorOffset?: AnchorOffset) => {
+      addLink: (from: LinkTarget, to: LinkTarget) => {
         const state = get();
-        const fromNode = state.nodes.get(fromNodeId);
-        const toNode = state.nodes.get(toNodeId);
-        // Force S0 (bâti) when linking from/to a bâti node
+        const fromNodeId = from.kind === 'node' ? from.nodeId : '';
+        const toNodeId = to.kind === 'node' ? to.nodeId : '';
+        const fromNode = fromNodeId ? state.nodes.get(fromNodeId) : undefined;
+        const toNode = toNodeId ? state.nodes.get(toNodeId) : undefined;
         const solideId = (fromNode?.type === 'bati' || toNode?.type === 'bati') ? 's0' : (state.activeSolideId || 's0');
         const id = generateId('l');
 
+        // Auto-generate label from connected solides
         const fromSolides = new Set<string>();
         const toSolides = new Set<string>();
         for (const l of state.links.values()) {
-          if (l.fromNodeId === fromNodeId || l.toNodeId === fromNodeId) {
-            fromSolides.add(l.solideId);
-          }
-          if (l.fromNodeId === toNodeId || l.toNodeId === toNodeId) {
-            toSolides.add(l.solideId);
-          }
+          if (fromNodeId && (l.fromNodeId === fromNodeId || l.toNodeId === fromNodeId)) fromSolides.add(l.solideId);
+          if (toNodeId && (l.fromNodeId === toNodeId || l.toNodeId === toNodeId)) toSolides.add(l.solideId);
         }
         const solideNum = solideId.replace('s', '');
         let label = '';
@@ -186,7 +184,11 @@ export const useDiagramStore = create<DiagramState>()(
           label = `L${nums[0]}${nums[1]}`;
         }
 
-        const link: Link = { id, fromNodeId, toNodeId, solideId, label, labelOffsetX: 8, labelOffsetY: -18, fromAnchorIdx, toAnchorIdx, fromAnchorOffset, toAnchorOffset };
+        const link: Link = {
+          id, fromNodeId, toNodeId, solideId, label, labelOffsetX: 8, labelOffsetY: -18,
+          ...(from.kind === 'node' ? { fromAnchorIdx: from.anchorIdx, fromAnchorOffset: from.anchorOffset } : { fromLinkId: from.linkId, fromLinkT: from.t }),
+          ...(to.kind === 'node' ? { toAnchorIdx: to.anchorIdx, toAnchorOffset: to.anchorOffset } : { toLinkId: to.linkId, toLinkT: to.t }),
+        };
         set((s) => {
           const links = new Map(s.links);
           links.set(id, link);
@@ -249,31 +251,6 @@ export const useDiagramStore = create<DiagramState>()(
         });
       },
 
-      addLinkToLink: (fromNodeId: string, toLinkId: string, toLinkT: number, fromAnchorIdx?: number, fromAnchorOffset?: AnchorOffset) => {
-        const state = get();
-        const fromNode = state.nodes.get(fromNodeId);
-        const solideId = fromNode?.type === 'bati' ? 's0' : (state.activeSolideId || 's0');
-        const id = generateId('l');
-        const link: Link = {
-          id,
-          fromNodeId,
-          toNodeId: '',
-          toLinkId,
-          toLinkT,
-          solideId,
-          label: '',
-          labelOffsetX: 8,
-          labelOffsetY: -18,
-          fromAnchorIdx,
-          fromAnchorOffset,
-        };
-        set((s) => {
-          const links = new Map(s.links);
-          links.set(id, link);
-          return { links };
-        });
-      },
-
       updateLinkArrows: (id: string, arrowStart: ArrowMarker, arrowEnd: ArrowMarker) => {
         set((state) => {
           const links = patchInMap(state.links, id, {
@@ -294,21 +271,18 @@ export const useDiagramStore = create<DiagramState>()(
         });
       },
 
-      reanchorLinkToLink: (id: string, end: 'from' | 'to', targetLinkId: string, t: number) => {
+      reanchorLink: (id: string, end: 'from' | 'to', target: LinkTarget) => {
         set((state) => {
-          const patch: Partial<Link> = end === 'from'
-            ? { fromNodeId: '', fromAnchorIdx: undefined, fromAnchorOffset: undefined, fromLinkId: targetLinkId, fromLinkT: t }
-            : { toNodeId: '', toAnchorIdx: undefined, toAnchorOffset: undefined, toLinkId: targetLinkId, toLinkT: t };
-          const links = patchInMap(state.links, id, patch);
-          return links ? { links } : state;
-        });
-      },
-
-      reanchorLink: (id: string, end: 'from' | 'to', newNodeId: string, anchorIdx: number, offset?: AnchorOffset) => {
-        set((state) => {
-          const patch: Partial<Link> = end === 'from'
-            ? { fromNodeId: newNodeId, fromAnchorIdx: anchorIdx, fromAnchorOffset: offset, fromLinkId: undefined, fromLinkT: undefined }
-            : { toNodeId: newNodeId, toAnchorIdx: anchorIdx, toAnchorOffset: offset, toLinkId: undefined, toLinkT: undefined };
+          let patch: Partial<Link>;
+          if (target.kind === 'node') {
+            patch = end === 'from'
+              ? { fromNodeId: target.nodeId, fromAnchorIdx: target.anchorIdx, fromAnchorOffset: target.anchorOffset, fromLinkId: undefined, fromLinkT: undefined }
+              : { toNodeId: target.nodeId, toAnchorIdx: target.anchorIdx, toAnchorOffset: target.anchorOffset, toLinkId: undefined, toLinkT: undefined };
+          } else {
+            patch = end === 'from'
+              ? { fromNodeId: '', fromAnchorIdx: undefined, fromAnchorOffset: undefined, fromLinkId: target.linkId, fromLinkT: target.t }
+              : { toNodeId: '', toAnchorIdx: undefined, toAnchorOffset: undefined, toLinkId: target.linkId, toLinkT: target.t };
+          }
           const links = patchInMap(state.links, id, patch);
           return links ? { links } : state;
         });
