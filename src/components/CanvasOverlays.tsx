@@ -9,6 +9,7 @@ import {
 } from '../utils/anchors';
 import { CELL } from '../utils/snap';
 import { getLiaisonBounds } from '../liaisons/bounds';
+import { buildLinkPath, pointOnPolyline } from '../utils/linkPath';
 import { AnchorMarker } from './AnchorMarker';
 
 // ---------------------------------------------------------------------------
@@ -64,6 +65,7 @@ interface ReanchorGhostLineProps {
   end: 'from' | 'to';
   mousePos: { x: number; y: number };
   nodes: Map<string, DiagramNode>;
+  links: Map<string, Link>;
   solides: Map<string, Solide>;
   nodeSolideMapping: Map<string, SolideMapping>;
 }
@@ -73,18 +75,47 @@ export function ReanchorGhostLine({
   end,
   mousePos,
   nodes,
+  links,
   solides,
   nodeSolideMapping,
 }: ReanchorGhostLineProps) {
   const linkColor = solides.get(link.solideId)?.color || '#4b5563';
-  const fixedNodeId = end === 'from' ? link.toNodeId : link.fromNodeId;
-  const fixedAnchorIdx = end === 'from' ? link.toAnchorIdx : link.fromAnchorIdx;
-  const fixedAnchorOffset = end === 'from' ? link.toAnchorOffset : link.fromAnchorOffset;
-  const fixedNode = nodes.get(fixedNodeId);
-  if (!fixedNode) return null;
-  const fixedMapping = nodeSolideMapping.get(fixedNodeId) || { a: null, b: null };
-  const fixedPos = getBestAnchor(fixedNode, mousePos, link.solideId, fixedMapping, fixedAnchorIdx, fixedAnchorOffset);
-  // Midpoints are stored in grid units; the line lives in pixel space.
+
+  // Resolve the FIXED end position (the end that's NOT being reanchored).
+  // For node endpoints: use getBestAnchor. For T-junction: resolve from host link path.
+  let fixedPos: { x: number; y: number } | null = null;
+  if (end === 'from') {
+    // Fixed end = to
+    if (link.toLinkId && link.toLinkT !== undefined) {
+      const hostLink = links.get(link.toLinkId);
+      if (hostLink) {
+        fixedPos = pointOnPolyline(buildLinkPath(hostLink, nodes), link.toLinkT);
+      }
+    } else {
+      const fixedNode = nodes.get(link.toNodeId);
+      if (fixedNode) {
+        const fixedMapping = nodeSolideMapping.get(link.toNodeId) || { a: null, b: null };
+        fixedPos = getBestAnchor(fixedNode, mousePos, link.solideId, fixedMapping, link.toAnchorIdx, link.toAnchorOffset);
+      }
+    }
+  } else {
+    // Fixed end = from
+    if (link.fromLinkId && link.fromLinkT !== undefined) {
+      const hostLink = links.get(link.fromLinkId);
+      if (hostLink) {
+        fixedPos = pointOnPolyline(buildLinkPath(hostLink, nodes), link.fromLinkT);
+      }
+    } else {
+      const fixedNode = nodes.get(link.fromNodeId);
+      if (fixedNode) {
+        const fixedMapping = nodeSolideMapping.get(link.fromNodeId) || { a: null, b: null };
+        fixedPos = getBestAnchor(fixedNode, mousePos, link.solideId, fixedMapping, link.fromAnchorIdx, link.fromAnchorOffset);
+      }
+    }
+  }
+
+  if (!fixedPos) return null;
+
   const mpsPx = (link.midpoints || []).flatMap((p) => [p.x * CELL, p.y * CELL]);
   const points: number[] = end === 'from'
     ? [mousePos.x, mousePos.y, ...mpsPx, fixedPos.x, fixedPos.y]
