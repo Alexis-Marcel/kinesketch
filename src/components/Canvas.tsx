@@ -724,7 +724,7 @@ export function Canvas() {
         setSelectionRect({ ...selectionRect, x2: worldX, y2: worldY });
       }
     },
-    [activeTool, linkSourceId, reanchoring, stageX, stageY, stageScale, selectionRect, setStagePosition, rotateNode]
+    [activeTool, linkSourceId, reanchoring, stageX, stageY, stageScale, selectionRect, setStagePosition, rotateNode, resolvedPaths]
   );
 
   // Mouse down: panning or selection rect
