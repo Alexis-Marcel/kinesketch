@@ -366,23 +366,32 @@ export function Canvas() {
     [activeTool, linkSnapTarget, linkTargetAnchor, commitLinkAtAnchor, select]
   );
 
-  // Click on a link line. In link mode with a source, create a T-junction.
-  // Otherwise, select the link.
-  const handleLinkSelect = useCallback(
-    (clickedLinkId: string) => {
+  // Click on a link line with the world position — compute t and create T-junction.
+  const handleLinkLineClick = useCallback(
+    (clickedLinkId: string, worldPos: { x: number; y: number }) => {
       if (activeTool === 'link' && linkSourceId) {
-        // T-junction: use linkLineSnap if it targets this link, otherwise
-        // compute t=0.5 as a fallback (midpoint of the link).
-        if (linkLineSnap && linkLineSnap.linkId === clickedLinkId) {
-          commitTJunction(linkLineSnap.linkId, linkLineSnap.t);
-        } else {
-          commitTJunction(clickedLinkId, 0.5);
+        // Compute t by projecting the click position onto the link's path
+        const clickedLink = useDiagramStore.getState().links.get(clickedLinkId);
+        if (clickedLink) {
+          const fromN = useDiagramStore.getState().nodes.get(clickedLink.fromNodeId);
+          const toN = useDiagramStore.getState().nodes.get(clickedLink.toNodeId);
+          const path = [
+            fromN ? { x: fromN.x * CELL, y: fromN.y * CELL } : null,
+            ...(clickedLink.midpoints || []).map((mp) => ({ x: mp.x * CELL, y: mp.y * CELL })),
+            toN ? { x: toN.x * CELL, y: toN.y * CELL } : null,
+          ].filter((p): p is { x: number; y: number } => p !== null);
+          if (path.length >= 2) {
+            const proj = projectOntoPolyline(path, worldPos);
+            commitTJunction(clickedLinkId, proj.t);
+            return;
+          }
         }
+        commitTJunction(clickedLinkId, 0.5);
         return;
       }
       select(clickedLinkId);
     },
-    [activeTool, linkSourceId, linkLineSnap, commitTJunction, select]
+    [activeTool, linkSourceId, commitTJunction, select]
   );
 
   // Click directly on an anchor marker. Use the explicit index but reuse the
@@ -975,9 +984,12 @@ export function Canvas() {
                 fromSolideMapping={nodeSolideMapping.get(link.fromNodeId) || { a: null, b: null }}
                 toSolideMapping={nodeSolideMapping.get(link.toNodeId) || { a: null, b: null }}
                 selected={selectedIds.has(link.id)}
-                onSelect={() => handleLinkSelect(link.id)}
+                onSelect={() => select(link.id)}
                 onDblClick={() => handleLinkDblClick(link.id)}
                 onLabelDragEnd={(ox, oy) => updateLinkLabelOffset(link.id, ox, oy)}
+                onLinkLineClick={activeTool === 'link' && linkSourceId
+                  ? (worldPos) => handleLinkLineClick(link.id, worldPos)
+                  : undefined}
               />
             );
           })}
@@ -1015,9 +1027,12 @@ export function Canvas() {
                 fromSolideMapping={nodeSolideMapping.get(link.fromNodeId) || { a: null, b: null }}
                 toSolideMapping={nodeSolideMapping.get(link.toNodeId) || { a: null, b: null }}
                 selected={selectedIds.has(link.id)}
-                onSelect={() => handleLinkSelect(link.id)}
+                onSelect={() => select(link.id)}
                 onDblClick={() => handleLinkDblClick(link.id)}
                 onLabelDragEnd={(ox, oy) => updateLinkLabelOffset(link.id, ox, oy)}
+                onLinkLineClick={activeTool === 'link' && linkSourceId
+                  ? (worldPos) => handleLinkLineClick(link.id, worldPos)
+                  : undefined}
               />
             );
           })}

@@ -67,6 +67,13 @@ interface LinkRendererProps {
    * overlay instance to avoid drawing labels/handles twice.
    */
   interactive?: boolean;
+  /**
+   * Called when the link line is clicked, with the world-space click position.
+   * Used by Canvas to create T-junction links (the position is projected onto
+   * the polyline to compute the t parameter). When set, this callback fires
+   * INSTEAD of onSelect.
+   */
+  onLinkLineClick?: (worldPos: { x: number; y: number }) => void;
 }
 
 export function LinkRenderer({
@@ -81,6 +88,7 @@ export function LinkRenderer({
   onLabelDragEnd,
   halfMode,
   interactive = true,
+  onLinkLineClick,
 }: LinkRendererProps) {
   const solides = useDiagramStore((s) => s.solides);
   const updateLinkMidpoints = useDiagramStore((s) => s.updateLinkMidpoints);
@@ -325,7 +333,24 @@ export function LinkRenderer({
   };
 
   return (
-    <Group onClick={onSelect} onTap={onSelect} onDblClick={onDblClick} listening={interactive}>
+    <Group
+      onClick={(e) => {
+        if (onLinkLineClick) {
+          const stage = e.target.getStage();
+          const pos = stage?.getPointerPosition();
+          if (pos && stage) {
+            const transform = stage.getAbsoluteTransform().copy().invert();
+            const worldPos = transform.point(pos);
+            onLinkLineClick(worldPos);
+            return;
+          }
+        }
+        onSelect();
+      }}
+      onTap={onSelect}
+      onDblClick={onDblClick}
+      listening={interactive}
+    >
       {/* Main polyline — uses arcTo for rounded corners on ortho routes */}
       {isAutoRouted && renderedPoints.length > 2 ? (
         <Shape
