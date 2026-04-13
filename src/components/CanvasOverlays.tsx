@@ -9,8 +9,8 @@ import { AnchorMarker } from './AnchorMarker';
 // ---------------------------------------------------------------------------
 // Ghost line — unified component for BOTH link creation (dashed blue line
 // following the cursor) AND reanchoring (solid line in the link's actual
-// color with midpoints). Uses resolveEndpoint for the fixed end so
-// T-junction endpoints work correctly.
+// color with midpoints). The fixed end position is pre-computed by Canvas
+// using the centralized path resolver.
 // ---------------------------------------------------------------------------
 
 interface GhostLineProps {

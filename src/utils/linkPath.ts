@@ -1,38 +1,11 @@
 /**
- * Utilities for computing positions along a polyline path. Used by T-junction
- * links to resolve where a link end attaches to another link's path.
+ * Polyline geometry utilities — point-on-path and project-onto-path.
+ * Used by Canvas for T-junction snap detection and by linkPathResolver
+ * for T-junction position resolution.
  */
-
-import type { DiagramNode, Link } from '../types';
-import { CELL } from './snap';
-import { resolveEndpointStatic } from './linkEndpoint';
 
 interface Point { x: number; y: number }
 
-/**
- * Build the approximate world-space polyline for a link using resolved
- * anchor positions (not node centers). Handles both node endpoints and
- * T-junction endpoints via resolveEndpointStatic. Used for T-junction
- * snap detection AND for rendering T-junction attachment points.
- */
-export function buildLinkPath(
-  link: Link,
-  nodes: Map<string, DiagramNode>,
-  links?: Map<string, Link>
-): Point[] {
-  const emptyLinks = new Map<string, Link>();
-  const lks = links ?? emptyLinks;
-  return [
-    resolveEndpointStatic(link, 'from', nodes, lks),
-    ...(link.midpoints || []).map((mp) => ({ x: mp.x * CELL, y: mp.y * CELL })),
-    resolveEndpointStatic(link, 'to', nodes, lks),
-  ];
-}
-
-/**
- * Compute the total arc-length of a polyline and the cumulative length
- * at each vertex.
- */
 function cumulativeLengths(points: Point[]): { total: number; cumul: number[] } {
   const cumul = [0];
   let total = 0;
@@ -71,8 +44,7 @@ export function pointOnPolyline(points: Point[], t: number): Point {
 
 /**
  * Project a world point onto the nearest position on a polyline. Returns
- * the parameter `t ∈ [0, 1]` and the projected position. Used when the
- * user clicks on a link to create a T-junction endpoint.
+ * the parameter `t ∈ [0, 1]` and the projected position.
  */
 export function projectOntoPolyline(
   points: Point[],
@@ -95,7 +67,6 @@ export function projectOntoPolyline(
     const segLen = Math.hypot(dx, dy);
     if (segLen < 1e-6) continue;
 
-    // Project target onto segment [a, b]
     let localT = ((target.x - ax) * dx + (target.y - ay) * dy) / (segLen * segLen);
     localT = Math.max(0, Math.min(1, localT));
 

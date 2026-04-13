@@ -4,8 +4,7 @@ import React from 'react';
 import { Group, Line, Shape, Circle, Text } from 'react-konva';
 import type Konva from 'konva';
 import { useDiagramStore } from '../store/diagramStore';
-import type { DiagramNode, Link } from '../types';
-import { type SolideMapping } from '../utils/anchors';
+import type { Link } from '../types';
 import { snapPx, CELL } from '../utils/snap';
 
 /**
@@ -45,10 +44,6 @@ function sliceHalfPolyline(
 
 interface LinkRendererProps {
   link: Link;
-  fromNode?: DiagramNode;       // kept for midpoint drag handlers (node center)
-  toNode?: DiagramNode;         // kept for midpoint drag handlers
-  fromSolideMapping?: SolideMapping;
-  toSolideMapping?: SolideMapping;
   selected: boolean;
   onSelect: () => void;
   onDblClick: () => void;
@@ -81,10 +76,6 @@ interface LinkRendererProps {
 
 export function LinkRenderer({
   link,
-  fromNode: _fn,
-  toNode: _tn,
-  fromSolideMapping: _fm,
-  toSolideMapping: _tm,
   selected,
   onSelect,
   onDblClick,
