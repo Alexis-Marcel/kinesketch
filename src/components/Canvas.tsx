@@ -689,7 +689,7 @@ export function Canvas() {
 
         if (useLinkSnap && bestLinkSnap) {
           // Snap to link line (T-junction preview)
-          if (linkSourceId) setMousePos(bestLinkSnap.pos);
+          if (linkSourceId || reanchoring) setMousePos(bestLinkSnap.pos);
           setSnapPointPos(bestLinkSnap.pos);
           setLinkLineSnap({ linkId: bestLinkSnap.linkId, t: bestLinkSnap.t, pos: bestLinkSnap.pos });
           setLinkSnapTarget(null);
