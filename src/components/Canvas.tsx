@@ -672,7 +672,9 @@ export function Canvas() {
         const LINK_LINE_SNAP_DIST = 15;
         let bestLinkSnap: { linkId: string; t: number; pos: { x: number; y: number }; dist: number } | null = null;
         if (linkSourceId || reanchoring) {
+          const excludeLinkId = reanchoring?.linkId;
           for (const lk of storeState.links.values()) {
+            if (lk.id === excludeLinkId) continue;
             const path = resolvedPaths.get(lk.id);
             if (!path || path.length < 2) continue;
             const proj = projectOntoPolyline(path, { x: worldX, y: worldY });
@@ -1109,8 +1111,8 @@ export function Canvas() {
             return <SnapPointDot pos={snapPointPos} />;
           })()}
 
-          {/* Snap point on link line (T-junction preview) */}
-          {activeTool === 'link' && linkLineSnap && <SnapPointDot pos={linkLineSnap.pos} />}
+          {/* Snap point on link line (T-junction / reanchor preview) */}
+          {(activeTool === 'link' || reanchoring) && linkLineSnap && <SnapPointDot pos={linkLineSnap.pos} />}
 
           {/* Anchor point indicators in link mode — rendered AFTER nodes so they're on top */}
           {activeTool === 'link' && linkHoverNodeId && (() => {
