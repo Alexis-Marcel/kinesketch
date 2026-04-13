@@ -831,7 +831,7 @@ export function Canvas() {
 
       setSelectionRect(null);
     },
-    [selectionRect, reanchoring, linkSnapTarget, linkTargetAnchor, nodes, selectMultiple, reanchorLink]
+    [selectionRect, reanchoring, linkSnapTarget, linkTargetAnchor, linkLineSnap, nodes, selectMultiple, commitToTarget]
   );
 
   // Start rotation from handle
