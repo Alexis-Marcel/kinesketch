@@ -903,10 +903,6 @@ export function Canvas() {
         <LinkRenderer
           key={link.id}
           link={link}
-          fromNode={nodes.get(link.fromNodeId)}
-          toNode={nodes.get(link.toNodeId)}
-          fromSolideMapping={nodeSolideMapping.get(link.fromNodeId) || defaultMapping}
-          toSolideMapping={nodeSolideMapping.get(link.toNodeId) || defaultMapping}
           selected={selectedIds.has(link.id)}
           onSelect={() => select(link.id)}
           onDblClick={() => handleLinkDblClick(link.id)}
@@ -1048,10 +1044,6 @@ export function Canvas() {
               <LinkRenderer
                 key={`overlay-${linkId}`}
                 link={link}
-                fromNode={nodes.get(link.fromNodeId)}
-                toNode={nodes.get(link.toNodeId)}
-                fromSolideMapping={nodeSolideMapping.get(link.fromNodeId) || defaultMapping}
-                toSolideMapping={nodeSolideMapping.get(link.toNodeId) || defaultMapping}
                 selected={false}
                 onSelect={() => undefined}
                 onDblClick={() => undefined}
