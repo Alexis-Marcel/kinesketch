@@ -21,7 +21,7 @@ import {
 import type { AnchorOffset, LiaisonType, Link } from '../types';
 import { snap, CELL } from '../utils/snap';
 import { pointerToWorld } from '../utils/stage';
-import { projectOntoPolyline } from '../utils/linkPath';
+import { projectOntoPolyline, pointOnPolyline } from '../utils/linkPath';
 import { hasValidEndpoint } from '../utils/linkEndpoint';
 import { resolveAllLinkPaths } from '../utils/linkPathResolver';
 import { getBestAnchor } from '../utils/anchors';
@@ -30,7 +30,9 @@ import { getLiaisonBounds } from '../liaisons/bounds';
 
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 5;
-const LINK_SNAP_RADIUS = 45; // px in world coords — snap ghost line to nearby nodes
+const LINK_SNAP_RADIUS = 10; // px in world coords — snap ghost line to nearby nodes
+const LINK_LINE_SNAP_DIST = 8; // px — distance to a link line that triggers T-junction snap
+const LINK_LINE_OVER_NODE_DIST = 10; // px — link-line snap wins over node snap when this close
 
 export function Canvas() {
   const stageRef = useRef<Konva.Stage>(null);
@@ -73,7 +75,10 @@ export function Canvas() {
   const selectedIds = useDiagramStore((s) => s.selectedIds);
   const activeTool = useDiagramStore((s) => s.activeTool);
   const placingLiaison = useDiagramStore((s) => s.placingLiaison);
-  const linkSourceId = useDiagramStore((s) => s.linkSourceId);
+  const linkSource = useDiagramStore((s) => s.linkSource);
+  const linkSourceNodeId = linkSource?.kind === 'node' ? linkSource.nodeId : null;
+  const linkSourceLine = linkSource?.kind === 'link' ? linkSource : null;
+  const hasLinkSource = linkSource !== null;
   const stageX = useDiagramStore((s) => s.stageX);
   const stageY = useDiagramStore((s) => s.stageY);
   const stageScale = useDiagramStore((s) => s.stageScale);
@@ -295,11 +300,17 @@ export function Canvas() {
   const commitToTarget = useCallback(
     (target: { kind: 'node'; nodeId: string; anchorIdx: number; offset?: AnchorOffset }
            | { kind: 'link'; linkId: string; t: number }
-           | { kind: 'start'; nodeId: string; anchorIdx: number; offset?: AnchorOffset }) => {
+           | { kind: 'start'; nodeId: string; anchorIdx: number; offset?: AnchorOffset }
+           | { kind: 'start-link'; linkId: string; t: number }) => {
 
       if (target.kind === 'start') {
-        setLinkSource(target.nodeId);
+        setLinkSource({ kind: 'node', nodeId: target.nodeId });
         setLinkSourceAnchor({ idx: target.anchorIdx, offset: target.offset });
+        return;
+      }
+      if (target.kind === 'start-link') {
+        setLinkSource({ kind: 'link', linkId: target.linkId, t: target.t });
+        setLinkSourceAnchor(null);
         return;
       }
 
@@ -318,16 +329,43 @@ export function Canvas() {
         return;
       }
 
-      if (!linkSourceId) return;
-      if (target.kind === 'node' && linkSourceId === target.nodeId) return;
+      if (!linkSource) return;
+      // Prevent self-link
+      if (target.kind === 'node' && linkSource.kind === 'node' && linkSource.nodeId === target.nodeId) return;
+      if (target.kind === 'link' && linkSource.kind === 'link' && linkSource.linkId === target.linkId) return;
 
-      const fromTarget = { kind: 'node' as const, nodeId: linkSourceId, anchorIdx: linkSourceAnchor?.idx, anchorOffset: linkSourceAnchor?.offset };
+      const fromTarget = linkSource.kind === 'link'
+        ? { kind: 'link' as const, linkId: linkSource.linkId, t: linkSource.t }
+        : { kind: 'node' as const, nodeId: linkSource.nodeId, anchorIdx: linkSourceAnchor?.idx, anchorOffset: linkSourceAnchor?.offset };
       addLink(fromTarget, linkTarget);
       resetLinkState();
       setLinkLineSnap(null);
     },
-    [reanchoring, linkSourceId, linkSourceAnchor, addLink, reanchorLink, setLinkSource, resetLinkState]
+    [reanchoring, linkSource, linkSourceAnchor, addLink, reanchorLink, setLinkSource, resetLinkState]
   );
+
+  // Commit whatever the snap state currently points at. The snap dot the user
+  // sees is the source of truth — the click target itself doesn't matter.
+  // Returns true when a commit happened (caller should bail out).
+  const tryCommitFromSnap = useCallback((): boolean => {
+    if (linkSnapTarget && linkTargetAnchor) {
+      if (!hasLinkSource && !reanchoring) {
+        commitToTarget({ kind: 'start', nodeId: linkSnapTarget, anchorIdx: linkTargetAnchor.idx, offset: linkTargetAnchor.offset });
+      } else {
+        commitToTarget({ kind: 'node', nodeId: linkSnapTarget, anchorIdx: linkTargetAnchor.idx, offset: linkTargetAnchor.offset });
+      }
+      return true;
+    }
+    if (linkLineSnap) {
+      if (!hasLinkSource && !reanchoring) {
+        commitToTarget({ kind: 'start-link', linkId: linkLineSnap.linkId, t: linkLineSnap.t });
+      } else {
+        commitToTarget({ kind: 'link', linkId: linkLineSnap.linkId, t: linkLineSnap.t });
+      }
+      return true;
+    }
+    return false;
+  }, [linkSnapTarget, linkTargetAnchor, linkLineSnap, hasLinkSource, reanchoring, commitToTarget]);
 
   // Click on empty canvas
   const handleStageClick = useCallback(
@@ -351,58 +389,49 @@ export function Canvas() {
         return;
       }
       if (activeTool === 'link') {
-        if (linkSnapTarget && linkTargetAnchor) {
-          commitToTarget({ kind: 'node', nodeId: linkSnapTarget, anchorIdx: linkTargetAnchor.idx, offset: linkTargetAnchor.offset });
-          return;
-        }
-        if (linkLineSnap) {
-          commitToTarget({ kind: 'link', linkId: linkLineSnap.linkId, t: linkLineSnap.t });
-          return;
-        }
+        if (tryCommitFromSnap()) return;
         resetLinkState();
         setTool('select');
         return;
       }
       clearSelection();
     },
-    [activeTool, placingLiaison, stageX, stageY, stageScale, addNode, clearSelection, setTool, linkSnapTarget, linkTargetAnchor, linkLineSnap, commitToTarget, resetLinkState]
+    [activeTool, placingLiaison, stageX, stageY, stageScale, addNode, clearSelection, setTool, tryCommitFromSnap, resetLinkState]
   );
 
-  // Click on a node body. In link mode, the hover handler has already aligned
-  // the tracked snap with the cursor, so we just consume it.
+  // Click on a node body. In link mode the snap state — set by the hover
+  // handler — is the source of truth; commit to it regardless of which node
+  // was actually under the cursor.
   const handleNodeClick = useCallback(
     (nodeId: string) => {
       if (activeTool !== 'link') {
         select(nodeId);
         return;
       }
-      if (linkSnapTarget === nodeId && linkTargetAnchor) {
-        if (!linkSourceId) {
-          commitToTarget({ kind: 'start', nodeId, anchorIdx: linkTargetAnchor.idx, offset: linkTargetAnchor.offset });
-        } else {
-          commitToTarget({ kind: 'node', nodeId, anchorIdx: linkTargetAnchor.idx, offset: linkTargetAnchor.offset });
-        }
-      }
+      tryCommitFromSnap();
     },
-    [activeTool, linkSnapTarget, linkTargetAnchor, linkSourceId, commitToTarget, select]
+    [activeTool, tryCommitFromSnap, select]
   );
 
-  // Click on a link line with the world position — compute t and commit.
+  // Click on a link line. In link mode, prefer the active snap (it may point
+  // at a node anchor that won the snap fight against this link line); else
+  // project the click onto the link to start or finish the new link there.
   const handleLinkLineClick = useCallback(
     (clickedLinkId: string, worldPos: { x: number; y: number }) => {
-      if (activeTool === 'link' && (linkSourceId || reanchoring)) {
-        const path = resolvedPaths.get(clickedLinkId);
-        if (path && path.length >= 2) {
-          const proj = projectOntoPolyline(path, worldPos);
-          commitToTarget({ kind: 'link', linkId: clickedLinkId, t: proj.t });
-        } else {
-          commitToTarget({ kind: 'link', linkId: clickedLinkId, t: 0.5 });
-        }
+      if (activeTool !== 'link') {
+        select(clickedLinkId);
         return;
       }
-      select(clickedLinkId);
+      if (tryCommitFromSnap()) return;
+      const path = resolvedPaths.get(clickedLinkId);
+      const t = (path && path.length >= 2) ? projectOntoPolyline(path, worldPos).t : 0.5;
+      if (!hasLinkSource && !reanchoring) {
+        commitToTarget({ kind: 'start-link', linkId: clickedLinkId, t });
+      } else {
+        commitToTarget({ kind: 'link', linkId: clickedLinkId, t });
+      }
     },
-    [activeTool, linkSourceId, reanchoring, commitToTarget, select]
+    [activeTool, hasLinkSource, reanchoring, resolvedPaths, tryCommitFromSnap, commitToTarget, select]
   );
 
   // Click directly on an anchor marker.
@@ -410,13 +439,13 @@ export function Canvas() {
     (nodeId: string, anchorIdx: number) => {
       if (activeTool !== 'link') return;
       const offset = linkTargetAnchor?.idx === anchorIdx ? linkTargetAnchor.offset : undefined;
-      if (!linkSourceId) {
+      if (!hasLinkSource) {
         commitToTarget({ kind: 'start', nodeId, anchorIdx, offset });
       } else {
         commitToTarget({ kind: 'node', nodeId, anchorIdx, offset });
       }
     },
-    [activeTool, linkTargetAnchor, linkSourceId, commitToTarget]
+    [activeTool, linkTargetAnchor, hasLinkSource, commitToTarget]
   );
 
   // Double-click to edit label
@@ -655,7 +684,7 @@ export function Canvas() {
           ? (reanchoring.end === 'from'
             ? storeState.links.get(reanchoring.linkId)?.toNodeId
             : storeState.links.get(reanchoring.linkId)?.fromNodeId)
-          : linkSourceId;
+          : linkSourceNodeId;
         const nearest = findNearestNode(
           storeState.nodes,
           { x: worldX, y: worldY },
@@ -664,32 +693,29 @@ export function Canvas() {
           getLiaisonBounds
         );
 
-        // Also check proximity to link lines (for T-junction). Runs
-        // alongside node detection — the link line wins if the cursor is
-        // very close to it (< LINK_LINE_SNAP_DIST).
-        // Check proximity to link lines using RESOLVED anchor positions
-        // (not node centers) so the snap zone matches the visible link.
-        const LINK_LINE_SNAP_DIST = 15;
+        // Also check proximity to link lines (for T-junction or link-as-source).
+        // Always runs in link mode so the user can start a link from a link
+        // line, not just end at one. Excludes the link being reanchored AND
+        // the link already chosen as source (no self-link).
         let bestLinkSnap: { linkId: string; t: number; pos: { x: number; y: number }; dist: number } | null = null;
-        if (linkSourceId || reanchoring) {
-          const excludeLinkId = reanchoring?.linkId;
-          for (const lk of storeState.links.values()) {
-            if (lk.id === excludeLinkId) continue;
-            const path = resolvedPaths.get(lk.id);
-            if (!path || path.length < 2) continue;
-            const proj = projectOntoPolyline(path, { x: worldX, y: worldY });
-            if (proj.dist < LINK_LINE_SNAP_DIST && (!bestLinkSnap || proj.dist < bestLinkSnap.dist)) {
-              bestLinkSnap = { linkId: lk.id, t: proj.t, pos: proj.pos, dist: proj.dist };
-            }
+        const excludeLinkId = reanchoring?.linkId ?? linkSourceLine?.linkId;
+        for (const lk of storeState.links.values()) {
+          if (lk.id === excludeLinkId) continue;
+          const path = resolvedPaths.get(lk.id);
+          if (!path || path.length < 2) continue;
+          const proj = projectOntoPolyline(path, { x: worldX, y: worldY });
+          if (proj.dist < LINK_LINE_SNAP_DIST && (!bestLinkSnap || proj.dist < bestLinkSnap.dist)) {
+            bestLinkSnap = { linkId: lk.id, t: proj.t, pos: proj.pos, dist: proj.dist };
           }
         }
 
         // Decide: link line snap wins if very close, otherwise node snap wins
-        const useLinkSnap = bestLinkSnap && (!nearest || bestLinkSnap.dist < 10);
+        const useLinkSnap = bestLinkSnap && (!nearest || bestLinkSnap.dist < LINK_LINE_OVER_NODE_DIST);
+        const followCursor = hasLinkSource || reanchoring;
 
         if (useLinkSnap && bestLinkSnap) {
-          // Snap to link line (T-junction preview)
-          if (linkSourceId || reanchoring) setMousePos(bestLinkSnap.pos);
+          // Snap to link line (T-junction preview, or link-as-source preview)
+          if (followCursor) setMousePos(bestLinkSnap.pos);
           setSnapPointPos(bestLinkSnap.pos);
           setLinkLineSnap({ linkId: bestLinkSnap.linkId, t: bestLinkSnap.t, pos: bestLinkSnap.pos });
           setLinkSnapTarget(null);
@@ -697,7 +723,6 @@ export function Canvas() {
           setLinkHoverNodeId(null);
         } else if (nearest) {
           const picked = pickNearestAnchor(nearest.node, { x: worldX, y: worldY });
-          const followCursor = linkSourceId || reanchoring;
           if (picked) {
             if (followCursor) setMousePos(picked.pos);
             setLinkTargetAnchor({ idx: picked.idx, offset: picked.offset });
@@ -711,7 +736,7 @@ export function Canvas() {
           setLinkHoverNodeId(nearest.node.id);
           setLinkLineSnap(null);
         } else {
-          if (linkSourceId || reanchoring) setMousePos({ x: worldX, y: worldY });
+          if (followCursor) setMousePos({ x: worldX, y: worldY });
           setLinkSnapTarget(null);
           setLinkTargetAnchor(null);
           setSnapPointPos(null);
@@ -726,7 +751,7 @@ export function Canvas() {
         setSelectionRect({ ...selectionRect, x2: worldX, y2: worldY });
       }
     },
-    [activeTool, linkSourceId, reanchoring, stageX, stageY, stageScale, selectionRect, setStagePosition, rotateNode, resolvedPaths]
+    [activeTool, linkSourceNodeId, linkSourceLine, hasLinkSource, reanchoring, stageX, stageY, stageScale, selectionRect, setStagePosition, rotateNode, resolvedPaths]
   );
 
   // Mouse down: panning or selection rect
@@ -782,14 +807,10 @@ export function Canvas() {
         return;
       }
 
-      // End re-anchoring (drag release) — uses commitToTarget which handles
-      // both node and link targets uniformly.
+      // End re-anchoring (drag release) — same snap-driven commit as the
+      // link-tool clicks: the snap dot is what the user sees, so we honor it.
       if (reanchoring) {
-        if (linkSnapTarget && linkTargetAnchor) {
-          commitToTarget({ kind: 'node', nodeId: linkSnapTarget, anchorIdx: linkTargetAnchor.idx, offset: linkTargetAnchor.offset });
-        } else if (linkLineSnap) {
-          commitToTarget({ kind: 'link', linkId: linkLineSnap.linkId, t: linkLineSnap.t });
-        } else {
+        if (!tryCommitFromSnap()) {
           // No target — cancel reanchor
           setReanchoring(null);
           setMousePos(null);
@@ -833,7 +854,7 @@ export function Canvas() {
 
       setSelectionRect(null);
     },
-    [selectionRect, reanchoring, linkSnapTarget, linkTargetAnchor, linkLineSnap, nodes, selectMultiple, commitToTarget]
+    [selectionRect, reanchoring, nodes, selectMultiple, tryCommitFromSnap]
   );
 
   // Start rotation from handle
@@ -893,7 +914,9 @@ export function Canvas() {
   // Shared helper to render a set of links as LinkRenderer elements.
   // Used by both Pass 2 (behind links) and Pass 4 (front links).
   const defaultMapping = { a: null, b: null } as const;
-  const linkLineClickEnabled = activeTool === 'link' && linkSourceId;
+  // In link mode, every link line is clickable: it can be the source of a new
+  // link, the target of a T-junction, or a reanchor target.
+  const linkLineClickEnabled = activeTool === 'link';
   const renderLinkPass = (filter: (l: Link) => boolean) =>
     Array.from(links.values()).filter(filter).map((link) => {
       if (reanchoring && reanchoring.linkId === link.id) return null;
@@ -1056,11 +1079,17 @@ export function Canvas() {
           })}
 
           {/* Ghost line — shared for creation (dashed blue) and reanchor (solid, link color) */}
-          {linkSourceId && mousePos && !reanchoring && (() => {
-            const sourceNode = nodes.get(linkSourceId);
+          {linkSourceNodeId && mousePos && !reanchoring && (() => {
+            const sourceNode = nodes.get(linkSourceNodeId);
             if (!sourceNode) return null;
             const fixedPos = getBestAnchor(sourceNode, mousePos, useDiagramStore.getState().activeSolideId,
-              nodeSolideMapping.get(linkSourceId) || defaultMapping, linkSourceAnchor?.idx, linkSourceAnchor?.offset);
+              nodeSolideMapping.get(linkSourceNodeId) || defaultMapping, linkSourceAnchor?.idx, linkSourceAnchor?.offset);
+            return <GhostLine mousePos={mousePos} fixedPos={fixedPos} mouseSide="to" color="#2563eb" strokeWidth={2} dashed opacity={0.6} />;
+          })()}
+          {linkSourceLine && mousePos && !reanchoring && (() => {
+            const path = resolvedPaths.get(linkSourceLine.linkId);
+            if (!path || path.length < 2) return null;
+            const fixedPos = pointOnPolyline(path, linkSourceLine.t);
             return <GhostLine mousePos={mousePos} fixedPos={fixedPos} mouseSide="to" color="#2563eb" strokeWidth={2} dashed opacity={0.6} />;
           })()}
           {reanchoring && mousePos && (() => {

@@ -68,7 +68,8 @@ export function ShapeRenderer3D({
   highlightedAnchorIdx,
 }: ShapeRenderer3DProps) {
   const groupRef = useRef<THREE.Group>(null);
-  const linkSourceId = useDiagramStore((s) => s.linkSourceId);
+  const linkSource = useDiagramStore((s) => s.linkSource);
+  const linkSourceId = linkSource?.kind === 'node' ? linkSource.nodeId : null;
   const anchors = getAnchors3D(node.type, node.view);
 
   useEffect(() => {
