@@ -34,6 +34,12 @@ export type LinkRoutingMode = 'direct' | 'ortho' | 'ortho-persp';
 export type LinkTarget =
   | { kind: 'node'; nodeId: string; anchorIdx?: number; anchorOffset?: AnchorOffset }
   | { kind: 'link'; linkId: string; t: number };
+
+/** Source side of an in-progress new link. Mirrors LinkTarget but tracks only
+ * the identity — anchor metadata for the node case is held in Canvas-local state. */
+export type LinkSource =
+  | { kind: 'node'; nodeId: string }
+  | { kind: 'link'; linkId: string; t: number };
 export type LinkLineStyle = 'solid' | 'dashed' | 'dotted';
 export type ArrowMarker = 'none' | 'triangle' | 'chevron';
 
@@ -127,7 +133,7 @@ export interface DiagramState extends DiagramData {
   selectedIds: Set<string>;
   activeTool: ToolType;
   placingLiaison: { type: LiaisonType; view: LiaisonView } | null;
-  linkSourceId: string | null;
+  linkSource: LinkSource | null;
   activeSolideId: string | null;
   selectedMidpoint: { linkId: string; index: number } | null;
 
@@ -196,7 +202,7 @@ export interface DiagramState extends DiagramData {
   // Tools
   setTool: (tool: ToolType) => void;
   setPlacingLiaison: (info: { type: LiaisonType; view: LiaisonView } | null) => void;
-  setLinkSource: (id: string | null) => void;
+  setLinkSource: (source: LinkSource | null) => void;
 
   // Canvas
   setStagePosition: (x: number, y: number) => void;

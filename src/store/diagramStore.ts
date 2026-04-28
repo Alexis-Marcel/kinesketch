@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { temporal } from 'zundo';
-import type { AnchorOffset, AngleArc, ArrowMarker, DiagramDimension, DiagramNode, DiagramState, LiaisonType, LiaisonView, Link, LinkLineStyle, LinkRoutingMode, LinkTarget, Solide, ToolType } from '../types';
+import type { AnchorOffset, AngleArc, ArrowMarker, DiagramDimension, DiagramNode, DiagramState, LiaisonType, LiaisonView, Link, LinkLineStyle, LinkRoutingMode, LinkSource, LinkTarget, Solide, ToolType } from '../types';
 
 export const SOLIDE_COLORS = [
   '#6b7280', // S0 bâti — gris
@@ -62,7 +62,7 @@ export const useDiagramStore = create<DiagramState>()(
       selectedIds: new Set<string>(),
       activeTool: 'select' as ToolType,
       placingLiaison: null,
-      linkSourceId: null,
+      linkSource: null,
       activeSolideId: 's0',
       selectedMidpoint: null,
       stageX: 0,
@@ -531,15 +531,15 @@ export const useDiagramStore = create<DiagramState>()(
       },
 
       setTool: (tool: ToolType) => {
-        set({ activeTool: tool, placingLiaison: null, linkSourceId: null });
+        set({ activeTool: tool, placingLiaison: null, linkSource: null });
       },
 
       setPlacingLiaison: (info: { type: LiaisonType; view: LiaisonView } | null) => {
         set({ placingLiaison: info, activeTool: info ? 'place' : 'select' });
       },
 
-      setLinkSource: (id: string | null) => {
-        set({ linkSourceId: id });
+      setLinkSource: (source: LinkSource | null) => {
+        set({ linkSource: source });
       },
 
       setStagePosition: (x: number, y: number) => {
@@ -600,7 +600,7 @@ export const useDiagramStore = create<DiagramState>()(
           selectedMidpoint: null,
           activeTool: 'select',
           placingLiaison: null,
-          linkSourceId: null,
+          linkSource: null,
           activeSolideId: 's0',
         });
         let maxId = 0;
@@ -637,7 +637,7 @@ export const useDiagramStore = create<DiagramState>()(
           selectedMidpoint: null,
           activeTool: 'select',
           placingLiaison: null,
-          linkSourceId: null,
+          linkSource: null,
           activeSolideId: 's0',
         });
         nextId = 1;

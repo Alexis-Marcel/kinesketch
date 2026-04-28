@@ -478,7 +478,7 @@ function distanceToAnchorShape(
 }
 
 /** Within this distance (px, world coords), a point anchor wins over any shape anchor. */
-const POINT_ANCHOR_PRIORITY_RADIUS = 30;
+const POINT_ANCHOR_PRIORITY_RADIUS = 8;
 
 /**
  * Pick the index of the anchor closest to `target` among `anchors`. Point

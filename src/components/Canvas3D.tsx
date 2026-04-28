@@ -179,7 +179,9 @@ function Scene() {
   const solides = useDiagramStore((s) => s.solides);
   const selectedIds = useDiagramStore((s) => s.selectedIds);
   const activeTool = useDiagramStore((s) => s.activeTool);
-  const linkSourceId = useDiagramStore((s) => s.linkSourceId);
+  const linkSource = useDiagramStore((s) => s.linkSource);
+  // 3D only supports node-as-source (no link-line source).
+  const linkSourceId = linkSource?.kind === 'node' ? linkSource.nodeId : null;
   const center = useSceneCenter();
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const pointerDownPos = useRef<{ x: number; y: number } | null>(null);
@@ -289,11 +291,12 @@ function Scene() {
       } else if (state.activeTool === 'link') {
         // If snapped to a target anchor, complete/start the link
         if (linkSnapTarget && linkTargetAnchorIdx !== undefined) {
-          if (!state.linkSourceId) {
-            state.setLinkSource(linkSnapTarget);
+          const sourceNodeId = state.linkSource?.kind === 'node' ? state.linkSource.nodeId : null;
+          if (!sourceNodeId) {
+            state.setLinkSource({ kind: 'node', nodeId: linkSnapTarget });
             setSourceAnchorIdx(linkTargetAnchorIdx);
-          } else if (state.linkSourceId !== linkSnapTarget) {
-            state.addLink({ kind: 'node', nodeId: state.linkSourceId, anchorIdx: sourceAnchorIdx }, { kind: 'node', nodeId: linkSnapTarget, anchorIdx: linkTargetAnchorIdx });
+          } else if (sourceNodeId !== linkSnapTarget) {
+            state.addLink({ kind: 'node', nodeId: sourceNodeId, anchorIdx: sourceAnchorIdx }, { kind: 'node', nodeId: linkSnapTarget, anchorIdx: linkTargetAnchorIdx });
             state.setLinkSource(null);
             setSourceAnchorIdx(undefined);
             setLinkSnapTarget(null);
@@ -317,11 +320,12 @@ function Scene() {
     (nodeId: string, anchorIdx: number) => {
       const state = store.getState();
       if (state.activeTool !== 'link') return;
-      if (!state.linkSourceId) {
-        state.setLinkSource(nodeId);
+      const sourceNodeId = state.linkSource?.kind === 'node' ? state.linkSource.nodeId : null;
+      if (!sourceNodeId) {
+        state.setLinkSource({ kind: 'node', nodeId: nodeId });
         setSourceAnchorIdx(anchorIdx);
-      } else if (state.linkSourceId !== nodeId) {
-        state.addLink({ kind: 'node', nodeId: state.linkSourceId, anchorIdx: sourceAnchorIdx }, { kind: 'node', nodeId: nodeId, anchorIdx: anchorIdx });
+      } else if (sourceNodeId !== nodeId) {
+        state.addLink({ kind: 'node', nodeId: sourceNodeId, anchorIdx: sourceAnchorIdx }, { kind: 'node', nodeId: nodeId, anchorIdx: anchorIdx });
         state.setLinkSource(null);
         setSourceAnchorIdx(undefined);
         setMousePos3D(null);
