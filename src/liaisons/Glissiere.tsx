@@ -30,9 +30,10 @@ export function Glissiere(props: LiaisonComponentProps) {
         // parallélogramme dont le coin bas-droite (fbr) est le point le plus
         // bas de la figure. Une croix sur la face du dessus marque la
         // section. dx = halfW : ça fait coïncider fbr, yj et btl sur la
-        // verticale x=0, donc l'axe (B) vertical s'aligne avec une diagonale
-        // de la croix (yj→btl) et continue à travers l'arête droite de la
-        // face avant (yj→fbr) jusqu'à fbr.
+        // verticale x=0, donc une diagonale de la croix (btl→yj) et l'arête
+        // droite de la face avant (yj→fbr) sont colinéaires avec l'axe.
+        // Le pavé occulte l'intérieur de l'axe : seuls les stubs hors du
+        // pavé sont tracés en couleur B ; la silhouette reste entièrement A.
         const halfW = 10;
         const halfH = 24;
         const dx = 10;   // = halfW pour aligner l'axe avec la croix
@@ -53,31 +54,27 @@ export function Glissiere(props: LiaisonComponentProps) {
         const ftl = project(-1, -1, -1);
         const yj = project(+1, -1, -1); // front-top-right = visible Y junction
 
+        const silhouette = [fbr.x, fbr.y, fbl.x, fbl.y, ftl.x, ftl.y, btl.x, btl.y, btr.x, btr.y, bbr.x, bbr.y];
+        const crossCenterY = (btl.y + yj.y) / 2;
         return (
           <>
-            {/* Silhouette hexagonale (fill blanc) */}
-            <Line
-              points={[fbr.x, fbr.y, fbl.x, fbl.y, ftl.x, ftl.y, btl.x, btl.y, btr.x, btr.y, bbr.x, bbr.y]}
-              closed
-              fill="white"
-              stroke={colorA}
-              strokeWidth={strokeWidth}
-              lineJoin="miter"
-            />
-            {/* 2 arêtes intérieures depuis le Y junction (la 3e, yj→fbr,
-                est confondue avec l'axe vertical et n'est pas dessinée séparément) */}
+            {/* Remplissage blanc de la silhouette */}
+            <Line points={silhouette} closed fill="white" />
+            {/* Stub bas de l'axe (B) — tracé avant la silhouette pour que
+                colorA reste propre au coin fbr */}
+            <Line points={[0, fbr.y, 0, axisHalf]} stroke={colorB} strokeWidth={strokeWidth} lineCap="round" />
+            {/* Croix (B) sur la face du dessus — deux diagonales */}
+            <Line points={[ftl.x, ftl.y, btr.x, btr.y]} stroke={colorB} strokeWidth={strokeWidth} lineCap="round" />
+            <Line points={[btl.x, btl.y, yj.x, yj.y]} stroke={colorB} strokeWidth={strokeWidth} lineCap="round" />
+            {/* Arêtes A tracées après B : les coins de la silhouette restent
+                en colorA même si les lineCap des lignes B débordent un peu */}
             <Line points={[yj.x, yj.y, ftl.x, ftl.y]} stroke={colorA} strokeWidth={strokeWidth} lineCap="round" />
             <Line points={[yj.x, yj.y, btr.x, btr.y]} stroke={colorA} strokeWidth={strokeWidth} lineCap="round" />
-            {/* Diagonale slanted de la croix (l'autre diagonale, yj→btl, est
-                confondue avec l'axe — voir ci-dessous). Tracée après la
-                silhouette pour rester visible sur le fill. */}
-            <Line points={[ftl.x, ftl.y, btr.x, btr.y]} stroke={colorB} strokeWidth={strokeWidth} lineCap="round" />
-            {/* Axe (B) — verticale unique à x=0 qui couvre :
-                  - y < btl.y : stub au-dessus
-                  - btl.y → yj.y : diagonale verticale de la croix
-                  - yj.y → fbr.y : arête droite de la face avant
-                  - y > fbr.y : stub en dessous */}
-            <Line points={[0, -axisHalf, 0, axisHalf]} stroke={colorB} strokeWidth={strokeWidth} lineCap="round" />
+            <Line points={[yj.x, yj.y, fbr.x, fbr.y]} stroke={colorA} strokeWidth={strokeWidth} lineCap="round" />
+            <Line points={silhouette} closed stroke={colorA} strokeWidth={strokeWidth} lineJoin="miter" />
+            {/* Axe (B) — du début jusqu'au centre de la croix, par-dessus la
+                silhouette pour rester visible en traversant le coin btl */}
+            <Line points={[0, -axisHalf, 0, crossCenterY]} stroke={colorB} strokeWidth={strokeWidth} lineCap="round" />
           </>
         );
       })()}
