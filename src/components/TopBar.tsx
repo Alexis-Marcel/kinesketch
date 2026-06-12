@@ -16,6 +16,8 @@ interface TopBarProps {
 
 export function TopBar({ onZoomFit }: TopBarProps) {
   const clearDiagram = useDiagramStore((s) => s.clearDiagram);
+  const dimension = useDiagramStore((s) => s.dimension);
+  const setDimension = useDiagramStore((s) => s.setDimension);
   const [pngDialogOpen, setPngDialogOpen] = useState(false);
   const [pngOptions, setPngOptions] = useState<PNGExportOptions>({
     includeGrid: false,
@@ -90,7 +92,6 @@ export function TopBar({ onZoomFit }: TopBarProps) {
         <button className="topbar-btn" onClick={onZoomFit} title="Zoom pour tout voir (F)">
           Cadrer
         </button>
-        {/* 2D/3D toggle hidden for now — to be re-enabled later
         <div className="topbar-separator" />
         <div className="dimension-toggle">
           <button
@@ -113,7 +114,6 @@ export function TopBar({ onZoomFit }: TopBarProps) {
             3D
           </button>
         </div>
-        */}
       </div>
 
       {/* Auth / User menu */}
