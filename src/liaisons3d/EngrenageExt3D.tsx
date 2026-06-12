@@ -1,30 +1,22 @@
 'use client';
 
+import type { Liaison3DProps } from './shared';
+import { CylinderPalier } from './primitives';
 
-import { LiaisonEdges, type Liaison3DProps } from './shared';
+const R1 = 1.0;
+const R2 = 1.5;
+const THICKNESS = 0.6;
 
-/**
- * Engrenage extérieur — deux roues dentées (cylindres) en contact extérieur.
- */
+/** Engrenage extérieur — deux roues dentées (cylindres minces) en contact externe. */
 export function EngrenageExt3D({ colorA, colorB }: Liaison3DProps) {
-  const r1 = 1.0;
-  const r2 = 1.5;
-  const thickness = 0.6;
-
   return (
     <group>
-      {/* Roue A */}
-      <mesh position={[0, r1, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[r1, r1, thickness, 24, 1]} />
-        <meshBasicMaterial color="white" />
-        <LiaisonEdges color={colorA} />
-      </mesh>
-      {/* Roue B */}
-      <mesh position={[0, -r2, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[r2, r2, thickness, 24, 1]} />
-        <meshBasicMaterial color="white" />
-        <LiaisonEdges color={colorB} />
-      </mesh>
+      <group position={[0, R1, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <CylinderPalier radius={R1} halfHeight={THICKNESS / 2} color={colorA} />
+      </group>
+      <group position={[0, -R2, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <CylinderPalier radius={R2} halfHeight={THICKNESS / 2} color={colorB} />
+      </group>
     </group>
   );
 }

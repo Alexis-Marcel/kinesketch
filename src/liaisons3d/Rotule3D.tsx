@@ -1,12 +1,14 @@
 'use client';
 
-import { RotuleBall, RotuleSocket } from './shared';
+import type { Liaison3DProps } from './shared';
+import { ROTULE_BALL_R, RotuleSocket, SphereWithSilhouette } from './primitives';
 
-export function Rotule3D() {
+/** Rotule (sphérique) — bille pleine cradlée par une coupelle ouverte. */
+export function Rotule3D({ colorA, colorB }: Liaison3DProps) {
   return (
     <group>
-      <RotuleSocket />
-      <RotuleBall />
+      <RotuleSocket color={colorB} />
+      <SphereWithSilhouette radius={ROTULE_BALL_R} color={colorA} />
     </group>
   );
 }

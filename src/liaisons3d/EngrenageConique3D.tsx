@@ -1,29 +1,24 @@
 'use client';
 
+import type { Liaison3DProps } from './shared';
+import { ConePalier } from './primitives';
 
-import { LiaisonEdges, type Liaison3DProps } from './shared';
+const R = 1.2;
+const H = 1.5;
 
 /**
- * Engrenage conique — deux cônes dont les axes sont perpendiculaires, sommets en contact.
+ * Engrenage conique — deux cônes dont les axes sont perpendiculaires, bases
+ * coïncidentes à l'origine, apex pointant vers +Y et +X.
  */
 export function EngrenageConique3D({ colorA, colorB }: Liaison3DProps) {
-  const r = 1.2;
-  const h = 1.5;
-
   return (
     <group>
-      {/* Cône A — axe vertical, pointe vers le bas */}
-      <mesh position={[0, h / 2, 0]}>
-        <coneGeometry args={[r, h, 32, 1]} />
-        <meshBasicMaterial color="white" />
-        <LiaisonEdges color={colorA} />
-      </mesh>
-      {/* Cône B — axe horizontal, pointe vers la gauche */}
-      <mesh position={[h / 2, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
-        <coneGeometry args={[r, h, 32, 1]} />
-        <meshBasicMaterial color="white" />
-        <LiaisonEdges color={colorB} />
-      </mesh>
+      <group position={[0, H / 2, 0]}>
+        <ConePalier radius={R} height={H} color={colorA} />
+      </group>
+      <group position={[H / 2, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
+        <ConePalier radius={R} height={H} color={colorB} />
+      </group>
     </group>
   );
 }
