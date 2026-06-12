@@ -275,7 +275,9 @@ export function Canvas() {
         setStageScale(newScale);
         setStagePosition(newPos.x, newPos.y);
       } else {
-        // Two-finger scroll on trackpad or mouse wheel without Ctrl = pan
+        // Two-finger scroll on trackpad or mouse wheel without Ctrl = pan.
+        // Respects OS natural-scrolling: swipe = scroll direction, content
+        // moves opposite. With macOS natural scrolling on, gives natural pan.
         setStagePosition(stageX - e.evt.deltaX, stageY - e.evt.deltaY);
       }
     },

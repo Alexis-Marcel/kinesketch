@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, type ComponentType } from 'react';
+import { useRef, type ComponentType } from 'react';
 import { type ThreeEvent } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
@@ -71,15 +71,6 @@ export function ShapeRenderer3D({
   const linkSource = useDiagramStore((s) => s.linkSource);
   const linkSourceId = linkSource?.kind === 'node' ? linkSource.nodeId : null;
   const anchors = getAnchors3D(node.type, node.view);
-
-  useEffect(() => {
-    if (!groupRef.current) return;
-    groupRef.current.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        child.layers.enable(1);
-      }
-    });
-  });
 
   const Component = LIAISON_3D_COMPONENTS[node.type];
   const liaisonProps: Liaison3DProps = { colorA, colorB, view: node.view };

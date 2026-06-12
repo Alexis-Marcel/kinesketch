@@ -8,7 +8,6 @@ import * as THREE from 'three';
 import { useDiagramStore } from '../store/diagramStore';
 import { ShapeRenderer3D } from './ShapeRenderer3D';
 import { LinkRenderer3D } from './LinkRenderer3D';
-import { EdgeOutlineComposer } from './EdgeOutlineEffect';
 import { snap } from '../utils/snap';
 import { getAnchors3D, anchor3DToWorld } from '../utils/anchors3d';
 
@@ -134,8 +133,13 @@ function CameraControls({ controlsRef }: { controlsRef: React.RefObject<OrbitCon
         right.cross(up).normalize();
         const camUp = new THREE.Vector3().crossVectors(right, new THREE.Vector3().subVectors(cam.position, ctrl.target).normalize()).normalize();
 
+        // Sign convention aligned with Canvas2D: respects OS natural-scrolling.
+        // Camera moves in deltaX direction → content appears to shift opposite.
+        // Note: `camUp` here is computed as right × (cam.pos - target), which
+        // equals -up_real (since cam.pos - target is the reverse of forward),
+        // so we use +deltaY (the double sign-flip cancels out).
         const offset = new THREE.Vector3()
-          .addScaledVector(right, -e.deltaX * panScale)
+          .addScaledVector(right, e.deltaX * panScale)
           .addScaledVector(camUp, e.deltaY * panScale);
 
         cam.position.add(offset);
@@ -521,10 +525,6 @@ function Scene() {
         />
       )}
 
-      {/* Sobel edge detection — silhouettes view-dependent on toutes les meshes du layer 1 */}
-      <EdgeOutlineComposer>
-        <></>
-      </EdgeOutlineComposer>
     </>
   );
 }
